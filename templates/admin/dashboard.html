@@ -1,0 +1,548 @@
+{% extends "admin/base_admin.html" %}
+{% load static %}
+
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block page_icon %}tachometer-alt{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Welcome Section */
+    .welcome-section {
+        background: linear-gradient(135deg, #FF69B4 0%, #D4AF37 100%);
+        border-radius: 25px;
+        padding: 30px;
+        margin-bottom: 30px;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .welcome-section::before {
+        content: '🎂';
+        position: absolute;
+        right: 20px;
+        bottom: 20px;
+        font-size: 100px;
+        opacity: 0.1;
+        pointer-events: none;
+    }
+    
+    .welcome-section h2 {
+        color: white;
+        margin-bottom: 10px;
+        font-size: 1.8rem;
+    }
+    
+    .welcome-section p {
+        margin-bottom: 0;
+        opacity: 0.95;
+    }
+    
+    .welcome-date {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+    
+    /* Stats Grid Enhanced */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 25px;
+        margin-bottom: 40px;
+    }
+    
+    .stat-card {
+        background: white;
+        border-radius: 20px;
+        padding: 0;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        border: none;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 15px 30px rgba(255,105,180,0.2);
+    }
+    
+    .stat-card-inner {
+        padding: 25px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+    
+    .stat-icon-wrapper {
+        width: 65px;
+        height: 65px;
+        background: linear-gradient(135deg, rgba(255,105,180,0.1), rgba(212,175,55,0.1));
+        border-radius: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+    }
+    
+    .stat-card:hover .stat-icon-wrapper {
+        transform: scale(1.05);
+    }
+    
+    .stat-icon-wrapper i {
+        font-size: 2rem;
+        background: linear-gradient(135deg, #FF69B4, #D4AF37);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    
+    .stat-info {
+        flex: 1;
+    }
+    
+    .stat-info h3 {
+        font-size: 0.85rem;
+        color: #6c757d;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 600;
+    }
+    
+    .stat-number {
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: #2d3436;
+        margin-bottom: 5px;
+        line-height: 1;
+    }
+    
+    .stat-change {
+        font-size: 0.75rem;
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 20px;
+        background: #e8f5e9;
+        color: #2e7d32;
+    }
+    
+    .stat-change.negative {
+        background: #ffebee;
+        color: #c62828;
+    }
+    
+    .stat-change i {
+        margin-right: 4px;
+    }
+    
+    /* Quick Actions */
+    .quick-actions {
+        background: white;
+        border-radius: 20px;
+        padding: 25px;
+        margin-bottom: 30px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    }
+    
+    .quick-actions h3 {
+        margin-bottom: 20px;
+        color: #2d3436;
+        font-size: 1.2rem;
+    }
+    
+    .quick-actions h3 i {
+        background: linear-gradient(135deg, #FF69B4, #D4AF37);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-right: 10px;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+    
+    .action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 20px;
+        background: linear-gradient(135deg, #FF69B4, #D4AF37);
+        color: white;
+        border-radius: 50px;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        font-weight: 500;
+    }
+    
+    .action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(255,105,180,0.3);
+        color: white;
+    }
+    
+    .action-btn.outline {
+        background: transparent;
+        border: 2px solid #FF69B4;
+        color: #FF69B4;
+    }
+    
+    .action-btn.outline:hover {
+        background: linear-gradient(135deg, #FF69B4, #D4AF37);
+        color: white;
+    }
+    
+    /* Module Cards Enhanced */
+    .module-card {
+        background: white;
+        border-radius: 20px;
+        overflow: hidden;
+        margin-bottom: 30px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        border: none;
+        transition: all 0.3s ease;
+    }
+    
+    .module-card:hover {
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    }
+    
+    .module-header {
+        padding: 20px 25px;
+        border-bottom: 2px solid #FFE4EC;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: white;
+    }
+    
+    .module-header h2 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #2d3436;
+        margin: 0;
+    }
+    
+    .module-header h2 i {
+        background: linear-gradient(135deg, #FF69B4, #D4AF37);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-right: 10px;
+    }
+    
+    .view-all-link {
+        color: #FF69B4;
+        text-decoration: none;
+        font-size: 0.85rem;
+        transition: all 0.3s ease;
+    }
+    
+    .view-all-link:hover {
+        color: #D4AF37;
+        transform: translateX(3px);
+    }
+    
+    /* Table Styling */
+    .module-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .module-table th {
+        background: #FFF5F8;
+        padding: 15px 20px;
+        text-align: left;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #DB2777;
+        border-bottom: 1px solid #FCE4EC;
+    }
+    
+    .module-table td {
+        padding: 15px 20px;
+        border-bottom: 1px solid #f0f0f0;
+        color: #495057;
+        font-size: 0.9rem;
+    }
+    
+    .module-table tr:hover td {
+        background: linear-gradient(135deg, #FFF5F8, #FFF8F0);
+    }
+    
+    /* Status Badges */
+    .status-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        font-weight: 500;
+    }
+    
+    .status-pending { background: #fff3e0; color: #ed6c02; }
+    .status-confirmed { background: #e3f2fd; color: #1976d2; }
+    .status-preparing { background: #fff3e0; color: #ed6c02; }
+    .status-out_for_delivery { background: #e3f2fd; color: #1976d2; }
+    .status-delivered, .status-paid, .status-completed { background: #e8f5e9; color: #2e7d32; }
+    .status-cancelled { background: #ffebee; color: #c62828; }
+    
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+        color: #ddd;
+        margin-bottom: 15px;
+    }
+    
+    .empty-state p {
+        color: #999;
+        margin-bottom: 0;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .welcome-section {
+            padding: 20px;
+        }
+        
+        .welcome-section h2 {
+            font-size: 1.3rem;
+        }
+        
+        .stat-number {
+            font-size: 1.5rem;
+        }
+        
+        .module-header {
+            flex-direction: column;
+            gap: 10px;
+            text-align: center;
+        }
+        
+        .action-buttons {
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Welcome Section -->
+<div class="welcome-section">
+    <h2>
+        <i class="fas fa-cake-candles"></i> 
+        Welcome back, {{ request.user.get_full_name|default:request.user.username }}!
+    </h2>
+    <p>Here's what's happening with your cakeshoppe today.</p>
+    <div class="welcome-date">
+        <i class="fas fa-calendar-alt"></i> 
+        {{ now|date:"l, F j, Y" }}
+    </div>
+</div>
+
+<!-- Stats Grid -->
+<div class="stats-grid">
+    <div class="stat-card" onclick="window.location.href='{% url 'admin_cakes' %}'">
+        <div class="stat-card-inner">
+            <div class="stat-icon-wrapper">
+                <i class="fas fa-birthday-cake"></i>
+            </div>
+            <div class="stat-info">
+                <h3>Total Cakes</h3>
+                <div class="stat-number">{{ total_cakes|default:"0" }}</div>
+                <div class="stat-change">
+                    <i class="fas fa-check-circle"></i> Active products
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="stat-card" onclick="window.location.href='{% url 'admin_cake_orders' %}'">
+        <div class="stat-card-inner">
+            <div class="stat-icon-wrapper">
+                <i class="fas fa-shopping-cart"></i>
+            </div>
+            <div class="stat-info">
+                <h3>Cake Orders</h3>
+                <div class="stat-number">{{ total_cake_orders|default:"0" }}</div>
+                <div class="stat-change">
+                    <i class="fas fa-chart-line"></i> Total orders
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="stat-card" onclick="window.location.href='{% url 'admin_packages' %}'">
+        <div class="stat-card-inner">
+            <div class="stat-icon-wrapper">
+                <i class="fas fa-gift"></i>
+            </div>
+            <div class="stat-info">
+                <h3>Packages</h3>
+                <div class="stat-number">{{ total_packages|default:"0" }}</div>
+                <div class="stat-change">
+                    <i class="fas fa-check-circle"></i> Active packages
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="stat-card" onclick="window.location.href='{% url 'admin_package_orders' %}'">
+        <div class="stat-card-inner">
+            <div class="stat-icon-wrapper">
+                <i class="fas fa-calendar-check"></i>
+            </div>
+            <div class="stat-info">
+                <h3>Package Orders</h3>
+                <div class="stat-number">{{ total_package_orders|default:"0" }}</div>
+                <div class="stat-change">
+                    <i class="fas fa-chart-line"></i> Total orders
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="stat-card" onclick="window.location.href='{% url 'admin_payments' %}'">
+        <div class="stat-card-inner">
+            <div class="stat-icon-wrapper">
+                <i class="fas fa-clock"></i>
+            </div>
+            <div class="stat-info">
+                <h3>Pending Payments</h3>
+                <div class="stat-number">{{ pending_payments|default:"0" }}</div>
+                <div class="stat-change negative">
+                    <i class="fas fa-exclamation-circle"></i> Need attention
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="stat-card" onclick="window.location.href='{% url 'admin_users' %}'">
+        <div class="stat-card-inner">
+            <div class="stat-icon-wrapper">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-info">
+                <h3>Total Users</h3>
+                <div class="stat-number">{{ total_users|default:"0" }}</div>
+                <div class="stat-change">
+                    <i class="fas fa-user-plus"></i> Registered users
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="quick-actions">
+    <h3><i class="fas fa-bolt"></i> Quick Actions</h3>
+    <div class="action-buttons">
+        <a href="{% url 'admin_cake_add' %}" class="action-btn">
+            <i class="fas fa-plus"></i> Add New Cake
+        </a>
+        <a href="{% url 'admin_package_add' %}" class="action-btn">
+            <i class="fas fa-plus"></i> Add New Package
+        </a>
+        <a href="{% url 'admin_payments' %}" class="action-btn outline">
+            <i class="fas fa-credit-card"></i> Verify Payments
+        </a>
+        <a href="{% url 'admin_users' %}" class="action-btn outline">
+            <i class="fas fa-user-plus"></i> Manage Users
+        </a>
+    </div>
+</div>
+
+<!-- Recent Cake Orders -->
+<div class="module-card">
+    <div class="module-header">
+        <h2><i class="fas fa-shopping-cart"></i> Recent Cake Orders</h2>
+        <a href="{% url 'admin_cake_orders' %}" class="view-all-link">
+            View All <i class="fas fa-arrow-right"></i>
+        </a>
+    </div>
+    <div class="table-responsive">
+        <table class="module-table">
+            <thead>
+                <tr>
+                    <th>Order ID</th>
+                    <th>Customer</th>
+                    <th>Cake</th>
+                    <th>Total</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                 </thead>
+            <tbody>
+                {% for order in recent_cake_orders %}
+                 <tr>
+                     <td><strong>#{{ order.id }}</strong></td>
+                     <td>{{ order.user.username }}</td>
+                     <td>{{ order.cake.name|default:"Custom Cake" }}</td>
+                     <td><strong>₱{{ order.total_price }}</strong></td>
+                     <td><span class="status-badge status-{{ order.order_status }}">{{ order.get_order_status_display }}</span></td>
+                     <td>{{ order.created_at|date:"M d, Y" }}</td>
+                 </tr>
+                {% empty %}
+                 <tr>
+                    <td colspan="6" class="empty-state">
+                        <i class="fas fa-shopping-cart"></i>
+                        <p>No cake orders yet</p>
+                    </td>
+                 </tr>
+                {% endfor %}
+            </tbody>
+         </table>
+    </div>
+</div>
+
+<!-- Recent Package Orders -->
+<div class="module-card">
+    <div class="module-header">
+        <h2><i class="fas fa-calendar-check"></i> Recent Package Orders</h2>
+        <a href="{% url 'admin_package_orders' %}" class="view-all-link">
+            View All <i class="fas fa-arrow-right"></i>
+        </a>
+    </div>
+    <div class="table-responsive">
+        <table class="module-table">
+            <thead>
+                 <tr>
+                    <th>Order ID</th>
+                    <th>Customer</th>
+                    <th>Package</th>
+                    <th>Event Date</th>
+                    <th>Total</th>
+                    <th>Status</th>
+                 </tr>
+            </thead>
+            <tbody>
+                {% for order in recent_package_orders %}
+                 <tr>
+                     <td><strong>#{{ order.id }}</strong></td>
+                     <td>{{ order.user.username }}</td>
+                     <td>{{ order.package.name|default:"Custom Package" }}</td>
+                     <td>{{ order.event_date|date:"M d, Y" }}</td>
+                     <td><strong>₱{{ order.total_price }}</strong></td>
+                     <td><span class="status-badge status-{{ order.order_status }}">{{ order.get_order_status_display }}</span></td>
+                 </tr>
+                {% empty %}
+                 <tr>
+                    <td colspan="6" class="empty-state">
+                        <i class="fas fa-gift"></i>
+                        <p>No package orders yet</p>
+                    </td>
+                 </tr>
+                {% endfor %}
+            </tbody>
+         </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,286 @@
+{% extends 'hanilies/base.html' %}
+{% load static %}
+
+{% block title %}Register{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-gold-pink text-white text-center py-4">
+                    <i class="fas fa-user-plus fa-3x mb-3"></i>
+                    <h4 class="mb-0">Create Your Account</h4>
+                    <p class="mb-0 small">Join Hanilies Cakeshoppe today</p>
+                </div>
+                <div class="card-body p-5">
+                    <form method="POST" action="{% url 'register' %}" id="registerForm">
+                        {% csrf_token %}
+                        <div class="row">
+                            <div class="col-md-6 mb-4">
+                                <label class="form-label fw-bold">First Name</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light"><i class="fas fa-user text-gold-pink"></i></span>
+                                    <input type="text" class="form-control" name="firstname" placeholder="First name" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-4">
+                                <label class="form-label fw-bold">Last Name</label>
+                                <input type="text" class="form-control" name="lastname" placeholder="Last name" required>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Email</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light"><i class="fas fa-envelope text-gold-pink"></i></span>
+                                <input type="email" class="form-control" name="email" placeholder="Enter your email" required>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Username</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light"><i class="fas fa-user-circle text-gold-pink"></i></span>
+                                <input type="text" class="form-control" name="username" placeholder="Choose a username" required>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Password</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light"><i class="fas fa-lock text-gold-pink"></i></span>
+                                <input type="password" class="form-control" name="password" id="password" placeholder="Create a password" required>
+                            </div>
+                            <small class="text-muted">Password must be at least 8 characters</small>
+                            <div class="progress mt-2" style="height: 4px;">
+                                <div id="passwordStrength" class="progress-bar" style="width: 0%;"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Confirm Password</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light"><i class="fas fa-lock text-gold-pink"></i></span>
+                                <input type="password" class="form-control" name="confirm_password" id="confirm_password" placeholder="Confirm your password" required>
+                            </div>
+                            <div id="passwordError" class="text-danger small mt-1" style="display: none;">
+                                <i class="fas fa-exclamation-circle me-1"></i>Passwords do not match
+                            </div>
+                            <div id="passwordSuccess" class="text-success small mt-1" style="display: none;">
+                                <i class="fas fa-check-circle me-1"></i>Passwords match
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Phone Number</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light"><i class="fas fa-phone text-gold-pink"></i></span>
+                                <input type="tel" class="form-control" name="phone" id="phone" placeholder="09123456789" pattern="[0-9]{11}" maxlength="11" required>
+                            </div>
+                            <small class="text-muted">Enter 11-digit mobile number (e.g., 09123456789)</small>
+                            <div id="phoneError" class="text-danger small mt-1" style="display: none;">
+                                <i class="fas fa-exclamation-circle me-1"></i>Please enter a valid 11-digit phone number
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4 form-check">
+                            <input type="checkbox" class="form-check-input" id="terms" required>
+                            <label class="form-check-label" for="terms">
+                                I agree to the <a href="#" data-bs-toggle="modal" data-bs-target="#termsModal" class="text-gold-pink">Terms & Conditions</a>
+                            </label>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-gold w-100 py-3 mb-3" id="submitBtn">
+                            <i class="fas fa-user-plus me-2"></i>Register
+                        </button>
+                    </form>
+                    
+                    {% if error %}
+                    <div class="alert alert-danger mt-3">
+                        {{ error }}
+                    </div>
+                    {% endif %}
+                    
+                    <div class="text-center mt-4">
+                        <p class="mb-0">Already have an account? <a href="{% url 'login' %}" class="text-gold-pink text-decoration-none fw-bold">Login here</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Terms and Conditions Modal -->
+<div class="modal fade" id="termsModal" tabindex="-1" aria-labelledby="termsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-gold-pink text-white">
+                <h5 class="modal-title" id="termsModalLabel">
+                    <i class="fas fa-file-contract me-2"></i>Terms and Conditions
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <h6 class="fw-bold text-gold-pink mb-3">1. Acceptance of Terms</h6>
+                <p class="text-muted mb-4">By accessing and using the Hanilies Cakeshoppe website and services, you agree to be bound by these Terms and Conditions. If you do not agree with any part of these terms, please do not use our services.</p>
+
+                <h6 class="fw-bold text-gold-pink mb-3">2. Account Registration</h6>
+                <p class="text-muted mb-4">You must provide accurate, current, and complete information during the registration process. You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account.</p>
+
+                <h6 class="fw-bold text-gold-pink mb-3">3. Ordering and Payments</h6>
+                <p class="text-muted mb-4">All orders placed through our website are subject to acceptance and availability. Prices are subject to change without notice. Payment must be made in full at the time of ordering unless otherwise agreed upon.</p>
+
+                <h6 class="fw-bold text-gold-pink mb-3">4. Cancellation and Refunds</h6>
+                <p class="text-muted mb-4">Cancellations must be made at least 48 hours before the scheduled delivery or pickup time. Refunds will be processed according to our refund policy. Customized cakes and packages may not be eligible for refunds.</p>
+
+                <h6 class="fw-bold text-gold-pink mb-3">5. Delivery and Pickup</h6>
+                <p class="text-muted mb-4">Delivery times are estimates and not guaranteed. We are not responsible for delays beyond our control. For pickup orders, cakes must be collected within the agreed time frame.</p>
+
+                <h6 class="fw-bold text-gold-pink mb-3">6. Intellectual Property</h6>
+                <p class="text-muted mb-4">All content on this website, including images, text, logos, and designs, is the property of Hanilies Cakeshoppe and is protected by copyright laws.</p>
+
+                <h6 class="fw-bold text-gold-pink mb-3">7. Privacy Policy</h6>
+                <p class="text-muted mb-4">Your privacy is important to us. Please review our Privacy Policy to understand how we collect, use, and protect your personal information.</p>
+
+                <h6 class="fw-bold text-gold-pink mb-3">8. Limitation of Liability</h6>
+                <p class="text-muted mb-4">Hanilies Cakeshoppe shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising out of or related to your use of our services.</p>
+
+                <h6 class="fw-bold text-gold-pink mb-3">9. Modifications to Terms</h6>
+                <p class="text-muted mb-4">We reserve the right to modify these terms at any time. Changes will be effective immediately upon posting on the website. Your continued use of the service constitutes acceptance of the modified terms.</p>
+
+                <h6 class="fw-bold text-gold-pink mb-3">10. Contact Information</h6>
+                <p class="text-muted mb-4">If you have any questions about these Terms and Conditions, please contact us at:</p>
+                <p class="text-muted">
+                    <i class="fas fa-envelope text-gold-pink me-2"></i> haniliescakeshoppe@yahoo.com<br>
+                    <i class="fas fa-phone text-gold-pink me-2"></i> 09275294221<br>
+                    <i class="fas fa-map-marker-alt text-gold-pink me-2"></i> FRM4+623, Independence St, Oroquieta City
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-gold" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-gold" data-bs-dismiss="modal" onclick="document.getElementById('terms').checked = true;">
+                    <i class="fas fa-check me-2"></i>I Agree
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const password = document.getElementById('password');
+    const confirmPassword = document.getElementById('confirm_password');
+    const passwordError = document.getElementById('passwordError');
+    const passwordSuccess = document.getElementById('passwordSuccess');
+    const phoneInput = document.getElementById('phone');
+    const phoneError = document.getElementById('phoneError');
+    const form = document.getElementById('registerForm');
+
+    // Password strength indicator
+    function checkPasswordStrength() {
+        const passwordValue = password.value;
+        const strengthBar = document.getElementById('passwordStrength');
+        if (strengthBar) {
+            let strength = 0;
+            if (passwordValue.length >= 8) strength += 25;
+            if (passwordValue.match(/[A-Z]/)) strength += 25;
+            if (passwordValue.match(/[0-9]/)) strength += 25;
+            if (passwordValue.match(/[^a-zA-Z0-9]/)) strength += 25;
+            strengthBar.style.width = strength + '%';
+            if (strength >= 75) {
+                strengthBar.className = 'progress-bar bg-success';
+            } else if (strength >= 50) {
+                strengthBar.className = 'progress-bar bg-warning';
+            } else {
+                strengthBar.className = 'progress-bar bg-danger';
+            }
+        }
+    }
+
+    // Password matching validation
+    function validatePassword() {
+        if (password.value === '' || confirmPassword.value === '') {
+            passwordError.style.display = 'none';
+            passwordSuccess.style.display = 'none';
+            return false;
+        }
+        
+        if (password.value === confirmPassword.value) {
+            passwordError.style.display = 'none';
+            passwordSuccess.style.display = 'block';
+            return true;
+        } else {
+            passwordError.style.display = 'block';
+            passwordSuccess.style.display = 'none';
+            return false;
+        }
+    }
+
+    // Phone number validation (Philippine format)
+    function validatePhone() {
+        const phoneValue = phoneInput.value.replace(/\s/g, '');
+        const phoneRegex = /^[0-9]{11}$/;
+        
+        if (phoneValue === '') {
+            phoneError.style.display = 'none';
+            return false;
+        }
+        
+        if (phoneRegex.test(phoneValue)) {
+            phoneError.style.display = 'none';
+            return true;
+        } else {
+            phoneError.style.display = 'block';
+            return false;
+        }
+    }
+
+    // Auto-format phone number (allow only numbers)
+    phoneInput.addEventListener('input', function(e) {
+        this.value = this.value.replace(/[^0-9]/g, '');
+        if (this.value.length > 11) {
+            this.value = this.value.slice(0, 11);
+        }
+        validatePhone();
+    });
+
+    // Validate on input
+    password.addEventListener('input', function() {
+        validatePassword();
+        checkPasswordStrength();
+    });
+    confirmPassword.addEventListener('input', validatePassword);
+
+    // Form validation
+    form.addEventListener('submit', function(e) {
+        const isPasswordValid = validatePassword();
+        const isPhoneValid = validatePhone();
+        const isTermsChecked = document.getElementById('terms').checked;
+        
+        if (!isPasswordValid) {
+            e.preventDefault();
+            alert('Please make sure your passwords match.');
+        } else if (!isPhoneValid) {
+            e.preventDefault();
+            alert('Please enter a valid 11-digit phone number.');
+        } else if (!isTermsChecked) {
+            e.preventDefault();
+            alert('Please agree to the Terms and Conditions.');
+        }
+        // If all validations pass, form submits normally to Django
+    });
+});
+</script>
+
+<style>
+    /* Password strength bar styling */
+    .progress {
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .progress-bar {
+        transition: width 0.3s ease;
+    }
+</style>
+{% endblock %}

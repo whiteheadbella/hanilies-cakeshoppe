@@ -1,0 +1,128 @@
+{% extends 'hanilies/base.html' %}
+{% load static %}
+
+{% block title %}About Us{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Hero Section -->
+    <div class="row mb-5">
+        <div class="col-12 text-center">
+            <h1 class="display-4 fw-bold mb-3">About Hanilies Cakeshoppe</h1>
+            <p class="lead text-muted">Serving sweet memories since 2009</p>
+        </div>
+    </div>
+
+    <div class="row align-items-center mb-5">
+        <div class="col-md-6">
+            <img src="{% static 'images/cake1.jpg' %}" class="img-fluid rounded-3 shadow-lg" alt="Our Story">
+        </div>
+        <div class="col-md-6">
+            <h2 class="mb-4">Our Story</h2>
+            <p class="lead">Founded in 2009 by Ms. Teresa T. Rabillas, Hanilies Cakeshoppe began as a passion for baking family celebration cakes.</p>
+            <p>What started as a small home-based business has grown into an established enterprise with ten dedicated employees, handling a high volume of orders, particularly for first birthdays and during the peak season of December.</p>
+            <p>Today, we continue to serve our community with the same love and dedication that started it all, now enhanced with modern technology to serve you better.</p>
+        </div>
+    </div>
+
+    <div class="row mb-5 g-4">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-body text-center p-5">
+                    <i class="fas fa-bullseye fa-4x text-gold-pink mb-4"></i>
+                    <h3 class="mb-3">Our Mission</h3>
+                    <p class="text-muted">To create sweet and memorable moments for our customers through high-quality, beautifully crafted cakes and exceptional service, while embracing innovation to enhance the customer experience.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-body text-center p-5">
+                    <i class="fas fa-eye fa-4x text-gold-pink mb-4"></i>
+                    <h3 class="mb-3">Our Vision</h3>
+                    <p class="text-muted">To be the most trusted and preferred cake shop in the community, known for our commitment to quality, innovation in cake design, and exceptional customer service.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Values -->
+    <div class="row mb-5">
+        <div class="col-12 text-center mb-4">
+            <h2>Our Core Values</h2>
+        </div>
+        <div class="col-md-3">
+            <div class="text-center">
+                <i class="fas fa-heart fa-3x text-gold-pink mb-3"></i>
+                <h5>Passion</h5>
+                <p class="text-muted">We bake with love and dedication</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="text-center">
+                <i class="fas fa-medal fa-3x text-gold-pink mb-3"></i>
+                <h5>Quality</h5>
+                <p class="text-muted">Only the finest ingredients</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="text-center">
+                <i class="fas fa-hand-holding-heart fa-3x text-gold-pink mb-3"></i>
+                <h5>Service</h5>
+                <p class="text-muted">Customer satisfaction first</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="text-center">
+                <i class="fas fa-lightbulb fa-3x text-gold-pink mb-3"></i>
+                <h5>Innovation</h5>
+                <p class="text-muted">Embracing new ideas and technology</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Team -->
+    <div class="row">
+        <div class="col-12 text-center mb-4">
+            <h2>Meet Our Team</h2>
+            <p class="lead text-muted">The people behind your sweet memories</p>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <img src="{% static 'images/cake1.jpg' %}" class="card-img-top rounded-circle p-3" alt="Team Member">
+                <div class="card-body">
+                    <h5>Teresa Rabillas</h5>
+                    <p class="text-gold-pink">Founder & Head Baker</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <img src="{% static 'images/cake2.jpg' %}" class="card-img-top rounded-circle p-3" alt="Team Member">
+                <div class="card-body">
+                    <h5>Maria Santos</h5>
+                    <p class="text-gold-pink">Head Baker</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <img src="{% static 'images/cake3.jpg' %}" class="card-img-top rounded-circle p-3" alt="Team Member">
+                <div class="card-body">
+                    <h5>John Reyes</h5>
+                    <p class="text-gold-pink">Sales Manager</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <img src="{% static 'images/cake1.jpg' %}" class="card-img-top rounded-circle p-3" alt="Team Member">
+                <div class="card-body">
+                    <h5>Anna Lim</h5>
+                    <p class="text-gold-pink">Customer Service</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

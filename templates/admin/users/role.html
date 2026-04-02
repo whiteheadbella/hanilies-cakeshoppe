@@ -1,0 +1,38 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Change Role{% endblock %}
+{% block page_title %}Change User Role: {{ edit_user.username }}{% endblock %}
+{% block page_icon %}user-tag{% endblock %}
+
+{% block content %}
+<div class="module-card">
+    <div class="module-header">
+        <h2><i class="fas fa-user-tag"></i> Assign Role</h2>
+    </div>
+    <div style="padding: 25px;">
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label>User: {{ edit_user.get_full_name|default:edit_user.username }}</label>
+            </div>
+            <div class="form-group">
+                <label>Select Role</label>
+                <select name="role" class="form-control" required>
+                    <option value="owner" {% if edit_user.profile.role == 'owner' %}selected{% endif %}>Owner - Full Access</option>
+                    <option value="admin" {% if edit_user.profile.role == 'admin' %}selected{% endif %}>Admin - All Management</option>
+                    <option value="manager" {% if edit_user.profile.role == 'manager' %}selected{% endif %}>Manager - Orders & Customers</option>
+                    <option value="baker" {% if edit_user.profile.role == 'baker' %}selected{% endif %}>Baker - Cake Management</option>
+                    <option value="packager" {% if edit_user.profile.role == 'packager' %}selected{% endif %}>Packager - Package Management</option>
+                    <option value="cashier" {% if edit_user.profile.role == 'cashier' %}selected{% endif %}>Cashier - Payments Only</option>
+                    <option value="viewer" {% if edit_user.profile.role == 'viewer' %}selected{% endif %}>Viewer - Read Only</option>
+                </select>
+            </div>
+            <hr>
+            <div class="form-group">
+                <button type="submit" class="btn-primary">Update Role</button>
+                <a href="{% url 'admin_users' %}" class="btn-secondary" style="background: #6c757d; color: white; padding: 10px 25px; border-radius: 50px; text-decoration: none; margin-left: 10px;">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

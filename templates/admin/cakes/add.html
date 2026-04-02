@@ -1,0 +1,93 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Add Cake{% endblock %}
+{% block page_title %}Add New Cake{% endblock %}
+{% block page_icon %}plus-circle{% endblock %}
+
+{% block content %}
+<div class="module-card">
+    <div class="module-header">
+        <h2><i class="fas fa-info-circle"></i> Cake Information</h2>
+    </div>
+    <div style="padding: 25px;">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <div class="form-group">
+                <label>Cake Name <span class="text-danger">*</span></label>
+                <input type="text" name="name" class="form-control" required>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Category <span class="text-danger">*</span></label>
+                        <select name="category" class="form-control" required>
+                            <option value="birthday">Birthday</option>
+                            <option value="wedding">Wedding</option>
+                            <option value="christening">Christening</option>
+                            <option value="anniversary">Anniversary</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Cake Image</label>
+                        <input type="file" name="image" class="form-control" accept="image/*">
+                        <small class="text-muted">Accepted formats: JPG, PNG, GIF. Max size: 5MB</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Description</label>
+                <textarea name="description" class="form-control" rows="4" placeholder="Describe the cake, its features, and what makes it special..."></textarea>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Price (₱) <span class="text-danger">*</span></label>
+                        <input type="number" name="price" class="form-control" step="0.01" required>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Stock Quantity</label>
+                        <input type="number" name="stock" class="form-control" value="0">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="checkbox-inline">
+                    <input type="checkbox" name="is_active" checked> Active (visible to customers)
+                </label>
+                <br>
+                <small class="text-muted">Uncheck to hide this cake from the website</small>
+            </div>
+            
+            <hr>
+            
+            <div class="form-group">
+                <button type="submit" class="btn-primary">
+                    <i class="fas fa-save"></i> Save Cake
+                </button>
+                <a href="{% url 'admin_cakes' %}" class="btn-secondary" style="background: #6c757d; color: white; padding: 10px 25px; border-radius: 50px; text-decoration: none; margin-left: 10px;">
+                    <i class="fas fa-times"></i> Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .text-danger {
+        color: #dc2626;
+    }
+    .checkbox-inline {
+        cursor: pointer;
+    }
+</style>
+{% endblock %}

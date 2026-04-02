@@ -1,0 +1,48 @@
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    # Main site pages
+    path('', views.home, name='home'),
+    path('cakes/', views.cakes, name='cakes'),
+    path('packages/', views.packages, name='packages'),
+    path('about/', views.about, name='about'),
+    path('contact/', views.contact, name='contact'),
+    
+    # Authentication
+    path('login/', views.login_view, name='login'),
+    path('register/', views.register_view, name='register'),
+    path('logout/', views.logout_view, name='logout'),
+    
+    # User pages
+    path('profile/', views.profile, name='profile'),
+    path('change-password/', views.change_password, name='change_password'),
+    path('update-preferences/', views.update_preferences, name='update_preferences'),
+    path('order-tracking/', views.order_tracking, name='order_tracking'),
+    
+    # Order pages
+    path('cake-customize/', views.cake_customize, name='cake_customize'),
+    path('package-order/', views.package_order, name='package_order'),
+    path('package-cake-customize/', views.package_cake_customize, name='package_cake_customize'),
+    path('package-payment/', views.package_payment, name='package_payment'),
+    
+    # Custom Admin Panel
+    path('admin-panel/', views.admin_dashboard, name='admin_dashboard'),
+    path('admin-panel/cakes/', views.admin_cakes, name='admin_cakes'),
+    path('admin-panel/cakes/add/', views.admin_cake_add, name='admin_cake_add'),
+    path('admin-panel/cakes/edit/<int:cake_id>/', views.admin_cake_edit, name='admin_cake_edit'),
+    path('admin-panel/cakes/delete/<int:cake_id>/', views.admin_cake_delete, name='admin_cake_delete'),
+    path('admin-panel/cake-orders/', views.admin_cake_orders, name='admin_cake_orders'),
+    path('admin-panel/cake-orders/update/<int:order_id>/', views.admin_cake_order_update, name='admin_cake_order_update'),
+    path('admin-panel/packages/', views.admin_packages, name='admin_packages'),
+    path('admin-panel/packages/add/', views.admin_package_add, name='admin_package_add'),
+    path('admin-panel/packages/edit/<int:package_id>/', views.admin_package_edit, name='admin_package_edit'),
+    path('admin-panel/packages/delete/<int:package_id>/', views.admin_package_delete, name='admin_package_delete'),
+    path('admin-panel/package-orders/', views.admin_package_orders, name='admin_package_orders'),
+    path('admin-panel/package-orders/update/<int:order_id>/', views.admin_package_order_update, name='admin_package_order_update'),
+    path('admin-panel/payments/', views.admin_payments, name='admin_payments'),
+    path('admin-panel/payments/verify/<int:payment_id>/', views.admin_payment_verify, name='admin_payment_verify'),
+    path('admin-panel/users/', views.admin_users, name='admin_users'),
+    path('admin-panel/users/edit/<int:user_id>/', views.admin_user_edit, name='admin_user_edit'),
+    path('admin-panel/users/role/<int:user_id>/', views.admin_user_role, name='admin_user_role'),
+]

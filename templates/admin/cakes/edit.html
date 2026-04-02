@@ -1,0 +1,139 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Edit Cake{% endblock %}
+{% block page_title %}Edit Cake: {{ cake.name }}{% endblock %}
+{% block page_icon %}edit{% endblock %}
+
+{% block content %}
+<div class="module-card">
+    <div class="module-header">
+        <h2><i class="fas fa-edit"></i> Edit Cake Information</h2>
+    </div>
+    <div style="padding: 25px;">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="form-group">
+                        <label>Cake Name <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control" value="{{ cake.name }}" required>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>Category <span class="text-danger">*</span></label>
+                        <select name="category" class="form-control" required>
+                            <option value="birthday" {% if cake.category == 'birthday' %}selected{% endif %}>Birthday</option>
+                            <option value="wedding" {% if cake.category == 'wedding' %}selected{% endif %}>Wedding</option>
+                            <option value="christening" {% if cake.category == 'christening' %}selected{% endif %}>Christening</option>
+                            <option value="anniversary" {% if cake.category == 'anniversary' %}selected{% endif %}>Anniversary</option>
+                            <option value="custom" {% if cake.category == 'custom' %}selected{% endif %}>Custom</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea name="description" class="form-control" rows="4">{{ cake.description }}</textarea>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>Current Image</label>
+                        {% if cake.image %}
+                            <div class="current-image-container">
+                                <img src="{{ cake.image.url }}" alt="{{ cake.name }}" class="current-image">
+                                <div class="mt-2">
+                                    <label class="checkbox-inline">
+                                        <input type="checkbox" name="remove_image"> Remove this image
+                                    </label>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="no-image">
+                                <i class="fas fa-image fa-3x text-muted"></i>
+                                <p class="text-muted">No image uploaded</p>
+                            </div>
+                        {% endif %}
+                        <div class="mt-3">
+                            <label>Upload New Image</label>
+                            <input type="file" name="image" class="form-control" accept="image/*">
+                            <small class="text-muted">Leave empty to keep current image. Accepted: JPG, PNG, GIF</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Price (₱) <span class="text-danger">*</span></label>
+                        <input type="number" name="price" class="form-control" step="0.01" value="{{ cake.price }}" required>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Stock Quantity</label>
+                        <input type="number" name="stock" class="form-control" value="{{ cake.stock }}">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="checkbox-inline">
+                    <input type="checkbox" name="is_active" {% if cake.is_active %}checked{% endif %}> Active (visible to customers)
+                </label>
+            </div>
+            
+            <hr>
+            
+            <div class="form-group">
+                <button type="submit" class="btn-primary">
+                    <i class="fas fa-save"></i> Update Cake
+                </button>
+                <a href="{% url 'admin_cakes' %}" class="btn-secondary" style="background: #6c757d; color: white; padding: 10px 25px; border-radius: 50px; text-decoration: none; margin-left: 10px;">
+                    <i class="fas fa-times"></i> Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .text-danger {
+        color: #dc2626;
+    }
+    .current-image-container {
+        text-align: center;
+        padding: 10px;
+        background: #f8f9fa;
+        border-radius: 10px;
+    }
+    .current-image {
+        max-width: 100%;
+        max-height: 150px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .no-image {
+        text-align: center;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 10px;
+        border: 2px dashed #dee2e6;
+    }
+    .no-image i {
+        color: #adb5bd;
+        margin-bottom: 10px;
+    }
+    .checkbox-inline {
+        cursor: pointer;
+    }
+    .mt-2 { margin-top: 10px; }
+    .mt-3 { margin-top: 15px; }
+</style>
+{% endblock %}

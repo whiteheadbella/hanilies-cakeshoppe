@@ -1,0 +1,92 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Cakes{% endblock %}
+{% block page_title %}Cake Management{% endblock %}
+{% block page_icon %}birthday-cake{% endblock %}
+
+{% block content %}
+<div class="module-card">
+    <div class="module-header">
+        <h2><i class="fas fa-list"></i> All Cakes</h2>
+        <a href="{% url 'admin_cake_add' %}" class="btn-primary" style="text-decoration: none;">
+            <i class="fas fa-plus"></i> Add New Cake
+        </a>
+    </div>
+    <table class="module-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Image</th>
+                <th>Name</th>
+                <th>Category</th>
+                <th>Price</th>
+                <th>Stock</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cake in cakes %}
+            <tr>
+                <td>{{ cake.id }}</td>
+                <td>
+                    {% if cake.image %}
+                        <img src="{{ cake.image.url }}" alt="{{ cake.name }}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;">
+                    {% else %}
+                        <div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-image text-muted"></i>
+                        </div>
+                    {% endif %}
+                </td>
+                <td><strong>{{ cake.name }}</strong></td>
+                <td>{{ cake.get_category_display }}</td>
+                <td>₱{{ cake.price }}</td>
+                <td>{{ cake.stock }}</td>
+                <td>
+                    {% if cake.is_active %}
+                        <span class="status-badge status-active">Active</span>
+                    {% else %}
+                        <span class="status-badge status-cancelled">Inactive</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{% url 'admin_cake_edit' cake.id %}" style="color: #FF69B4; margin-right: 10px;">
+                        <i class="fas fa-edit"></i> Edit
+                    </a>
+                    <a href="{% url 'admin_cake_delete' cake.id %}" style="color: #dc2626;" onclick="return confirm('Delete this cake?')">
+                        <i class="fas fa-trash"></i> Delete
+                    </a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" class="text-center">
+                    No cakes found. <a href="{% url 'admin_cake_add' %}">Add your first cake</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<style>
+    .text-center {
+        text-align: center;
+    }
+    .status-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        font-weight: 500;
+    }
+    .status-active {
+        background: #d1fae5;
+        color: #10b981;
+    }
+    .status-cancelled {
+        background: #fee2e2;
+        color: #dc2626;
+    }
+</style>
+{% endblock %}

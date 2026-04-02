@@ -1,0 +1,436 @@
+{% extends 'hanilies/base.html' %}
+{% load static %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section">
+    <div class="container">
+        <div class="row align-items-center min-vh-80">
+            <div class="col-lg-6" data-aos="fade-right">
+                <h1 class="display-4 fw-bold">
+                    Sweet Moments, <br><span class="text-gold-pink">Perfectly Delivered</span>
+                </h1>
+                <p class="lead mb-4">Experience the finest celebration cakes and event packages with our intelligent ordering system. From birthdays to weddings, we make every occasion special.</p>
+                <div class="hero-buttons">
+                    <a href="{% url 'cakes' %}" class="btn btn-gold btn-lg me-3">
+                        <i class="fas fa-birthday-cake"></i> Order Now
+                    </a>
+                    <a href="{% url 'packages' %}" class="btn btn-outline-gold btn-lg">
+                        <i class="fas fa-gift"></i> View Packages
+                    </a>
+                </div>
+                <div class="hero-stats mt-5">
+                    <div class="row">
+                        <div class="col-4">
+                            <h3 class="text-gold-pink">15+</h3>
+                            <p class="text-muted">Years</p>
+                        </div>
+                        <div class="col-4">
+                            <h3 class="text-gold-pink">10k+</h3>
+                            <p class="text-muted">Customers</p>
+                        </div>
+                        <div class="col-4">
+                            <h3 class="text-gold-pink">100+</h3>
+                            <p class="text-muted">Designs</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6" data-aos="fade-left">
+                <img src="{% static 'images/hero-cake.png' %}" class="img-fluid hero-image" alt="Celebration Cake">
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- AI RECOMMENDER SECTION -->
+<section class="ai-section py-5">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <span class="badge bg-gold-pink text-white p-2 mb-2">
+                    <i class="fas fa-robot me-1"></i> AI RECOMMENDATIONS
+                </span>
+                <h2 class="mb-0">Perfect Picks For You</h2>
+                <p class="text-muted">Based on seasonal trends and popular choices</p>
+            </div>
+            <a href="{% url 'cakes' %}" class="btn btn-outline-gold">View All <i class="fas fa-arrow-right ms-2"></i></a>
+        </div>
+        <div class="row g-4">
+            <!-- Christmas Cake -->
+            <div class="col-lg-3 col-md-6">
+                <div class="card ai-card h-100">
+                    <div class="position-relative">
+                        <img src="{% static 'images/bg.png' %}" class="card-img-top" alt="Christmas Cake">
+                        <span class="ai-match-badge">98% Match</span>
+                        <span class="position-absolute top-0 end-0 badge bg-danger m-3">Seasonal</span>
+                    </div>
+                    <div class="card-body">
+                        <h5 class="card-title">Christmas Wonderland</h5>
+                        <p class="card-text small text-muted">Red velvet • Cream cheese</p>
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <span class="h5 text-gold-pink mb-0">P1,899</span>
+                            <a href="{% url 'cake_customize' %}" class="btn btn-sm btn-gold">Order</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Valentine Cake -->
+            <div class="col-lg-3 col-md-6">
+                <div class="card ai-card h-100">
+                    <div class="position-relative">
+                        <img src="{% static 'images/bg.png' %}" class="card-img-top" alt="Valentine Cake">
+                        <span class="ai-match-badge">95% Match</span>
+                        <span class="position-absolute top-0 end-0 badge bg-danger m-3">Coming Soon</span>
+                    </div>
+                    <div class="card-body">
+                        <h5 class="card-title">Valentine's Romance</h5>
+                        <p class="card-text small text-muted">Heart-shaped • Strawberry</p>
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <span class="h5 text-gold-pink mb-0">P1,299</span>
+                            <a href="{% url 'cake_customize' %}" class="btn btn-sm btn-gold">Order</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Birthday Cake -->
+            <div class="col-lg-3 col-md-6">
+                <div class="card ai-card h-100">
+                    <div class="position-relative">
+                        <img src="{% static 'images/bg.png' %}" class="card-img-top" alt="Birthday Cake">
+                        <span class="ai-match-badge">92% Match</span>
+                        <span class="position-absolute top-0 end-0 badge bg-success m-3">Best Seller</span>
+                    </div>
+                    <div class="card-body">
+                        <h5 class="card-title">Rainbow Celebration</h5>
+                        <p class="card-text small text-muted">Colorful • Buttercream</p>
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <span class="h5 text-gold-pink mb-0">P1,499</span>
+                            <a href="{% url 'cake_customize' %}" class="btn btn-sm btn-gold">Order</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Wedding Cake -->
+            <div class="col-lg-3 col-md-6">
+                <div class="card ai-card h-100">
+                    <div class="position-relative">
+                        <img src="{% static 'images/bg.png' %}" class="card-img-top" alt="Wedding Cake">
+                        <span class="ai-match-badge">96% Match</span>
+                        <span class="position-absolute top-0 end-0 badge bg-primary m-3">Wedding</span>
+                    </div>
+                    <div class="card-body">
+                        <h5 class="card-title">Elegant Wedding</h5>
+                        <p class="card-text small text-muted">3-tier · Fresh flowers</p>
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <span class="h5 text-gold-pink mb-0">P4,500</span>
+                            <a href="{% url 'cake_customize' %}" class="btn btn-sm btn-gold">Order</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Insights Row -->
+        <div class="row mt-5 g-4">
+            <div class="col-md-4">
+                <div class="insight-card p-3">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-calendar-alt fa-2x text-gold-pink me-3"></i>
+                        <div>
+                            <small class="text-gold-pink">TRENDING</small>
+                            <p class="mb-0 fw-bold">Christmas cakes +45%</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="insight-card p-3">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-chart-pie fa-2x text-gold-pink me-3"></i>
+                        <div>
+                            <small class="text-gold-pink">POPULAR</small>
+                            <p class="mb-0 fw-bold">Red velvet #1 flavor</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="insight-card p-3">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-clock fa-2x text-gold-pink me-3"></i>
+                        <div>
+                            <small class="text-gold-pink">PEAK HOURS</small>
+                            <p class="mb-0 fw-bold">10AM - 2PM</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CAKE LIST SECTION -->
+<section class="cake-section py-5 bg-light">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <span class="badge bg-gold-pink text-white p-2 mb-2">
+                    <i class="fas fa-birthday-cake me-1"></i> OUR CAKES
+                </span>
+                <h2 class="mb-0">Popular Cake Selection</h2>
+                <p class="text-muted">Handcrafted with love for your special moments</p>
+            </div>
+            <a href="{% url 'cakes' %}" class="btn btn-outline-gold">View All <i class="fas fa-arrow-right ms-2"></i></a>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-md-3">
+                <div class="card cake-card h-100">
+                    <img src="{% static 'images/bg.png' %}" class="card-img-top" alt="Chocolate Cake">
+                    <div class="card-body">
+                        <h5 class="card-title">Chocolate Fudge</h5>
+                        <p class="card-text small text-muted">Rich chocolate with ganache</p>
+                        <div class="d-flex justify-content-between align-items-center mt-2">
+                            <span class="h5 text-gold-pink mb-0">P899</span>
+                            <a href="{% url 'cake_customize' %}" class="btn btn-sm btn-gold">Order</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card cake-card h-100">
+                    <img src="{% static 'images/bg.png' %}" class="card-img-top" alt="Red Velvet">
+                    <div class="card-body">
+                        <h5 class="card-title">Red Velvet</h5>
+                        <p class="card-text small text-muted">Classic cream cheese</p>
+                        <div class="d-flex justify-content-between align-items-center mt-2">
+                            <span class="h5 text-gold-pink mb-0">P999</span>
+                            <a href="{% url 'cake_customize' %}" class="btn btn-sm btn-gold">Order</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card cake-card h-100">
+                    <img src="{% static 'images/bg.png' %}" class="card-img-top" alt="Birthday Cake">
+                    <div class="card-body">
+                        <h5 class="card-title">Rainbow</h5>
+                        <p class="card-text small text-muted">Colorful buttercream</p>
+                        <div class="d-flex justify-content-between align-items-center mt-2">
+                            <span class="h5 text-gold-pink mb-0">P1,299</span>
+                            <a href="{% url 'cake_customize' %}" class="btn btn-sm btn-gold">Order</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card cake-card h-100">
+                    <img src="{% static 'images/bg.png' %}" class="card-img-top" alt="Wedding Cake">
+                    <div class="card-body">
+                        <h5 class="card-title">Wedding Elegance</h5>
+                        <p class="card-text small text-muted">3-tier classic</p>
+                        <div class="d-flex justify-content-between align-items-center mt-2">
+                            <span class="h5 text-gold-pink mb-0">P3,999</span>
+                            <a href="{% url 'cake_customize' %}" class="btn btn-sm btn-gold">Order</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- PACKAGE LIST SECTION -->
+<section class="package-section py-5">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <span class="badge bg-gold-pink text-white p-2 mb-2">
+                    <i class="fas fa-gift me-1"></i> EVENT PACKAGES
+                </span>
+                <h2 class="mb-0">Complete Celebration Packages</h2>
+                <p class="text-muted">All packages include setup and 3-4 hours event duration</p>
+            </div>
+            <a href="{% url 'packages' %}" class="btn btn-outline-gold">View All <i class="fas fa-arrow-right ms-2"></i></a>
+        </div>
+
+        <div class="row g-4">
+            <!-- Christening Package -->
+            <div class="col-lg-4 col-md-6">
+                <div class="card package-card h-100">
+                    <div class="card-body d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div>
+                                <span class="badge bg-gold-pink text-white mb-2">Most Popular</span>
+                                <h3 class="h4 mb-1">Christening</h3>
+                                <p class="text-muted small">Package B</p>
+                            </div>
+                            <div class="package-icon">
+                                <i class="fas fa-dove"></i>
+                            </div>
+                        </div>
+                        <p class="fw-bold text-gold-pink h3 mb-3">P9,999</p>
+                        <div class="package-features-list mb-3">
+                            <div class="feature-item">
+                                <i class="fas fa-check-circle text-gold-pink me-2"></i>
+                                <span>2 tier Cake (9" & 6")</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-check-circle text-gold-pink me-2"></i>
+                                <span>24 Cupcakes with topper</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-check-circle text-gold-pink me-2"></i>
+                                <span>6 theme cupcakes</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-check-circle text-gold-pink me-2"></i>
+                                <span>24 Lolli Balloon with print</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-check-circle text-gold-pink me-2"></i>
+                                <span>2 Pillar Balloon</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-check-circle text-gold-pink me-2"></i>
+                                <span>24 Baby Bottle Souvenirs</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-check-circle text-gold-pink me-2"></i>
+                                <span>Sweet Corner Set Up</span>
+                            </div>
+                        </div>
+                        <div class="mt-auto">
+                            <a href="{% url 'package_order' %}?package=christening-b" class="btn btn-gold w-100">Select Package</a>
+                            <small class="d-block text-muted text-center mt-2"><i class="fas fa-clock me-1"></i>3-4 hours event</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kid's Birthday Package -->
+            <div class="col-lg-4 col-md-6">
+                <div class="card package-card h-100">
+                    <div class="card-body d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div>
+                                <span class="badge bg-gold-pink text-white mb-2">Best Value</span>
+                                <h3 class="h4 mb-1">Kid's Birthday</h3>
+                                <p class="text-muted small">Package 2</p>
+                            </div>
+                            <div class="package-icon">
+                                <i class="fas fa-birthday-cake"></i>
+                            </div>
+                        </div>
+                        <p class="fw-bold text-gold-pink h3 mb-3">P7,500</p>
+                        <div class="package-features-list mb-3">
+                            <div class="feature-item">
+                                <i class="fas fa-check-circle text-gold-pink me-2"></i>
+                                <span>1 Tier Cake 9x3</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-check-circle text-gold-pink me-2"></i>
+                                <span>30 Chocofudge Brownies</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-check-circle text-gold-pink me-2"></i>
+                                <span>30 Cupcake w/ frosting</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-check-circle text-gold-pink me-2"></i>
+                                <span>30 Chocochip Cookies</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-check-circle text-gold-pink me-2"></i>
+                                <span>Table Set-up & Accessories</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-check-circle text-gold-pink me-2"></i>
+                                <span>Balloon Decorations</span>
+                            </div>
+                        </div>
+                        <div class="mt-auto">
+                            <a href="{% url 'package_order' %}?package=kids-2" class="btn btn-gold w-100">Select Package</a>
+                            <small class="d-block text-muted text-center mt-2"><i class="fas fa-clock me-1"></i>3-4 hours event</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Adult's Party Package -->
+            <div class="col-lg-4 col-md-6">
+                <div class="card package-card h-100">
+                    <div class="card-body d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div>
+                                <span class="badge bg-gold-pink text-white mb-2">Premium</span>
+                                <h3 class="h4 mb-1">Adult's Party</h3>
+                                <p class="text-muted small">Package 3</p>
+                            </div>
+                            <div class="package-icon">
+                                <i class="fas fa-wine-glass-alt"></i>
+                            </div>
+                        </div>
+                        <p class="fw-bold text-gold-pink h3 mb-3">P8,500</p>
+                        <div class="package-features-list mb-3">
+                            <div class="feature-item">
+                                <i class="fas fa-check-circle text-gold-pink me-2"></i>
+                                <span>2 Tier cake 8x3 and 6x3</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-check-circle text-gold-pink me-2"></i>
+                                <span>36 pcs. Chocofudge Brownies</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-check-circle text-gold-pink me-2"></i>
+                                <span>36 pcs. Cupcake w/ frosting</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-check-circle text-gold-pink me-2"></i>
+                                <span>36 pcs. Chocochip Cookies</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-check-circle text-gold-pink me-2"></i>
+                                <span>36 pcs. Mini sliced cakes</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-check-circle text-gold-pink me-2"></i>
+                                <span>Table Set-up & Accessories</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-check-circle text-gold-pink me-2"></i>
+                                <span>Free Use of Stage Lights</span>
+                            </div>
+                        </div>
+                        <div class="mt-auto">
+                            <a href="{% url 'package_order' %}?package=adults-3" class="btn btn-gold w-100">Select Package</a>
+                            <small class="d-block text-muted text-center mt-2"><i class="fas fa-clock me-1"></i>3-4 hours event</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA Section -->
+<section class="cta-section py-5">
+    <div class="container-fluid px-4">
+        <div class="card border-0 bg-gold-pink">
+            <div class="card-body text-center p-5">
+                <h2 class="text-white mb-3">Ready to Create Sweet Memories?</h2>
+                <p class="text-white mb-4 fs-5">Order now and experience our smart, seamless cake ordering system</p>
+                <a href="{% url 'cakes' %}" class="btn btn-gold btn-lg px-5">
+                    <i class="fas fa-birthday-cake me-2"></i>Order Now
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

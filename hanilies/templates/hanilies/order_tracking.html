@@ -1,0 +1,598 @@
+{% extends 'hanilies/base.html' %}
+{% load static %}
+
+{% block title %}Track Order{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h2 class="mb-4"><i class="fas fa-truck text-gold-pink me-2"></i>Track Your Order</h2>
+
+    <!-- Tracking Search -->
+    <div class="row justify-content-center mb-5">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <form class="d-flex flex-column flex-md-row gap-2" id="trackingForm">
+                        <select class="form-select" id="orderSelect" onchange="changeOrder(this.value)">
+                            <option value="HC003">#HC003 - John Doe (In Progress)</option>
+                            <option value="HC001">#HC001 - Jane Smith (Delivered)</option>
+                            <option value="HC002">#HC002 - Mike Johnson (Processing)</option>
+                            <option value="HC004">#HC004 - Sarah Wilson (Pending)</option>
+                            <option value="HC005">#HC005 - Robert Santos (Preparing)</option>
+                        </select>
+                        <button type="button" class="btn btn-gold" onclick="trackOrder()" style="padding: 8px 25px; white-space: nowrap; height: 45px;">Track</button>
+                    </form>
+                    <small class="text-muted mt-2 d-block"><i class="fas fa-info-circle me-1"></i>Select an order number from the dropdown</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Order Container -->
+    <div id="orderContainer">
+        <!-- Order #HC003 (Default) -->
+        <div class="row" id="order-HC003">
+            <div class="col-md-8 mx-auto">
+                <div class="card mb-4">
+                    <div class="card-header bg-gold-pink text-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Order #HC003</h5>
+                            <span class="badge bg-light text-dark">Placed on Jan 20, 2024</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <h6>Customer Information</h6>
+                                <p class="mb-1"><strong>John Doe</strong></p>
+                                <p class="mb-1">09123456789</p>
+                                <p class="mb-0">john@example.com</p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Delivery Address</h6>
+                                <p class="mb-0">123 Baker's Street, Barangay San Antonio, Quezon City</p>
+                            </div>
+                        </div>
+
+                        <h6>Order Items</h6>
+                        <table class="table table-bordered mb-4">
+                            <thead class="bg-gold-pink text-white">
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Quantity</th>
+                                    <th>Price</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Rainbow Birthday Cake (Medium)</td>
+                                    <td>1</td>
+                                    <td>P1,299</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" class="text-end"><strong>Total:</strong></td>
+                                    <td><strong>P1,299</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <!-- Tracking Timeline -->
+                        <h6 class="mb-3">Order Status</h6>
+                        <div class="tracking-timeline">
+                            <div class="tracking-step completed">
+                                <div class="tracking-icon">
+                                    <i class="fas fa-check"></i>
+                                </div>
+                                <div class="tracking-content">
+                                    <h6>Order Placed</h6>
+                                    <p>Your order has been received</p>
+                                    <small class="text-gold-pink">Jan 20, 2024 - 10:30 AM</small>
+                                </div>
+                            </div>
+
+                            <div class="tracking-step completed">
+                                <div class="tracking-icon">
+                                    <i class="fas fa-check"></i>
+                                </div>
+                                <div class="tracking-content">
+                                    <h6>Order Confirmed</h6>
+                                    <p>Your order has been confirmed by our team</p>
+                                    <small class="text-gold-pink">Jan 20, 2024 - 2:15 PM</small>
+                                </div>
+                            </div>
+
+                            <div class="tracking-step active">
+                                <div class="tracking-icon">
+                                    <i class="fas fa-spinner"></i>
+                                </div>
+                                <div class="tracking-content">
+                                    <h6>Preparing Your Cake</h6>
+                                    <p>Your cake is being prepared by our bakers</p>
+                                    <small class="text-gold-pink">Estimated completion: Jan 22, 2024</small>
+                                </div>
+                            </div>
+
+                            <div class="tracking-step">
+                                <div class="tracking-icon">
+                                    <i class="fas fa-truck"></i>
+                                </div>
+                                <div class="tracking-content">
+                                    <h6>Out for Delivery</h6>
+                                    <p>Your order is on its way</p>
+                                    <small class="text-muted">Pending</small>
+                                </div>
+                            </div>
+
+                            <div class="tracking-step">
+                                <div class="tracking-icon">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                                <div class="tracking-content">
+                                    <h6>Delivered</h6>
+                                    <p>Order has been delivered</p>
+                                    <small class="text-muted">Pending</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Estimated Delivery -->
+                        <div class="alert alert-gold mt-4">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-clock fa-2x text-gold-pink me-3"></i>
+                                <div>
+                                    <h6 class="mb-1">Estimated Delivery</h6>
+                                    <p class="mb-0">January 23, 2024 between 12:00 PM - 3:00 PM</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Order #HC001 (Hidden) -->
+        <div class="row" id="order-HC001" style="display: none;">
+            <div class="col-md-8 mx-auto">
+                <div class="card mb-4">
+                    <div class="card-header bg-gold-pink text-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Order #HC001</h5>
+                            <span class="badge bg-light text-dark">Placed on Jan 15, 2024</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <h6>Customer Information</h6>
+                                <p class="mb-1"><strong>Jane Smith</strong></p>
+                                <p class="mb-1">09123456788</p>
+                                <p class="mb-0">jane@example.com</p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Delivery Address</h6>
+                                <p class="mb-0">456 Oak Avenue, Barangay San Isidro, Quezon City</p>
+                            </div>
+                        </div>
+
+                        <h6>Order Items</h6>
+                        <table class="table table-bordered mb-4">
+                            <thead class="bg-gold-pink text-white">
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Quantity</th>
+                                    <th>Price</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Chocolate Fudge Cake (Large)</td>
+                                    <td>1</td>
+                                    <td>P1,299</td>
+                                </tr>
+                                <tr>
+                                    <td>Red Velvet Cupcakes</td>
+                                    <td>12</td>
+                                    <td>P450</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" class="text-end"><strong>Total:</strong></td>
+                                    <td><strong>P1,749</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <h6 class="mb-3">Order Status</h6>
+                        <div class="tracking-timeline">
+                            <div class="tracking-step completed">
+                                <div class="tracking-icon"><i class="fas fa-check"></i></div>
+                                <div class="tracking-content">
+                                    <h6>Order Placed</h6>
+                                    <small class="text-gold-pink">Jan 15, 2024 - 9:30 AM</small>
+                                </div>
+                            </div>
+                            <div class="tracking-step completed">
+                                <div class="tracking-icon"><i class="fas fa-check"></i></div>
+                                <div class="tracking-content">
+                                    <h6>Order Confirmed</h6>
+                                    <small class="text-gold-pink">Jan 15, 2024 - 11:15 AM</small>
+                                </div>
+                            </div>
+                            <div class="tracking-step completed">
+                                <div class="tracking-icon"><i class="fas fa-check"></i></div>
+                                <div class="tracking-content">
+                                    <h6>Prepared</h6>
+                                    <small class="text-gold-pink">Jan 16, 2024 - 3:00 PM</small>
+                                </div>
+                            </div>
+                            <div class="tracking-step completed">
+                                <div class="tracking-icon"><i class="fas fa-check"></i></div>
+                                <div class="tracking-content">
+                                    <h6>Out for Delivery</h6>
+                                    <small class="text-gold-pink">Jan 17, 2024 - 10:00 AM</small>
+                                </div>
+                            </div>
+                            <div class="tracking-step completed">
+                                <div class="tracking-icon"><i class="fas fa-check-circle"></i></div>
+                                <div class="tracking-content">
+                                    <h6>Delivered</h6>
+                                    <small class="text-gold-pink">Jan 17, 2024 - 2:30 PM</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-success mt-4">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-check-circle fa-2x text-gold-pink me-3"></i>
+                                <div>
+                                    <h6 class="mb-1">Delivered Successfully</h6>
+                                    <p class="mb-0">Delivered on January 17, 2024 at 2:30 PM</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Order #HC002 (Hidden) -->
+        <div class="row" id="order-HC002" style="display: none;">
+            <div class="col-md-8 mx-auto">
+                <div class="card mb-4">
+                    <div class="card-header bg-gold-pink text-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Order #HC002</h5>
+                            <span class="badge bg-light text-dark">Placed on Jan 18, 2024</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <h6>Customer Information</h6>
+                                <p class="mb-1"><strong>Mike Johnson</strong></p>
+                                <p class="mb-1">09123456787</p>
+                                <p class="mb-0">mike@example.com</p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Delivery Address</h6>
+                                <p class="mb-0">789 Pine Street, Barangay San Lorenzo, Makati City</p>
+                            </div>
+                        </div>
+
+                        <h6>Order Items</h6>
+                        <table class="table table-bordered mb-4">
+                            <thead class="bg-gold-pink text-white">
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Quantity</th>
+                                    <th>Price</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Red Velvet Cake (Medium)</td>
+                                    <td>1</td>
+                                    <td>P999</td>
+                                </tr>
+                                <tr>
+                                    <td>Chocolate Cupcakes</td>
+                                    <td>6</td>
+                                    <td>P250</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" class="text-end"><strong>Total:</strong></td>
+                                    <td><strong>P1,249</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <h6 class="mb-3">Order Status</h6>
+                        <div class="tracking-timeline">
+                            <div class="tracking-step completed">
+                                <div class="tracking-icon"><i class="fas fa-check"></i></div>
+                                <div class="tracking-content">
+                                    <h6>Order Placed</h6>
+                                    <small class="text-gold-pink">Jan 18, 2024 - 2:30 PM</small>
+                                </div>
+                            </div>
+                            <div class="tracking-step completed">
+                                <div class="tracking-icon"><i class="fas fa-check"></i></div>
+                                <div class="tracking-content">
+                                    <h6>Order Confirmed</h6>
+                                    <small class="text-gold-pink">Jan 18, 2024 - 4:15 PM</small>
+                                </div>
+                            </div>
+                            <div class="tracking-step active">
+                                <div class="tracking-icon"><i class="fas fa-spinner"></i></div>
+                                <div class="tracking-content">
+                                    <h6>Preparing Your Order</h6>
+                                    <small class="text-gold-pink">Estimated completion: Jan 20, 2024</small>
+                                </div>
+                            </div>
+                            <div class="tracking-step">
+                                <div class="tracking-icon"><i class="fas fa-truck"></i></div>
+                                <div class="tracking-content">
+                                    <h6>Out for Delivery</h6>
+                                    <small class="text-muted">Pending</small>
+                                </div>
+                            </div>
+                            <div class="tracking-step">
+                                <div class="tracking-icon"><i class="fas fa-check-circle"></i></div>
+                                <div class="tracking-content">
+                                    <h6>Delivered</h6>
+                                    <small class="text-muted">Pending</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-gold mt-4">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-clock fa-2x text-gold-pink me-3"></i>
+                                <div>
+                                    <h6 class="mb-1">Estimated Delivery</h6>
+                                    <p class="mb-0">January 21, 2024 between 1:00 PM - 4:00 PM</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Order #HC004 (Hidden) -->
+        <div class="row" id="order-HC004" style="display: none;">
+            <div class="col-md-8 mx-auto">
+                <div class="card mb-4">
+                    <div class="card-header bg-gold-pink text-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Order #HC004</h5>
+                            <span class="badge bg-light text-dark">Placed on Jan 22, 2024</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <h6>Customer Information</h6>
+                                <p class="mb-1"><strong>Sarah Wilson</strong></p>
+                                <p class="mb-1">09123456786</p>
+                                <p class="mb-0">sarah@example.com</p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Delivery Address</h6>
+                                <p class="mb-0">321 Maple Drive, Barangay San Miguel, Pasig City</p>
+                            </div>
+                        </div>
+
+                        <h6>Order Items</h6>
+                        <table class="table table-bordered mb-4">
+                            <thead class="bg-gold-pink text-white">
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Quantity</th>
+                                    <th>Price</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Wedding Cake (3-tier)</td>
+                                    <td>1</td>
+                                    <td>P3,999</td>
+                                </tr>
+                                <tr>
+                                    <td>Wedding Cupcakes</td>
+                                    <td>24</td>
+                                    <td>P800</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" class="text-end"><strong>Total:</strong></td>
+                                    <td><strong>P4,799</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <h6 class="mb-3">Order Status</h6>
+                        <div class="tracking-timeline">
+                            <div class="tracking-step completed">
+                                <div class="tracking-icon"><i class="fas fa-check"></i></div>
+                                <div class="tracking-content">
+                                    <h6>Order Placed</h6>
+                                    <small class="text-gold-pink">Jan 22, 2024 - 11:00 AM</small>
+                                </div>
+                            </div>
+                            <div class="tracking-step active">
+                                <div class="tracking-icon"><i class="fas fa-spinner"></i></div>
+                                <div class="tracking-content">
+                                    <h6>Awaiting Confirmation</h6>
+                                    <small class="text-gold-pink">Pending approval</small>
+                                </div>
+                            </div>
+                            <div class="tracking-step">
+                                <div class="tracking-icon"><i class="fas fa-check"></i></div>
+                                <div class="tracking-content">
+                                    <h6>Confirmed</h6>
+                                    <small class="text-muted">Pending</small>
+                                </div>
+                            </div>
+                            <div class="tracking-step">
+                                <div class="tracking-icon"><i class="fas fa-truck"></i></div>
+                                <div class="tracking-content">
+                                    <h6>Out for Delivery</h6>
+                                    <small class="text-muted">Pending</small>
+                                </div>
+                            </div>
+                            <div class="tracking-step">
+                                <div class="tracking-icon"><i class="fas fa-check-circle"></i></div>
+                                <div class="tracking-content">
+                                    <h6>Delivered</h6>
+                                    <small class="text-muted">Pending</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-warning mt-4">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-clock fa-2x text-gold-pink me-3"></i>
+                                <div>
+                                    <h6 class="mb-1">Awaiting Confirmation</h6>
+                                    <p class="mb-0">Your order is pending approval from our team</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Order #HC005 (Hidden) -->
+        <div class="row" id="order-HC005" style="display: none;">
+            <div class="col-md-8 mx-auto">
+                <div class="card mb-4">
+                    <div class="card-header bg-gold-pink text-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Order #HC005</h5>
+                            <span class="badge bg-light text-dark">Placed on Jan 23, 2024</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <h6>Customer Information</h6>
+                                <p class="mb-1"><strong>Robert Santos</strong></p>
+                                <p class="mb-1">09123456785</p>
+                                <p class="mb-0">robert@example.com</p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Delivery Address</h6>
+                                <p class="mb-0">789 Pine Street, Barangay San Antonio, Quezon City</p>
+                            </div>
+                        </div>
+
+                        <h6>Order Items</h6>
+                        <table class="table table-bordered mb-4">
+                            <thead class="bg-gold-pink text-white">
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Quantity</th>
+                                    <th>Price</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Christening Package B</td>
+                                    <td>1</td>
+                                    <td>P9,999</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" class="text-end"><strong>Total:</strong></td>
+                                    <td><strong>P9,999</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <h6 class="mb-3">Order Status</h6>
+                        <div class="tracking-timeline">
+                            <div class="tracking-step completed">
+                                <div class="tracking-icon"><i class="fas fa-check"></i></div>
+                                <div class="tracking-content">
+                                    <h6>Order Placed</h6>
+                                    <small class="text-gold-pink">Jan 23, 2024 - 9:15 AM</small>
+                                </div>
+                            </div>
+                            <div class="tracking-step completed">
+                                <div class="tracking-icon"><i class="fas fa-check"></i></div>
+                                <div class="tracking-content">
+                                    <h6>Order Confirmed</h6>
+                                    <small class="text-gold-pink">Jan 23, 2024 - 11:30 AM</small>
+                                </div>
+                            </div>
+                            <div class="tracking-step active">
+                                <div class="tracking-icon"><i class="fas fa-spinner"></i></div>
+                                <div class="tracking-content">
+                                    <h6>Preparing Package</h6>
+                                    <small class="text-gold-pink">Estimated completion: Jan 25, 2024</small>
+                                </div>
+                            </div>
+                            <div class="tracking-step">
+                                <div class="tracking-icon"><i class="fas fa-truck"></i></div>
+                                <div class="tracking-content">
+                                    <h6>Out for Delivery</h6>
+                                    <small class="text-muted">Pending</small>
+                                </div>
+                            </div>
+                            <div class="tracking-step">
+                                <div class="tracking-icon"><i class="fas fa-check-circle"></i></div>
+                                <div class="tracking-content">
+                                    <h6>Delivered</h6>
+                                    <small class="text-muted">Pending</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-gold mt-4">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-clock fa-2x text-gold-pink me-3"></i>
+                                <div>
+                                    <h6 class="mb-1">Estimated Delivery</h6>
+                                    <p class="mb-0">January 26, 2024 between 10:00 AM - 2:00 PM</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="row mt-4">
+        <div class="col-12 text-center">
+            <button class="btn btn-outline-gold me-2" onclick="window.print()">
+                <i class="fas fa-print me-2"></i>Print Order Details
+            </button>
+            <a href="{% url 'contact' %}" class="btn btn-gold">
+                <i class="fas fa-headset me-2"></i>Contact Support
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+    function changeOrder(orderNumber) {
+        document.getElementById('order-HC001').style.display = 'none';
+        document.getElementById('order-HC002').style.display = 'none';
+        document.getElementById('order-HC003').style.display = 'none';
+        document.getElementById('order-HC004').style.display = 'none';
+        document.getElementById('order-HC005').style.display = 'none';
+        document.getElementById('order-' + orderNumber).style.display = 'block';
+    }
+
+    function trackOrder() {
+        const select = document.getElementById('orderSelect');
+        const orderNumber = select.value;
+        changeOrder(orderNumber);
+    }
+
+    window.onload = function() {
+        changeOrder('HC003');
+    };
+</script>
+{% endblock %}

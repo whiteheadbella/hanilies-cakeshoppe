@@ -1,0 +1,83 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Edit Package{% endblock %}
+{% block page_title %}Edit Package: {{ package.name }}{% endblock %}
+{% block page_icon %}edit{% endblock %}
+
+{% block content %}
+<div class="module-card">
+    <div class="module-header">
+        <h2><i class="fas fa-edit"></i> Edit Package Information</h2>
+    </div>
+    <div style="padding: 25px;">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="form-group">
+                <label>Package Name <span class="text-danger">*</span></label>
+                <input type="text" name="name" class="form-control" value="{{ package.name }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Package Type <span class="text-danger">*</span></label>
+                <select name="package_type" class="form-control" required>
+                    <option value="christening" {% if package.package_type == 'christening' %}selected{% endif %}>Christening</option>
+                    <option value="kids_birthday" {% if package.package_type == 'kids_birthday' %}selected{% endif %}>Kid's Birthday</option>
+                    <option value="adults_party" {% if package.package_type == 'adults_party' %}selected{% endif %}>Adult's Party</option>
+                    <option value="wedding" {% if package.package_type == 'wedding' %}selected{% endif %}>Wedding</option>
+                    <option value="corporate" {% if package.package_type == 'corporate' %}selected{% endif %}>Corporate</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Short Description</label>
+                <textarea name="description" class="form-control" rows="2">{{ package.description }}</textarea>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Base Price (₱) <span class="text-danger">*</span></label>
+                        <input type="number" name="base_price" class="form-control" step="0.01" value="{{ package.base_price }}" required>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select name="status" class="form-control">
+                            <option value="active" {% if package.status == 'active' %}selected{% endif %}>Active</option>
+                            <option value="inactive" {% if package.status == 'inactive' %}selected{% endif %}>Inactive</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Package Features/Inclusions <span class="text-danger">*</span></label>
+                <textarea name="features" class="form-control" rows="10" required>{{ package.features }}</textarea>
+                <small class="text-muted">Enter one feature per line. These will be displayed as a checklist for customers.</small>
+            </div>
+            
+            <hr>
+            
+            <div class="form-group">
+                <button type="submit" class="btn-primary">
+                    <i class="fas fa-save"></i> Update Package
+                </button>
+                <a href="{% url 'admin_packages' %}" class="btn-secondary" style="background: #6c757d; color: white; padding: 10px 25px; border-radius: 50px; text-decoration: none; margin-left: 10px;">
+                    <i class="fas fa-times"></i> Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .text-danger {
+        color: #dc2626;
+    }
+    .form-group {
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,101 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Add Package{% endblock %}
+{% block page_title %}Add New Package{% endblock %}
+{% block page_icon %}plus-circle{% endblock %}
+
+{% block content %}
+<div class="module-card">
+    <div class="module-header">
+        <h2><i class="fas fa-info-circle"></i> Package Information</h2>
+    </div>
+    <div style="padding: 25px;">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="form-group">
+                <label>Package Name <span class="text-danger">*</span></label>
+                <input type="text" name="name" class="form-control" required>
+                <small class="text-muted">Example: Christening Package A, Kid's Package 1, etc.</small>
+            </div>
+            
+            <div class="form-group">
+                <label>Package Type <span class="text-danger">*</span></label>
+                <select name="package_type" class="form-control" required>
+                    <option value="christening">Christening</option>
+                    <option value="kids_birthday">Kid's Birthday</option>
+                    <option value="adults_party">Adult's Party</option>
+                    <option value="wedding">Wedding</option>
+                    <option value="corporate">Corporate</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Short Description</label>
+                <textarea name="description" class="form-control" rows="2" placeholder="Brief description of the package..."></textarea>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Base Price (₱) <span class="text-danger">*</span></label>
+                        <input type="number" name="base_price" class="form-control" step="0.01" required>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select name="status" class="form-control">
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Package Features/Inclusions <span class="text-danger">*</span></label>
+                <textarea name="features" class="form-control" rows="10" placeholder="Enter each feature on a new line&#10;&#10;Example:&#10;1 tier Round Cake 8&quot;&#10;18 pcs. Cupcake with icing &amp; topper&#10;18 pcs. Lolli Balloon with print&#10;18 pcs. Souvenir baby bottle with celebrant's picture&#10;20 pcs. Invitations&#10;Table Set Up &amp; Backdrop Decor (2x3 tarpaulin or Name of Celebrant)&#10;Free Use of Stage Lights &amp; Accessories" required></textarea>
+                <small class="text-muted">Enter one feature per line. These will be displayed as a checklist for customers.</small>
+            </div>
+            
+            <hr>
+            
+            <div class="form-group">
+                <button type="submit" class="btn-primary">
+                    <i class="fas fa-save"></i> Save Package
+                </button>
+                <a href="{% url 'admin_packages' %}" class="btn-secondary" style="background: #6c757d; color: white; padding: 10px 25px; border-radius: 50px; text-decoration: none; margin-left: 10px;">
+                    <i class="fas fa-times"></i> Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .text-danger {
+        color: #dc2626;
+    }
+    .form-group {
+        margin-bottom: 20px;
+    }
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #495057;
+    }
+    .form-control {
+        width: 100%;
+        padding: 10px 15px;
+        border: 1px solid #dee2e6;
+        border-radius: 10px;
+        font-family: 'Poppins', sans-serif;
+    }
+    textarea.form-control {
+        font-family: monospace;
+        font-size: 13px;
+    }
+</style>
+{% endblock %}

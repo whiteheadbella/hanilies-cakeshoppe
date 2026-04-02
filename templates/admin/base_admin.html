@@ -1,0 +1,614 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hanilies Admin - {% block title %}Dashboard{% endblock %}</title>
+    
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Custom Admin CSS -->
+    <link rel="stylesheet" href="{% static 'css/admin-custom.css' %}?v=2">
+    
+    <style>
+        /* Ensure sidebar is visible */
+        .admin-sidebar {
+            width: 280px;
+            background: linear-gradient(180deg, #831843 0%, #4C0519 100%);
+            color: white;
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+            overflow-y: auto;
+        }
+        
+        .main-content {
+            margin-left: 280px;
+            min-height: 100vh;
+            background: #f8f9fa;
+        }
+        
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 20px;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+        
+        .nav-link:hover {
+            background: #BE185D;
+            color: white;
+            padding-left: 25px;
+        }
+        
+        .nav-link.active {
+            background: linear-gradient(135deg, #FF69B4, #D4AF37);
+            color: white;
+        }
+        
+        .nav-link i {
+            width: 24px;
+        }
+        
+        .sidebar-header {
+            padding: 25px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .sidebar-header .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: white;
+        }
+        
+        .sidebar-header .logo i {
+            font-size: 2rem;
+            color: #D4AF37;
+        }
+        
+        .sidebar-header .logo span {
+            font-size: 1.3rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, #D4AF37, #FF69B4);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .sidebar-header .logo small {
+            display: block;
+            font-size: 0.7rem;
+            opacity: 0.7;
+            color: white;
+        }
+        
+        .sidebar-footer {
+            margin-top: auto;
+            padding: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .view-site-btn, .logout-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+        
+        .view-site-btn {
+            background: rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.8);
+        }
+        
+        .logout-btn {
+            background: rgba(220, 38, 38, 0.2);
+            color: rgba(255,255,255,0.8);
+        }
+        
+        .view-site-btn:hover, .logout-btn:hover {
+            transform: translateX(5px);
+        }
+        
+        .view-site-btn:hover {
+            background: linear-gradient(135deg, #D4AF37, #FF69B4);
+            color: white;
+        }
+        
+        .logout-btn:hover {
+            background: #dc2626;
+            color: white;
+        }
+        
+        .admin-header {
+            background: white;
+            padding: 15px 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 999;
+            border-bottom: 3px solid #D4AF37;
+        }
+        
+        .page-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #343a40;
+            margin: 0;
+        }
+        
+        .page-title i {
+            background: linear-gradient(135deg, #FF69B4, #D4AF37);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-right: 10px;
+        }
+        
+        .admin-user {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .user-info {
+            text-align: right;
+        }
+        
+        .user-name {
+            font-weight: 600;
+            color: #343a40;
+        }
+        
+        .user-role {
+            font-size: 0.75rem;
+            color: #FF69B4;
+        }
+        
+        .user-avatar {
+            width: 45px;
+            height: 45px;
+            background: linear-gradient(135deg, #FF69B4, #D4AF37);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+        
+        .content-area {
+            padding: 30px;
+        }
+        
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: 1px solid #e9ecef;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(255,105,180,0.15);
+            border-color: #FF69B4;
+        }
+        
+        .stat-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #FFE4EC, #F8F0E5);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .stat-icon i {
+            font-size: 2rem;
+            background: linear-gradient(135deg, #FF69B4, #D4AF37);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .stat-info {
+            flex: 1;
+        }
+        
+        .stat-info h3 {
+            font-size: 0.85rem;
+            color: #6c757d;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #343a40;
+            margin-bottom: 5px;
+        }
+        
+        .stat-change {
+            font-size: 0.75rem;
+            color: #10b981;
+        }
+        
+        .stat-change.negative {
+            color: #ef4444;
+        }
+        
+        /* Module Cards */
+        .module-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            overflow: hidden;
+            margin-bottom: 30px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .module-header {
+            padding: 20px 25px;
+            border-bottom: 2px solid #FFE4EC;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(135deg, white, #FFE4EC);
+        }
+        
+        .module-header h2 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #343a40;
+            margin: 0;
+        }
+        
+        .module-header h2 i {
+            background: linear-gradient(135deg, #FF69B4, #D4AF37);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-right: 10px;
+        }
+        
+        .module-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .module-table th {
+            background: #FFE4EC;
+            padding: 12px 20px;
+            text-align: left;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #DB2777;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .module-table td {
+            padding: 12px 20px;
+            border-bottom: 1px solid #e9ecef;
+            color: #495057;
+            font-size: 0.9rem;
+        }
+        
+        .module-table tr:hover td {
+            background: linear-gradient(135deg, #FFE4EC, #F8F0E5);
+        }
+        
+        /* Status Badges */
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
+        
+        .status-pending { background: #fef3c7; color: #d97706; }
+        .status-confirmed { background: #e0e7ff; color: #4f46e5; }
+        .status-preparing { background: #fef3c7; color: #d97706; }
+        .status-out_for_delivery { background: #e0e7ff; color: #4f46e5; }
+        .status-delivered, .status-paid, .status-completed { background: #d1fae5; color: #10b981; }
+        .status-cancelled { background: #fee2e2; color: #dc2626; }
+        .status-verifying { background: #fef3c7; color: #d97706; }
+        .status-failed { background: #fee2e2; color: #dc2626; }
+        .status-active { background: #d1fae5; color: #10b981; }
+        
+        /* Buttons */
+        .btn-primary, .btn-gold {
+            background: linear-gradient(135deg, #FF69B4, #D4AF37) !important;
+            border: none;
+            border-radius: 50px;
+            padding: 10px 25px;
+            color: white;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            display: inline-block;
+            text-decoration: none;
+        }
+        
+        .btn-primary:hover, .btn-gold:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255,105,180,0.3);
+            color: white;
+        }
+        
+        .btn-outline-gold {
+            background: transparent;
+            border: 2px solid #FF69B4;
+            color: #FF69B4;
+            border-radius: 50px;
+            padding: 8px 20px;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-outline-gold:hover {
+            background: linear-gradient(135deg, #FF69B4, #D4AF37);
+            color: white;
+            border-color: transparent;
+        }
+        
+        .btn-sm {
+            padding: 5px 12px;
+            font-size: 0.8rem;
+            border-radius: 20px;
+        }
+        
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            font-family: 'Poppins', sans-serif;
+            transition: all 0.3s ease;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: #FF69B4;
+            box-shadow: 0 0 0 3px rgba(255,105,180,0.1);
+        }
+        
+        /* Alerts */
+        .alert {
+            border: none;
+            border-radius: 15px;
+            padding: 15px 20px;
+            border-left: 5px solid;
+            margin-bottom: 20px;
+        }
+        
+        .alert-success {
+            background: linear-gradient(135deg, #d4edda, #c3e6cb);
+            border-left-color: #28a745;
+            color: #155724;
+        }
+        
+        .alert-danger {
+            background: linear-gradient(135deg, #f8d7da, #f5c6cb);
+            border-left-color: #dc3545;
+            color: #721c24;
+        }
+        
+        .alert-warning {
+            background: linear-gradient(135deg, #fff3cd, #ffeeba);
+            border-left-color: #ffc107;
+            color: #856404;
+        }
+        
+        .alert-info {
+            background: linear-gradient(135deg, #d1ecf1, #bee5eb);
+            border-left-color: #17a2b8;
+            color: #0c5460;
+        }
+        
+        /* Role Badges */
+        .role-owner { background: #fbbf24; color: #78350f; }
+        .role-admin { background: #f97316; color: white; }
+        .role-manager { background: #3b82f6; color: white; }
+        .role-baker { background: #ec489a; color: white; }
+        .role-packager { background: #8b5cf6; color: white; }
+        .role-cashier { background: #10b981; color: white; }
+        .role-viewer { background: #6b7280; color: white; }
+        
+        /* Responsive */
+        @media (max-width: 992px) {
+            .admin-sidebar {
+                transform: translateX(-100%);
+                position: fixed;
+            }
+            .admin-sidebar.open {
+                transform: translateX(0);
+            }
+            .main-content {
+                margin-left: 0;
+            }
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            .content-area {
+                padding: 20px;
+            }
+            .module-header {
+                flex-direction: column;
+                gap: 10px;
+                text-align: center;
+            }
+        }
+        
+        .text-center {
+            text-align: center;
+        }
+        
+        .mt-auto {
+            margin-top: auto;
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div id="container">
+        <!-- Sidebar -->
+        <aside class="admin-sidebar">
+            <div class="sidebar-header">
+                <a href="{% url 'admin_dashboard' %}" class="logo">
+                    <i class="fas fa-birthday-cake"></i>
+                    <span>Hanilies<br><small>Admin Panel</small></span>
+                </a>
+            </div>
+            
+            <div class="sidebar-nav">
+                {% if admin_menu %}
+                    {% for item in admin_menu %}
+                        <a href="{% url item.url %}" class="nav-link {% if request.resolver_match.url_name == item.url %}active{% endif %}">
+                            <i class="fas fa-{{ item.icon }}"></i>
+                            <span>{{ item.name }}</span>
+                        </a>
+                    {% endfor %}
+                {% else %}
+                    <a href="{% url 'admin_dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <span>Dashboard</span>
+                    </a>
+                    <a href="{% url 'admin_cakes' %}" class="nav-link">
+                        <i class="fas fa-birthday-cake"></i>
+                        <span>Cakes</span>
+                    </a>
+                    <a href="{% url 'admin_cake_orders' %}" class="nav-link">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span>Cake Orders</span>
+                    </a>
+                    <a href="{% url 'admin_packages' %}" class="nav-link">
+                        <i class="fas fa-gift"></i>
+                        <span>Packages</span>
+                    </a>
+                    <a href="{% url 'admin_package_orders' %}" class="nav-link">
+                        <i class="fas fa-calendar-check"></i>
+                        <span>Package Orders</span>
+                    </a>
+                    <a href="{% url 'admin_payments' %}" class="nav-link">
+                        <i class="fas fa-credit-card"></i>
+                        <span>Payments</span>
+                    </a>
+                    <a href="{% url 'admin_users' %}" class="nav-link">
+                        <i class="fas fa-users"></i>
+                        <span>Users</span>
+                    </a>
+                {% endif %}
+            </div>
+            
+            <div class="sidebar-footer">
+                <a href="{% url 'home' %}" class="view-site-btn" target="_blank">
+                    <i class="fas fa-external-link-alt"></i>
+                    <span>View Site</span>
+                </a>
+                <a href="{% url 'logout' %}" class="logout-btn" onclick="return confirm('Are you sure you want to logout?')">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </a>
+            </div>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="admin-header">
+                <h1 class="page-title">
+                    <i class="fas fa-{% block page_icon %}tachometer-alt{% endblock %}"></i>
+                    {% block page_title %}Dashboard{% endblock %}
+                </h1>
+                <div class="admin-user">
+                    <div class="user-info">
+                        <div class="user-name">{{ request.user.get_full_name|default:request.user.username }}</div>
+                        <div class="user-role">{{ role_display|default:"Administrator" }}</div>
+                    </div>
+                    <div class="user-avatar">
+                        {{ request.user.username|first|upper }}
+                    </div>
+                </div>
+            </header>
+            
+            <div class="content-area">
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+                
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

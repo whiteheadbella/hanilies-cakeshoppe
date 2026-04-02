@@ -1,0 +1,323 @@
+{% extends 'hanilies/base.html' %}
+{% load static %}
+
+{% block title %}My Profile{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-5 fw-bold"><i class="fas fa-user-circle text-gold-pink me-2"></i>My Profile</h1>
+            <p class="lead text-gold-pink">Manage your account information and preferences</p>
+        </div>
+    </div>
+
+    <!-- Display Messages -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="row">
+        <!-- Left Column - Profile Card -->
+        <div class="col-lg-4 mb-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center p-4">
+                    <div class="position-relative d-inline-block mb-3">
+                        <div class="profile-avatar">
+                            <div class="avatar-placeholder-large mx-auto">
+                                {{ user.first_name|first|upper }}{{ user.last_name|first|upper }}
+                            </div>
+                        </div>
+                        <button class="btn btn-sm btn-gold rounded-circle position-absolute bottom-0 end-0" style="width: 40px; height: 40px;" title="Change Photo">
+                            <i class="fas fa-camera"></i>
+                        </button>
+                    </div>
+                    <h4 class="fw-bold mb-1">{{ user.first_name }} {{ user.last_name }}</h4>
+                    <p class="text-muted mb-3">
+                        <i class="fas fa-envelope text-gold-pink me-1"></i> {{ user.email }}
+                    </p>
+                    <div class="d-flex justify-content-center gap-2 mb-3">
+                        <span class="badge bg-gold-pink px-3 py-2">Verified</span>
+                        <span class="badge bg-success px-3 py-2">Active</span>
+                    </div>
+                    <div class="d-flex justify-content-around mt-3 pt-3 border-top">
+                        <div class="text-center">
+                            <h5 class="text-gold-pink mb-1">24</h5>
+                            <small class="text-muted">Orders</small>
+                        </div>
+                        <div class="text-center">
+                            <h5 class="text-gold-pink mb-1">15.8k</h5>
+                            <small class="text-muted">Spent</small>
+                        </div>
+                        <div class="text-center">
+                            <h5 class="text-gold-pink mb-1">2</h5>
+                            <small class="text-muted">Years</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column - Edit Profile Form -->
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-gold-pink text-white py-3">
+                    <h5 class="mb-0"><i class="fas fa-user-edit me-2"></i>Edit Profile Information</h5>
+                </div>
+                <div class="card-body p-4">
+                    <!-- Profile Tabs -->
+                    <ul class="nav nav-tabs mb-4" id="profileTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="personal-tab" data-bs-toggle="tab" data-bs-target="#personal" type="button" role="tab">
+                                <i class="fas fa-user me-2"></i>Personal Info
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="password-tab" data-bs-toggle="tab" data-bs-target="#password" type="button" role="tab">
+                                <i class="fas fa-lock me-2"></i>Change Password
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="preferences-tab" data-bs-toggle="tab" data-bs-target="#preferences" type="button" role="tab">
+                                <i class="fas fa-bell me-2"></i>Preferences
+                            </button>
+                        </li>
+                    </ul>
+
+                    <!-- Tab Content -->
+                    <div class="tab-content" id="profileTabsContent">
+                        <!-- Personal Info Tab -->
+                        <div class="tab-pane fade show active" id="personal" role="tabpanel">
+                            <form method="POST" action="{% url 'profile' %}">
+                                {% csrf_token %}
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">First Name</label>
+                                        <input type="text" class="form-control" name="first_name" value="{{ user.first_name }}" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Last Name</label>
+                                        <input type="text" class="form-control" name="last_name" value="{{ user.last_name }}" required>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Email Address</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light"><i class="fas fa-envelope text-gold-pink"></i></span>
+                                        <input type="email" class="form-control" name="email" value="{{ user.email }}" required>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Username</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light"><i class="fas fa-user-circle text-gold-pink"></i></span>
+                                        <input type="text" class="form-control" value="{{ user.username }}" readonly disabled>
+                                    </div>
+                                    <small class="text-muted">Username cannot be changed</small>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Phone Number</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light"><i class="fas fa-phone text-gold-pink"></i></span>
+                                        <input type="tel" class="form-control" name="phone" value="+63 912 345 6789">
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Birthday</label>
+                                    <input type="date" class="form-control" name="birthday" value="1990-01-01">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Address</label>
+                                    <textarea class="form-control" name="address" rows="2">123 Baker's Street, Barangay San Antonio, Quezon City</textarea>
+                                </div>
+                                <hr>
+                                <div class="d-flex justify-content-end gap-2">
+                                    <a href="{% url 'home' %}" class="btn btn-outline-gold">Cancel</a>
+                                    <button type="submit" class="btn btn-gold">Save Changes</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Change Password Tab -->
+                        <div class="tab-pane fade" id="password" role="tabpanel">
+                            <form method="POST" action="{% url 'change_password' %}">
+                                {% csrf_token %}
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Current Password</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light"><i class="fas fa-lock text-gold-pink"></i></span>
+                                        <input type="password" class="form-control" name="current_password" placeholder="Enter current password" required>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">New Password</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light"><i class="fas fa-lock text-gold-pink"></i></span>
+                                        <input type="password" class="form-control" name="new_password" id="newPassword" placeholder="Enter new password" required>
+                                    </div>
+                                    <small class="text-muted">Password must be at least 8 characters</small>
+                                    <div class="progress mt-2" style="height: 4px;">
+                                        <div id="passwordStrength" class="progress-bar" style="width: 0%;"></div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Confirm New Password</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light"><i class="fas fa-lock text-gold-pink"></i></span>
+                                        <input type="password" class="form-control" name="confirm_password" id="confirmPassword" placeholder="Confirm new password" required>
+                                    </div>
+                                    <div id="passwordMatchError" class="text-danger small mt-1" style="display: none;">
+                                        <i class="fas fa-exclamation-circle me-1"></i>Passwords do not match
+                                    </div>
+                                </div>
+                                <hr>
+                                <div class="d-flex justify-content-end gap-2">
+                                    <button type="button" class="btn btn-outline-gold" onclick="resetPasswordForm()">Cancel</button>
+                                    <button type="submit" class="btn btn-gold">Update Password</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Preferences Tab -->
+                        <div class="tab-pane fade" id="preferences" role="tabpanel">
+                            <form method="POST" action="{% url 'update_preferences' %}">
+                                {% csrf_token %}
+                                <h6 class="fw-bold mb-3">Notification Preferences</h6>
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" name="email_notifications" id="emailNotifications" checked>
+                                        <label class="form-check-label" for="emailNotifications">
+                                            <strong>Email Notifications</strong><br>
+                                            <small class="text-muted">Receive order updates and confirmations via email</small>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" name="promo_emails" id="promoEmails">
+                                        <label class="form-check-label" for="promoEmails">
+                                            <strong>Promotional Emails</strong><br>
+                                            <small class="text-muted">Receive special offers and new product announcements</small>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <!-- <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" name="sms_notifications" id="smsNotifications" checked>
+                                        <label class="form-check-label" for="smsNotifications">
+                                            <strong>SMS Notifications</strong><br>
+                                            <small class="text-muted">Receive order status updates via text message</small>
+                                        </label>
+                                    </div> -->
+                                </div>
+                                <hr>
+                                <div class="d-flex justify-content-end gap-2">
+                                    <button type="button" class="btn btn-outline-gold" onclick="resetPreferences()">Reset</button>
+                                    <button type="submit" class="btn btn-gold">Save Preferences</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Password match validation
+    document.addEventListener('DOMContentLoaded', function() {
+        const newPassword = document.getElementById('newPassword');
+        const confirmPassword = document.getElementById('confirmPassword');
+        const passwordError = document.getElementById('passwordMatchError');
+
+        function validatePasswordMatch() {
+            if (newPassword.value !== '' && confirmPassword.value !== '') {
+                if (newPassword.value === confirmPassword.value) {
+                    passwordError.style.display = 'none';
+                    return true;
+                } else {
+                    passwordError.style.display = 'block';
+                    return false;
+                }
+            }
+            passwordError.style.display = 'none';
+            return false;
+        }
+
+        function checkPasswordStrength() {
+            const password = newPassword.value;
+            const strengthBar = document.getElementById('passwordStrength');
+            if (strengthBar) {
+                let strength = 0;
+                if (password.length >= 8) strength += 25;
+                if (password.match(/[A-Z]/)) strength += 25;
+                if (password.match(/[0-9]/)) strength += 25;
+                if (password.match(/[^a-zA-Z0-9]/)) strength += 25;
+                strengthBar.style.width = strength + '%';
+                if (strength >= 75) {
+                    strengthBar.className = 'progress-bar bg-success';
+                } else if (strength >= 50) {
+                    strengthBar.className = 'progress-bar bg-warning';
+                } else {
+                    strengthBar.className = 'progress-bar bg-danger';
+                }
+            }
+        }
+
+        newPassword.addEventListener('input', validatePasswordMatch);
+        newPassword.addEventListener('input', checkPasswordStrength);
+        confirmPassword.addEventListener('input', validatePasswordMatch);
+    });
+
+    function resetPasswordForm() {
+        document.querySelector('#password input[name="current_password"]').value = '';
+        document.querySelector('#password input[name="new_password"]').value = '';
+        document.querySelector('#password input[name="confirm_password"]').value = '';
+        document.getElementById('passwordMatchError').style.display = 'none';
+        const strengthBar = document.getElementById('passwordStrength');
+        if (strengthBar) {
+            strengthBar.style.width = '0%';
+        }
+    }
+
+    function resetPreferences() {
+        document.querySelector('#preferences input[name="email_notifications"]').checked = true;
+        document.querySelector('#preferences input[name="promo_emails"]').checked = false;
+        document.querySelector('#preferences input[name="sms_notifications"]').checked = true;
+    }
+</script>
+
+<style>
+    .avatar-placeholder-large {
+        width: 120px;
+        height: 120px;
+        background: linear-gradient(135deg, #FFB6C1, #FF69B4);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 2.5rem;
+        border: 4px solid white;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    .password-strength {
+        height: 4px;
+        margin-top: 5px;
+        border-radius: 2px;
+        transition: all 0.3s ease;
+    }
+    .form-switch .form-check-input:checked {
+        background-color: #FF69B4;
+        border-color: #FF69B4;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Cake Orders{% endblock %}
+{% block page_title %}Cake Orders{% endblock %}
+{% block page_icon %}shopping-cart{% endblock %}
+
+{% block content %}
+<div class="module-card">
+    <div class="module-header">
+        <h2><i class="fas fa-list"></i> All Cake Orders</h2>
+    </div>
+    <table class="module-table">
+        <thead>
+            <tr><th>Order ID</th><th>Customer</th><th>Cake</th><th>Quantity</th><th>Total</th><th>Status</th><th>Date</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+            {% for order in orders %}
+            <tr>
+                <td>#{{ order.id }}</td>
+                <td>{{ order.user.username }}</td>
+                <td>{{ order.cake.name|default:"Custom Cake" }}</td>
+                <td>{{ order.quantity }}</td>
+                <td>₱{{ order.total_price }}</td>
+                <td><span class="status-badge status-{{ order.order_status }}">{{ order.get_order_status_display }}</span></td>
+                <td>{{ order.created_at|date:"Y-m-d" }}</td>
+                <td>
+                    <form method="post" action="{% url 'admin_cake_order_update' order.id %}" style="display: inline;">
+                        {% csrf_token %}
+                        <select name="status" onchange="this.form.submit()" class="form-control" style="width: auto; display: inline-block; padding: 4px 8px; font-size: 0.8rem;">
+                            <option value="pending" {% if order.order_status == 'pending' %}selected{% endif %}>Pending</option>
+                            <option value="confirmed" {% if order.order_status == 'confirmed' %}selected{% endif %}>Confirmed</option>
+                            <option value="preparing" {% if order.order_status == 'preparing' %}selected{% endif %}>Preparing</option>
+                            <option value="out_for_delivery" {% if order.order_status == 'out_for_delivery' %}selected{% endif %}>Out for Delivery</option>
+                            <option value="delivered" {% if order.order_status == 'delivered' %}selected{% endif %}>Delivered</option>
+                            <option value="cancelled" {% if order.order_status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                        </select>
+                    </form>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="8" class="text-center">No cake orders yet</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
