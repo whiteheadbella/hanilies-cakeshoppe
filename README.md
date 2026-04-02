@@ -31,4 +31,4 @@ A Django-based cake and event package ordering system with a custom admin panel.
 ### 1. Clone the repository
 ```bash
 git clone https://github.com/FranzElwynAnicas/hanilies-cakeshoppe.git
-cd hanilies-cakeshoppe
+cd hanilies-cakeshoppepip install pip-tools
