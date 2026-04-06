@@ -17,7 +17,6 @@ A Django-based cake and event package ordering system with a custom admin panel.
 - **Database**: PostgreSQL (Production) / SQLite (Development)
 - **Frontend**: Bootstrap 5, Font Awesome, Custom CSS
 - **Deployment**: Render.com
-- **Static Files**: WhiteNoise
 - **Image Processing**: Pillow
 
 ##  Prerequisites
