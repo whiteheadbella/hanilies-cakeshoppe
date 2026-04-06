@@ -3,9 +3,13 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-your-secret-key-here'
 DEBUG = True
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    'hanilies-cakeshoppe-non1.onrender.com',
+    '.onrender.com',  
+]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -48,7 +52,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-# Database - SQLite (simple, no extra setup needed)
+# Database - SQLite
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
