@@ -8,6 +8,5 @@ urlpatterns = [
     path('', include('hanilies.urls')),
 ]
 
-# Serve static files directly in production (Render free tier workaround)
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
