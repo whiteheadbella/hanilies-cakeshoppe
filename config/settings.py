@@ -4,7 +4,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-your-secret-key-here')
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
@@ -78,6 +78,13 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static']
+
+STORAGES = {
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
+
 
 # Media files
 MEDIA_URL = '/media/'
