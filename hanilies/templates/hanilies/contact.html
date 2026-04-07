@@ -4,113 +4,116 @@
 {% block title %}Contact Us{% endblock %}
 
 {% block content %}
-<div class="container py-4">
+<div class="container py-5">
+    <!-- Page Header -->
     <div class="row mb-5">
         <div class="col-12 text-center">
-            <h1 class="display-4 fw-bold mb-3">Get in Touch</h1>
-            <p class="lead text-muted">We'd love to hear from you</p>
+            <h1 class="display-4 fw-bold mb-3">
+                <span class="text-gold-pink">Get in Touch</span>
+            </h1>
+            <p class="lead text-muted">We'd love to hear from you. Reach out to us through any of the following channels.</p>
         </div>
     </div>
 
-    <div class="row">
-        <!-- Contact Information -->
-        <div class="col-md-4 mb-4">
-            <div class="card h-100">
-                <div class="card-body text-center p-4">
-                    <i class="fas fa-map-marker-alt fa-3x text-gold-pink mb-3"></i>
-                    <h5>Visit Us</h5>
-                    <p class="text-muted">FRM4+623, Independence St<br>Oroquieta City<br>Misamis Occidental, 7207</p>
+    <div class="row g-4">
+        <!-- Contact Information Cards -->
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm text-center p-4">
+                <div class="card-body">
+                    <div class="icon-circle mb-3">
+                        <i class="fas fa-map-marker-alt fa-2x text-gold-pink"></i>
+                    </div>
+                    <h5 class="fw-bold mb-3">Visit Us</h5>
+                    <p class="text-muted mb-0">
+                        FRM4+623, Independence St<br>
+                        Oroquieta City<br>
+                        Misamis Occidental, 7207
+                    </p>
                 </div>
             </div>
         </div>
-        <div class="col-md-4 mb-4">
-            <div class="card h-100">
-                <div class="card-body text-center p-4">
-                    <i class="fas fa-phone fa-3x text-gold-pink mb-3"></i>
-                    <h5>Call Us</h5>
-                    <p class="text-muted">Mobile: 09275294221<br>Landline: (02) 1234-5678<br>Available 24/7 for inquiries</p>
+        
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm text-center p-4">
+                <div class="card-body">
+                    <div class="icon-circle mb-3">
+                        <i class="fas fa-phone fa-2x text-gold-pink"></i>
+                    </div>
+                    <h5 class="fw-bold mb-3">Call Us</h5>
+                    <p class="text-muted mb-1">📞 Mobile: <strong>0927 529 4221</strong></p>
+                    <p class="text-muted mb-0">📞 Landline: <strong>(02) 1234-5678</strong></p>
                 </div>
             </div>
         </div>
-        <div class="col-md-4 mb-4">
-            <div class="card h-100">
-                <div class="card-body text-center p-4">
-                    <i class="fas fa-envelope fa-3x text-gold-pink mb-3"></i>
-                    <h5>Email Us</h5>
-                    <p class="text-muted">haniliescakeshoppe@yahoo.com</p>
+        
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm text-center p-4">
+                <div class="card-body">
+                    <div class="icon-circle mb-3">
+                        <i class="fas fa-envelope fa-2x text-gold-pink"></i>
+                    </div>
+                    <h5 class="fw-bold mb-3">Email Us</h5>
+                    <p class="text-muted mb-0">
+                        <a href="mailto:haniliescakeshoppe@yahoo.com" class="text-decoration-none">
+                            haniliescakeshoppe@yahoo.com
+                        </a>
+                    </p>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="row">
-        <div class="col-md-6 mb-4">
-            <div class="card">
-                <div class="card-header bg-gold-pink text-white">
+    <div class="row g-4 mt-2">
+        <!-- Business Hours - Full Width -->
+        <div class="col-md-6 mx-auto">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-gold-pink text-white py-3 text-center">
                     <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Business Hours</h5>
                 </div>
-                <div class="card-body">
-                    <table class="table table-borderless">
-                        <tbody>
-                            <tr>
-                                <td>Monday - Friday</td>
-                                <td class="text-end">8:00 AM - 8:00 PM</td>
-                            </tr>
-                            <tr>
-                                <td>Saturday</td>
-                                <td class="text-end">9:00 AM - 6:00 PM</td>
-                            </tr>
-                            <tr>
-                                <td>Sunday</td>
-                                <td class="text-end">9:00 AM - 5:00 PM</td>
-                            </tr>
-                            <tr>
-                                <td>Holidays</td>
-                                <td class="text-end">10:00 AM - 4:00 PM</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-6 mb-4">
-            <div class="card">
-                <div class="card-header bg-gold-pink text-white">
-                    <h5 class="mb-0"><i class="fas fa-paper-plane me-2"></i>Send us a Message</h5>
-                </div>
-                <div class="card-body">
-                    <form method="POST" action="{% url 'contact' %}">
-                        {% csrf_token %}
-                        <div class="mb-3">
-                            <input type="text" class="form-control" placeholder="Your Name" required>
+                <div class="card-body p-4">
+                    <div class="hours-list">
+                        <div class="hour-item d-flex justify-content-between py-2 border-bottom">
+                            <span class="fw-semibold">Monday - Friday</span>
+                            <span class="text-muted">8:00 AM - 8:00 PM</span>
                         </div>
-                        <div class="mb-3">
-                            <input type="email" class="form-control" placeholder="Your Email" required>
+                        <div class="hour-item d-flex justify-content-between py-2 border-bottom">
+                            <span class="fw-semibold">Saturday</span>
+                            <span class="text-muted">9:00 AM - 6:00 PM</span>
                         </div>
-                        <div class="mb-3">
-                            <input type="text" class="form-control" placeholder="Subject" required>
+                        <div class="hour-item d-flex justify-content-between py-2 border-bottom">
+                            <span class="fw-semibold">Sunday</span>
+                            <span class="text-muted">9:00 AM - 5:00 PM</span>
                         </div>
-                        <div class="mb-3">
-                            <textarea class="form-control" rows="5" placeholder="Your Message" required></textarea>
+                        <div class="hour-item d-flex justify-content-between py-2">
+                            <span class="fw-semibold text-gold-pink">Holidays</span>
+                            <span class="text-muted">10:00 AM - 4:00 PM</span>
                         </div>
-                        <button type="submit" class="btn btn-gold w-100">Send Message</button>
-                    </form>
+                    </div>
+                    
+                    <div class="mt-4 p-3 bg-light rounded text-center">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            For urgent inquiries outside business hours, please email us and we'll respond within 24 hours.
+                        </small>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Map -->
+    <!-- Map Section -->
     <div class="row mt-4">
         <div class="col-12">
-            <div class="card">
+            <div class="card border-0 shadow-sm overflow-hidden">
+                <div class="card-header bg-gold-pink text-white py-3">
+                    <h5 class="mb-0"><i class="fas fa-map me-2"></i>Our Location</h5>
+                </div>
                 <div class="card-body p-0">
                     <iframe 
                         src="https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=FRM4%2B623+Independence+St+Oroquieta+City+7207+Misamis+Occidental&zoom=18" 
                         width="100%"
                         height="400"
-                        style="border:0; border-radius: 15px;"
+                        style="border:0;"
                         allowfullscreen=""
                         loading="lazy">
                     </iframe>
@@ -119,4 +122,69 @@
         </div>
     </div>
 </div>
+
+<style>
+    .icon-circle {
+        width: 70px;
+        height: 70px;
+        background: linear-gradient(135deg, rgba(255,105,180,0.1), rgba(212,175,55,0.1));
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+        transition: all 0.3s ease;
+    }
+    
+    .card:hover .icon-circle {
+        transform: scale(1.1);
+        background: linear-gradient(135deg, rgba(255,105,180,0.2), rgba(212,175,55,0.2));
+    }
+    
+    .hour-item {
+        transition: all 0.3s ease;
+    }
+    
+    .hour-item:hover {
+        background: linear-gradient(135deg, rgba(255,105,180,0.05), rgba(212,175,55,0.05));
+        padding-left: 10px;
+        padding-right: 10px;
+        border-radius: 8px;
+    }
+    
+    .card {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important;
+    }
+    
+    .bg-gold-pink {
+        background: linear-gradient(135deg, #FF69B4, #D4AF37);
+    }
+    
+    .text-gold-pink {
+        background: linear-gradient(135deg, #FF69B4, #D4AF37);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    
+    @media (max-width: 768px) {
+        .container {
+            padding-left: 20px;
+            padding-right: 20px;
+        }
+        
+        .display-4 {
+            font-size: 2rem;
+        }
+        
+        .col-md-6.mx-auto {
+            width: 100%;
+        }
+    }
+</style>
 {% endblock %}
