@@ -1,293 +1,184 @@
 {% extends 'hanilies/base.html' %}
-{% load static %}
 
-{% block title %}Package Payment{% endblock %}
+{% block title %}Finalize Package Order{% endblock %}
 
 {% block content %}
 <div class="container py-4">
-    <!-- Header -->
     <div class="row mb-4">
-        <div class="col-12">
-            <h1 class="display-5 fw-bold">Complete Your Order</h1>
-            <p class="lead text-gold-pink">Complete your order with event information and payment</p>
+        <div class="col-lg-8">
+            <h1 class="display-5 fw-bold mb-2">Finalize Package Order</h1>
+            <p class="lead text-muted mb-0">Step 3 of 3: submit event details, contact information, and payment details.</p>
         </div>
     </div>
 
-    <!-- Progress Steps -->
-    <div class="d-flex justify-content-center mb-5">
-        <div class="step-indicator d-flex align-items-center">
-            <div class="step completed">1</div>
-            <span class="step-label completed ms-2 me-3">Package Details</span>
-            <div class="step completed">2</div>
-            <span class="step-label completed ms-2 me-3">Cake Customization</span>
-            <div class="step active">3</div>
-            <span class="step-label active ms-2">Payment & Event</span>
+    {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
-    </div>
+        {% endfor %}
+    {% endif %}
 
-    <div class="row">
-        <!-- Event & Payment Form -->
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header bg-gold-pink text-white">
-                    <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Event Details & Payment</h5>
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-gold-pink text-white py-3">
+                    <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Event Details and Payment</h5>
                 </div>
-                <div class="card-body">
-                    <form method="POST" action="{% url 'order_tracking' %}">
+                <div class="card-body p-4">
+                    <form method="post" enctype="multipart/form-data" id="package-step-three">
                         {% csrf_token %}
+                        <input type="hidden" name="event_type" value="{{ draft.event_type }}">
 
-                        <!-- Package Summary -->
-                        <div class="alert alert-info mb-4">
-                            <h6>Order Summary: <span class="fw-bold">Christening Package B</span></h6>
-                            <p class="mb-0 small">Total amount: <span class="fw-bold text-gold-pink">P12,499</span> + cake customizations</p>
+                        <div class="alert alert-light border mb-4">
+                            <div class="d-flex flex-column flex-md-row justify-content-between gap-3 align-items-md-center">
+                                <div>
+                                    <div class="small text-muted">Selected package</div>
+                                    <div class="h5 mb-1">{{ package.name }}</div>
+                                    <div class="text-muted text-capitalize">{{ draft.event_type|default:package.package_type }}</div>
+                                </div>
+                                <div class="text-md-end">
+                                    <div class="small text-muted">Grand total</div>
+                                    <div class="h4 text-gold-pink mb-0">P{{ grand_total }}</div>
+                                </div>
+                            </div>
                         </div>
 
-                        <!-- Event Details -->
-                        <h5 class="mb-3">Event Details</h5>
-                        <div class="row mb-4">
+                        <h6 class="fw-bold mb-3">Event Details</h6>
+                        <div class="row g-3 mb-4">
                             <div class="col-md-6">
-                                <label class="form-label fw-bold">Event Date</label>
-                                <input type="date" class="form-control" name="event_date" required>
+                                <label class="form-label fw-semibold">Event Date</label>
+                                <input type="date" class="form-control" name="event_date" id="event_date" required>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label fw-bold">Event Time</label>
+                                <label class="form-label fw-semibold">Event Time</label>
                                 <input type="time" class="form-control" name="event_time" required>
                             </div>
+                            <div class="col-12">
+                                <label class="form-label fw-semibold">Venue / Event Address</label>
+                                <textarea class="form-control" name="venue" rows="2" required>{{ defaults.delivery_address }}</textarea>
+                            </div>
                         </div>
 
-                        <div class="mb-4">
-                            <label class="form-label fw-bold">Venue/Event Location</label>
-                            <input type="text" class="form-control" name="venue" placeholder="Complete address" required>
+                        <h6 class="fw-bold mb-3">Contact Information</h6>
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">Contact Name</label>
+                                <input type="text" class="form-control" name="contact_name" value="{{ defaults.contact_name }}" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">Phone Number</label>
+                                <input type="text" class="form-control" name="contact_phone" value="{{ defaults.contact_phone }}" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">Email Address</label>
+                                <input type="email" class="form-control" name="contact_email" value="{{ defaults.contact_email }}" required>
+                            </div>
                         </div>
 
-                        <!-- Contact Information -->
-                        <h5 class="mb-3">Contact Information</h5>
-                        <div class="row mb-4">
+                        <h6 class="fw-bold mb-3">Payment Method</h6>
+                        <div class="row g-3 mb-4">
                             <div class="col-md-6">
-                                <label class="form-label fw-bold">Full Name</label>
-                                <input type="text" class="form-control" name="contact_name" required>
+                                <label class="form-check border rounded p-3 h-100 payment-option">
+                                    <input class="form-check-input package-payment-radio" type="radio" name="payment_method" value="cod" checked>
+                                    <span class="form-check-label ms-2">
+                                        <strong>Cash on Delivery</strong><br>
+                                        <span class="text-muted">Collect payment upon delivery or pickup.</span>
+                                    </span>
+                                </label>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label fw-bold">Contact Number</label>
-                                <input type="tel" class="form-control" name="contact_phone" required>
+                                <label class="form-check border rounded p-3 h-100 payment-option">
+                                    <input class="form-check-input package-payment-radio" type="radio" name="payment_method" value="gcash">
+                                    <span class="form-check-label ms-2">
+                                        <strong>GCash</strong><br>
+                                        <span class="text-muted">Upload proof of payment for verification.</span>
+                                    </span>
+                                </label>
                             </div>
-                        </div>
-                        <div class="mb-4">
-                            <label class="form-label fw-bold">Email Address</label>
-                            <input type="email" class="form-control" name="contact_email" required>
                         </div>
 
-                        <!-- PAYMENT METHOD SECTION -->
-                        <div class="card mb-4 border-2" style="border-color: var(--pink-primary);">
-                            <div class="card-header bg-gold-pink text-white">
-                                <h5 class="mb-0"><i class="fas fa-credit-card me-2"></i>Payment Method</h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <div class="form-check payment-option p-3 border rounded" onclick="selectPayment('cod')">
-                                            <input class="form-check-input" type="radio" name="paymentMethod" id="paymentCOD" value="cod" checked>
-                                            <label class="form-check-label w-100" for="paymentCOD">
-                                                <div class="d-flex align-items-center">
-                                                    <div class="payment-icon me-3">
-                                                        <i class="fas fa-money-bill-wave fa-2x text-gold-pink"></i>
-                                                    </div>
-                                                    <div>
-                                                        <h6 class="mb-1 fw-bold">Cash on Delivery</h6>
-                                                        <small class="text-muted">Pay when you receive your order</small>
-                                                    </div>
-                                                </div>
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <div class="form-check payment-option p-3 border rounded" onclick="selectPayment('gcash')">
-                                            <input class="form-check-input" type="radio" name="paymentMethod" id="paymentGCash" value="gcash">
-                                            <label class="form-check-label w-100" for="paymentGCash">
-                                                <div class="d-flex align-items-center">
-                                                    <div class="payment-icon me-3">
-                                                        <i class="fas fa-mobile-alt fa-2x text-gold-pink"></i>
-                                                    </div>
-                                                    <div>
-                                                        <h6 class="mb-1 fw-bold">GCash</h6>
-                                                        <small class="text-muted">Pay via GCash (Manual Verification)</small>
-                                                    </div>
-                                                </div>
-                                            </label>
-                                        </div>
-                                    </div>
+                        <div id="package-gcash-fields" class="border rounded p-3 mb-4 d-none">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">GCash Reference Number</label>
+                                    <input type="text" class="form-control" name="reference_number" placeholder="Enter transaction reference">
                                 </div>
-
-                                <!-- GCash Payment Details -->
-                                <div id="gcashDetails" class="mt-3 p-4 bg-light rounded" style="display: none;">
-                                    <h6 class="fw-bold mb-3">GCash Payment Instructions:</h6>
-                                    <div class="row">
-                                        <div class="col-md-5 text-center mb-3">
-                                            <div class="gcash-qr-placeholder mx-auto mb-2" onclick="enlargeQR()" style="cursor: pointer;">
-                                                <img src="{% static 'images/qr.png' %}" alt="GCash QR Code" class="img-fluid" style="max-width: 120px;">
-                                            </div>
-                                            <p class="small mb-0">Click QR to enlarge</p>
-                                        </div>
-                                        <div class="col-md-7">
-                                            <p class="mb-2"><i class="fas fa-user text-gold-pink me-2"></i><strong>Account Name:</strong> Hanilies Cakeshoppe</p>
-                                            <p class="mb-2"><i class="fas fa-phone text-gold-pink me-2"></i><strong>GCash Number:</strong> 0912 345 6789</p>
-                                            <p class="mb-2"><i class="fas fa-coins text-gold-pink me-2"></i><strong>Amount to pay:</strong> <span class="text-gold-pink fw-bold" id="gcashAmount">P12,499</span></p>
-                                        </div>
-                                    </div>
-                                    <div class="mt-3">
-                                        <div class="mb-2">
-                                            <label class="form-label small fw-bold">Reference Number <span class="text-danger">*</span></label>
-                                            <input type="text" class="form-control" id="gcashReference" placeholder="e.g., 1234567890">
-                                        </div>
-                                        <div class="mb-2">
-                                            <label class="form-label small fw-bold">Upload Screenshot <span class="text-danger">*</span></label>
-                                            <input type="file" class="form-control" id="gcashScreenshot" accept="image/*">
-                                        </div>
-                                        <small class="text-muted">Upload screenshot of your GCash transaction</small>
-                                    </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Proof of Payment</label>
+                                    <input type="file" class="form-control" name="proof_image" accept="image/*">
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Special Instructions -->
-                        <div class="mb-4">
-                            <label class="form-label fw-bold">Additional Notes</label>
-                            <textarea class="form-control" name="additional_notes" rows="2" placeholder="Any last minute requests?"></textarea>
-                        </div>
-
-                        <hr>
 
                         <div class="d-flex justify-content-between">
-                            <a href="{% url 'package_cake_customize' %}" class="btn btn-outline-gold">Back to Cake</a>
-                            <button type="submit" class="btn btn-gold" onclick="return validatePayment()">Place Order & Track</button>
+                            <a href="{% url 'package_cake_customize' %}" class="btn btn-outline-gold">Back to Cake Details</a>
+                            <button type="submit" class="btn btn-gold">Place Package Order</button>
                         </div>
                     </form>
                 </div>
             </div>
         </div>
 
-        <!-- Order Summary Sidebar -->
-        <div class="col-md-4">
-            <div class="card sticky-top" style="top: 100px;">
-                <div class="card-header bg-gold-pink text-white">
-                    <h5 class="mb-0"><i class="fas fa-shopping-cart me-2"></i>Complete Order Summary</h5>
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm sticky-top" style="top: 100px;">
+                <div class="card-header bg-gold-pink text-white py-3">
+                    <h5 class="mb-0"><i class="fas fa-receipt me-2"></i>Final Summary</h5>
                 </div>
                 <div class="card-body">
-                    <h6>Package:</h6>
-                    <p class="fw-bold">Christening Package B</p>
-
-                    <h6 class="mt-3">Package Inclusions:</h6>
-                    <ul class="list-unstyled small">
-                        <li><i class="fas fa-check-circle text-gold-pink me-2"></i>2 tier Cake (9" & 6")</li>
-                        <li><i class="fas fa-check-circle text-gold-pink me-2"></i>24 Cupcakes with topper</li>
-                        <li><i class="fas fa-check-circle text-gold-pink me-2"></i>6 theme cupcakes</li>
-                        <li><i class="fas fa-check-circle text-gold-pink me-2"></i>24 Lolli Balloon</li>
-                        <li><i class="fas fa-check-circle text-gold-pink me-2"></i>2 Pillar Balloon</li>
-                        <li><i class="fas fa-check-circle text-gold-pink me-2"></i>24 Baby Bottle Souvenirs</li>
-                        <li><i class="fas fa-check-circle text-gold-pink me-2"></i>Sweet Corner Set Up</li>
-                        <li><i class="fas fa-check-circle text-gold-pink me-2"></i>Chocolate Fountain</li>
-                    </ul>
-
-                    <div class="bg-light p-2 rounded mb-2">
-                        <div class="d-flex justify-content-between small">
-                            <span>Package Base:</span>
-                            <span class="fw-bold">P9,999</span>
-                        </div>
-                        <div class="d-flex justify-content-between small">
-                            <span>Add-ons:</span>
-                            <span class="fw-bold">P2,500</span>
-                        </div>
-                        <div class="d-flex justify-content-between small">
-                            <span>Cake Customizations:</span>
-                            <span class="fw-bold">P0</span>
-                        </div>
+                    <div class="mb-3">
+                        <div class="small text-muted">Package</div>
+                        <div class="fw-semibold">{{ package.name }}</div>
                     </div>
-
+                    <div class="mb-3">
+                        <div class="small text-muted">Selected Add-ons</div>
+                        {% if draft.selected_addon_labels %}
+                            {% for label in draft.selected_addon_labels %}
+                            <div class="small">{{ label }}</div>
+                            {% endfor %}
+                        {% else %}
+                        <div class="small text-muted">No add-ons selected.</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <div class="small text-muted">Cake Details</div>
+                        <div class="small">Flavor: {{ draft.cake_flavor|default:'Not specified' }}</div>
+                        <div class="small">Frosting: {{ draft.cake_frosting|default:'Not specified' }}</div>
+                        <div class="small">Message: {{ draft.cake_message|default:'None' }}</div>
+                    </div>
                     <hr>
                     <div class="d-flex justify-content-between mb-2">
-                        <span class="fw-bold">Total Amount:</span>
-                        <span class="fw-bold text-gold-pink">P12,499</span>
+                        <span>Package Subtotal</span>
+                        <span>P{{ subtotal }}</span>
                     </div>
-
-                    <div class="alert alert-info small mt-3">
-                        <i class="fas fa-clock me-2"></i>
-                        Event duration: 3-4 hours only
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Cake Customization</span>
+                        <span>P{{ custom_total }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Total Amount</span>
+                        <strong class="text-gold-pink">P{{ grand_total }}</strong>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
 
-<!-- QR Code Enlarged Modal -->
-<div class="modal fade" id="qrModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-sm modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header bg-gold-pink text-white">
-                <h5 class="modal-title">GCash QR Code</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body text-center p-4">
-                <img src="{% static 'images/qr.png' %}" alt="GCash QR Code" class="img-fluid" style="max-width: 250px;">
-                <p class="mt-3 mb-0">Scan to pay with GCash</p>
-            </div>
-        </div>
-    </div>
-</div>
-
+{% block extra_js %}
 <script>
-    let selectedPayment = 'cod';
+    const packagePaymentRadios = document.querySelectorAll('.package-payment-radio');
+    const packageGcashFields = document.getElementById('package-gcash-fields');
 
-    function selectPayment(method) {
-        selectedPayment = method;
-        document.getElementById('paymentCOD').checked = (method === 'cod');
-        document.getElementById('paymentGCash').checked = (method === 'gcash');
-        document.getElementById('gcashDetails').style.display = method === 'gcash' ? 'block' : 'none';
-        
-        document.querySelectorAll('.payment-option').forEach(opt => {
-            opt.classList.remove('selected');
-        });
-        if (event) {
-            event.currentTarget.classList.add('selected');
-        }
+    function updatePackagePaymentFields() {
+        const selectedPayment = document.querySelector('.package-payment-radio:checked').value;
+        packageGcashFields.classList.toggle('d-none', selectedPayment !== 'gcash');
     }
 
-    function validatePayment() {
-        if (selectedPayment === 'gcash') {
-            const reference = document.getElementById('gcashReference').value.trim();
-            const screenshot = document.getElementById('gcashScreenshot').files[0];
-            
-            if (!reference) {
-                alert('Please enter your GCash reference number');
-                return false;
-            }
-            if (!screenshot) {
-                alert('Please upload your payment screenshot');
-                return false;
-            }
-            return true;
-        }
-        return true;
-    }
-
-    function enlargeQR() {
-        const qrModal = new bootstrap.Modal(document.getElementById('qrModal'));
-        qrModal.show();
-    }
+    packagePaymentRadios.forEach((radio) => radio.addEventListener('change', updatePackagePaymentFields));
+    document.getElementById('event_date').setAttribute('min', new Date().toISOString().split('T')[0]);
+    updatePackagePaymentFields();
 </script>
-
-<style>
-    .payment-option {
-        cursor: pointer;
-        transition: all 0.3s ease;
-    }
-    .payment-option:hover {
-        border-color: #FF69B4 !important;
-        background: #FFF0F5;
-    }
-    .payment-option.selected {
-        border-color: #FF69B4 !important;
-        background: linear-gradient(135deg, rgba(255,105,180,0.1), rgba(212,175,55,0.1));
-    }
-</style>
 {% endblock %}

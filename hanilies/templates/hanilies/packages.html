@@ -1,351 +1,84 @@
 {% extends 'hanilies/base.html' %}
-{% load static %}
 
 {% block title %}Event Packages{% endblock %}
 
 {% block content %}
 <div class="container py-4">
-    <!-- Header -->
-    <div class="row mb-5">
-        <div class="col-12 text-center">
-            <h1 class="display-5 fw-bold mb-3">Event Packages</h1>
-            <p class="lead text-muted">Complete packages for your special occasions</p>
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <h1 class="display-5 fw-bold mb-2">Event Packages</h1>
+            <p class="lead text-muted mb-0">Choose a package, review the live inclusions, and continue to a real booking flow.</p>
         </div>
     </div>
 
-    <!-- Package Categories Tabs -->
-    <ul class="nav nav-tabs justify-content-center mb-5" id="packageTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="christening-tab" data-bs-toggle="tab" data-bs-target="#christening" type="button" role="tab">Christening</button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="kids-tab" data-bs-toggle="tab" data-bs-target="#kids" type="button" role="tab">Kid's Birthday</button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="adults-tab" data-bs-toggle="tab" data-bs-target="#adults" type="button" role="tab">Adult's Package</button>
-        </li>
-    </ul>
-
-    <!-- Tab Content -->
-    <div class="tab-content" id="packageTabsContent">
-        <!-- Christening Packages -->
-        <div class="tab-pane fade show active" id="christening" role="tabpanel">
-            <div class="row">
-                <!-- Package A -->
-                <div class="col-lg-4 mb-4">
-                    <div class="card package-card h-100">
-                        <div class="package-badge">Most Popular</div>
-                        <div class="card-body d-flex flex-column">
-                            <h3 class="text-center mb-3">Christening Package A</h3>
-                            <div class="text-center mb-3">
-                                <span class="display-6 fw-bold text-gold">₱6,999</span>
-                            </div>
-                            
-                            <!-- Scrollable package list -->
-                            <div class="package-list-container mb-3">
-                                <ul class="package-list">
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>1 tier Round Cake 8"</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>18 pcs. Cupcake with icing & topper</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>18 pcs. Lolli Balloon with print</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>18 pcs. Souvenir baby bottle with celebrant's picture</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>20 pcs. Invitations</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>Table Set Up & Backdrop Decor (2x3 tarpaulin or Name of Celebrant)</li>
-                                    <li><i class="fas fa-star text-gold me-2"></i>Free Use of Stage Lights & Accessories</li>
-                                </ul>
-                            </div>
-                            
-                            <div class="mt-auto">
-                                <div class="p-2 bg-light rounded mb-3">
-                                    <small class="text-muted"><i class="fas fa-clock me-1"></i>Event duration: 3-4 hours</small>
-                                </div>
-                                <a href="{% url 'package_order' %}?package=christening-a" class="btn btn-gold w-100">Select Package</a>
-                            </div>
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <form method="get" class="row g-3 align-items-end">
+                        <div class="col-md-4">
+                            <label for="type" class="form-label fw-semibold">Package Type</label>
+                            <select class="form-select" id="type" name="type">
+                                <option value="">All Package Types</option>
+                                {% for value, label in package_types %}
+                                <option value="{{ value }}" {% if selected_type == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
                         </div>
+                        <div class="col-md-5">
+                            <label for="q" class="form-label fw-semibold">Search</label>
+                            <input type="text" class="form-control" id="q" name="q" value="{{ search_term }}" placeholder="Search package name or description">
+                        </div>
+                        <div class="col-md-3 d-grid">
+                            <button type="submit" class="btn btn-gold">Filter Packages</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        {% for package in packages %}
+        <div class="col-md-6 col-xl-4">
+            <div class="card h-100 border-0 shadow-sm overflow-hidden">
+                {% if package.image %}
+                <img src="{{ package.image.url }}" class="card-img-top" alt="{{ package.name }}" style="height: 240px; object-fit: cover;">
+                {% else %}
+                <div class="bg-light d-flex align-items-center justify-content-center" style="height: 240px;">
+                    <div class="text-center text-muted">
+                        <i class="fas fa-gift fa-3x mb-3"></i>
+                        <div>No package image uploaded</div>
                     </div>
                 </div>
-
-                <!-- Package B -->
-                <div class="col-lg-4 mb-4">
-                    <div class="card package-card h-100">
-                        <div class="card-body d-flex flex-column">
-                            <h3 class="text-center mb-3">Christening Package B</h3>
-                            <div class="text-center mb-3">
-                                <span class="display-6 fw-bold text-gold">₱9,999</span>
-                            </div>
-                            
-                            <!-- Scrollable package list -->
-                            <div class="package-list-container mb-3">
-                                <ul class="package-list">
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>2 tier Round Cake 9" & 6"</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>24 pcs. Cupcake with icing & topper</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>6 theme cupcakes</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>24 pcs. Lolli Balloon with print</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>2 Pillar Balloon</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>24 pcs. Souvenir Baby Bottle with picture</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>Sweet Corner Set Up</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>Backdrop Decor (3x4 tarpaulin or Name)</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>1 Chocolate fountain</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>30 mini brownies, 10 customize cookies</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>1 bottle wafer sticks, 10 cake pop</li>
-                                    <li><i class="fas fa-star text-gold me-2"></i>Free Use of Stage Lights & Accessories</li>
-                                </ul>
-                            </div>
-                            
-                            <div class="mt-auto">
-                                <div class="p-2 bg-light rounded mb-3">
-                                    <small class="text-muted"><i class="fas fa-clock me-1"></i>Event duration: 3-4 hours</small>
-                                </div>
-                                <a href="{% url 'package_order' %}?package=christening-b" class="btn btn-gold w-100">Select Package</a>
-                            </div>
-                        </div>
+                {% endif %}
+                <div class="card-body d-flex flex-column">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h4 class="h5 mb-0">{{ package.name }}</h4>
+                        <span class="badge text-bg-light text-capitalize">{{ package.get_package_type_display }}</span>
                     </div>
-                </div>
-
-                <!-- Package C -->
-                <div class="col-lg-4 mb-4">
-                    <div class="card package-card h-100">
-                        <div class="card-body d-flex flex-column">
-                            <h3 class="text-center mb-3">Christening Package C</h3>
-                            <div class="text-center mb-3">
-                                <span class="display-6 fw-bold text-gold">₱12,999</span>
-                            </div>
-                            
-                            <!-- Scrollable package list -->
-                            <div class="package-list-container mb-3">
-                                <ul class="package-list">
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>3 tier Round Cake 9" 7" 4"</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>30 pcs. Cupcake with icing & topper</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>36 pcs. Lolli Balloon with print</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>Stage Garland Balloon</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>2 Pillar & 8 Centerpiece Balloon</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>36 pcs. Souvenir Baby Bottle</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>Table Set & Backdrop Decor (3x4 tarpaulin)</li>
-                                    <li><i class="fas fa-star text-gold me-2"></i>Free Use of Stage Lights & Accessories</li>
-                                </ul>
-                            </div>
-                            
-                            <div class="mt-auto">
-                                <div class="p-2 bg-light rounded mb-3">
-                                    <small class="text-muted"><i class="fas fa-clock me-1"></i>Event duration: 3-4 hours</small>
-                                </div>
-                                <a href="{% url 'package_order' %}?package=christening-c" class="btn btn-gold w-100">Select Package</a>
-                            </div>
+                    <p class="text-muted mb-3">{{ package.description|default:'Package booking with customizable inclusions and cake options.' }}</p>
+                    {% if package.included_items %}
+                    <div class="small text-muted mb-3">
+                        <div class="fw-semibold text-dark mb-1">Included items</div>
+                        <div>{{ package.included_items|linebreaksbr }}</div>
+                    </div>
+                    {% endif %}
+                    <div class="mt-auto d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="small text-muted">Package price</div>
+                            <div class="h4 text-gold-pink mb-0">P{{ package.base_price }}</div>
                         </div>
+                        <a href="{% url 'package_order' %}?package_id={{ package.id }}" class="btn btn-gold">Book Package</a>
                     </div>
                 </div>
             </div>
         </div>
-
-        <!-- Kid's Birthday Packages -->
-        <div class="tab-pane fade" id="kids" role="tabpanel">
-            <div class="row">
-                <!-- Kid's Package 1 -->
-                <div class="col-lg-4 mb-4">
-                    <div class="card package-card h-100">
-                        <div class="card-body d-flex flex-column">
-                            <h3 class="text-center mb-3">Kid's Package 1</h3>
-                            <div class="text-center mb-3">
-                                <span class="display-6 fw-bold text-gold">₱4,500</span>
-                            </div>
-                            
-                            <!-- Scrollable package list -->
-                            <div class="package-list-container mb-3">
-                                <ul class="package-list">
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>2 pcs. Themed Cake - round 7"</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>1 Chocolate Fountain</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>24 Marshmallow on stick</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>24 Chocofudge Brownies</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>24 Themed Cupcakes</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>24 Chocochip Cookies</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>4 Kinds gummies/gums</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>24 Mini sliced cakes w/ frosting</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>Table set-up</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>12 Blueberry shots</li>
-                                </ul>
-                            </div>
-                            
-                            <div class="mt-auto">
-                                <div class="p-2 bg-light rounded mb-3">
-                                    <small class="text-muted"><i class="fas fa-clock me-1"></i>Event duration: 3-4 hours</small>
-                                </div>
-                                <a href="{% url 'package_order' %}?package=kids-1" class="btn btn-gold w-100">Select Package</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Kid's Package 2 -->
-                <div class="col-lg-4 mb-4">
-                    <div class="card package-card h-100">
-                        <div class="card-body d-flex flex-column">
-                            <h3 class="text-center mb-3">Kid's Package 2</h3>
-                            <div class="text-center mb-3">
-                                <span class="display-6 fw-bold text-gold">₱6,500</span>
-                            </div>
-                            
-                            <!-- Scrollable package list -->
-                            <div class="package-list-container mb-3">
-                                <ul class="package-list">
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>1 Chocolate Fountain</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>1 Jar Wafer Stick</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>30 Marshmallow on stick</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>30 Chocofudge Brownies</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>30 themed Cupcakes</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>30 Chocochip Cookies</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>4 Kinds Gummies/gums</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>30 Mini sliced cakes Pandan</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>30 Mini sliced cakes Ube</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>15 Blueberry shots</li>
-                                </ul>
-                            </div>
-                            
-                            <div class="mt-auto">
-                                <div class="p-2 bg-light rounded mb-3">
-                                    <small class="text-muted"><i class="fas fa-clock me-1"></i>Event duration: 3-4 hours</small>
-                                </div>
-                                <a href="{% url 'package_order' %}?package=kids-2" class="btn btn-gold w-100">Select Package</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Kid's Package 3 -->
-                <div class="col-lg-4 mb-4">
-                    <div class="card package-card h-100">
-                        <div class="card-body d-flex flex-column">
-                            <h3 class="text-center mb-3">Kid's Package 3</h3>
-                            <div class="text-center mb-3">
-                                <span class="display-6 fw-bold text-gold">₱9,000</span>
-                            </div>
-                            
-                            <!-- Scrollable package list -->
-                            <div class="package-list-container mb-3">
-                                <ul class="package-list">
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>1 Chocolate Fountain</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>1 Jar Wafer Stick</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>36 Marshmallow on stick</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>36 Chocofudge Brownies</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>36 themed Cupcakes</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>4 Kinds Gummies/gums</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>36 Mini sliced cakes Pandan</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>36 Mini sliced cakes Mocha</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>15 Cake Pop</li>
-                                </ul>
-                            </div>
-                            
-                            <div class="mt-auto">
-                                <div class="p-2 bg-light rounded mb-3">
-                                    <small class="text-muted"><i class="fas fa-clock me-1"></i>Event duration: 3-4 hours</small>
-                                </div>
-                                <a href="{% url 'package_order' %}?package=kids-3" class="btn btn-gold w-100">Select Package</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="alert alert-warning mb-0">No packages matched your filters. Try a different package type or search term.</div>
         </div>
-
-        <!-- Adult's Packages -->
-        <div class="tab-pane fade" id="adults" role="tabpanel">
-            <div class="row">
-                <!-- Adult's Package 1 -->
-                <div class="col-lg-4 mb-4">
-                    <div class="card package-card h-100">
-                        <div class="card-body d-flex flex-column">
-                            <h3 class="text-center mb-3">Adult's Package 1</h3>
-                            <div class="text-center mb-3">
-                                <span class="display-6 fw-bold text-gold">₱4,500</span>
-                            </div>
-                            
-                            <!-- Scrollable package list -->
-                            <div class="package-list-container mb-3">
-                                <ul class="package-list">
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>1 Tier Cake 8x3</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>24 Chocofudge Brownies</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>24 Cupcake w/ frosting</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>24 Chocochip Cookies</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>24 Mini sliced cakes w/ frosting</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>Table set-up</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>15 Blueberry shots</li>
-                                </ul>
-                            </div>
-                            
-                            <div class="mt-auto">
-                                <div class="p-2 bg-light rounded mb-3">
-                                    <small class="text-muted"><i class="fas fa-clock me-1"></i>Event duration: 3-4 hours</small>
-                                </div>
-                                <a href="{% url 'package_order' %}?package=adults-1" class="btn btn-gold w-100">Select Package</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Adult's Package 2 -->
-                <div class="col-lg-4 mb-4">
-                    <div class="card package-card h-100">
-                        <div class="card-body d-flex flex-column">
-                            <h3 class="text-center mb-3">Adult's Package 2</h3>
-                            <div class="text-center mb-3">
-                                <span class="display-6 fw-bold text-gold">₱6,500</span>
-                            </div>
-                            
-                            <!-- Scrollable package list -->
-                            <div class="package-list-container mb-3">
-                                <ul class="package-list">
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>1 Tier cake 9x3</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>30 Chocofudge Brownies</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>30 Cupcake w/ frosting</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>30 Chocochip Cookies</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>30 Mini sliced cakes Pandan</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>30 Mini sliced cakes Ube</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>Table set-up</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>15 Mango shots</li>
-                                </ul>
-                            </div>
-                            
-                            <div class="mt-auto">
-                                <div class="p-2 bg-light rounded mb-3">
-                                    <small class="text-muted"><i class="fas fa-clock me-1"></i>Event duration: 3-4 hours</small>
-                                </div>
-                                <a href="{% url 'package_order' %}?package=adults-2" class="btn btn-gold w-100">Select Package</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Adult's Package 3 -->
-                <div class="col-lg-4 mb-4">
-                    <div class="card package-card h-100">
-                        <div class="card-body d-flex flex-column">
-                            <h3 class="text-center mb-3">Adult's Package 3</h3>
-                            <div class="text-center mb-3">
-                                <span class="display-6 fw-bold text-gold">₱8,500</span>
-                            </div>
-                            
-                            <!-- Scrollable package list -->
-                            <div class="package-list-container mb-3">
-                                <ul class="package-list">
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>2 Tier cake 8x3 and 6x3</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>36 Chocofudge Brownies</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>36 Cupcake w/ frosting</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>36 Chocochip Cookies</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>36 Mini sliced cakes Pandan</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>36 Mini sliced cakes Mocha</li>
-                                    <li><i class="fas fa-check-circle text-gold me-2"></i>Table Set-upshoppe & Accessories</li>
-                                </ul>
-                            </div>
-                            
-                            <div class="mt-auto">
-                                <div class="p-2 bg-light rounded mb-3">
-                                    <small class="text-muted"><i class="fas fa-clock me-1"></i>Event duration: 3-4 hours</small>
-                                </div>
-                                <a href="{% url 'package_order' %}?package=adults-3" class="btn btn-gold w-100">Select Package</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        {% endfor %}
     </div>
 </div>
 {% endblock %}

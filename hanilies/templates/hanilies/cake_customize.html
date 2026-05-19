@@ -1,475 +1,310 @@
 {% extends 'hanilies/base.html' %}
-{% load static %}
 
 {% block title %}Customize Your Cake{% endblock %}
 
 {% block content %}
 <div class="container py-4">
     <div class="row mb-4">
-        <div class="col-12">
-            <h1 class="display-5 fw-bold">Customize Your Cake</h1>
-            <p class="lead text-gold-pink">Create your perfect cake with our customization options</p>
+        <div class="col-lg-8">
+            <h1 class="display-5 fw-bold mb-2">Customize Your Cake</h1>
+            <p class="lead text-muted mb-0">Complete the form below to place a real cake order and send it directly to the admin dashboard.</p>
         </div>
     </div>
 
-    <div class="row">
-        <!-- Cake Customization Form - Left Side -->
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header bg-gold-pink text-white">
-                    <h5 class="mb-0"><i class="fas fa-cake me-2"></i>Cake Details</h5>
+    {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-gold-pink text-white py-3">
+                    <h5 class="mb-0"><i class="fas fa-cake me-2"></i>Order Details</h5>
                 </div>
-                <div class="card-body">
-                    <form id="cakeOrderForm">
-                        <!-- Cake Type/Theme -->
-                        <div class="mb-4">
-                            <label class="form-label fw-bold">Cake Theme/Occasion</label>
-                            <select class="form-select" id="cakeTheme">
-                                <option value="">Select Theme</option>
-                                <option>Birthday</option>
-                                <option>Christening</option>
-                                <option>Wedding</option>
-                                <option>Anniversary</option>
-                                <option>Graduation</option>
-                            </select>
+                <div class="card-body p-4">
+                    <form method="post" enctype="multipart/form-data" id="cake-order-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="cake_id" value="{{ cake.id }}">
+
+                        <div class="alert alert-light border mb-4">
+                            <div class="d-flex flex-column flex-md-row justify-content-between gap-3 align-items-md-center">
+                                <div>
+                                    <div class="small text-muted">Selected cake</div>
+                                    <div class="h5 mb-1">{{ cake.name }}</div>
+                                    <div class="text-muted text-capitalize">{{ cake.get_category_display }}</div>
+                                </div>
+                                <div class="text-md-end">
+                                    <div class="small text-muted">Base price</div>
+                                    <div class="h4 text-gold-pink mb-0">P{{ cake.price }}</div>
+                                </div>
+                            </div>
                         </div>
 
-                        <!-- Size / Layers -->
-                        <div class="row mb-4">
+                        <div class="row g-3 mb-4">
                             <div class="col-md-6">
-                                <label class="form-label fw-bold">Size / Layers</label>
-                                <select class="form-select" id="cakeSize">
-                                    <option value="">Select Size</option>
-                                    <option value="liter6">1 Tier (6 inches) - serves 4-6</option>
-                                    <option value="liter8">1 Tier (8 inches) - serves 8-10</option>
-                                    <option value="liter9">1 Tier (9 inches) - serves 10-12</option>
-                                    <option value="liter10">1 Tier (10 inches) - serves 12-15</option>
-                                    <option value="2tier68">2 Tier (6" + 8") - serves 15-20</option>
-                                    <option value="2tier79">2 Tier (7" + 9") - serves 20-25</option>
-                                    <option value="3tier6810">3 Tier (6" + 8" + 10") - serves 30-50</option>
+                                <label class="form-label fw-semibold">Theme / Occasion</label>
+                                <select class="form-select" name="theme" id="theme">
+                                    <option value="">Select Theme</option>
+                                    <option>Birthday</option>
+                                    <option>Christening</option>
+                                    <option>Wedding</option>
+                                    <option>Anniversary</option>
+                                    <option>Graduation</option>
                                 </select>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label fw-bold">Shape</label>
-                                <select class="form-select" id="cakeShape">
+                                <label class="form-label fw-semibold">Size</label>
+                                <select class="form-select" name="size" id="size">
+                                    <option value="">Select Size</option>
+                                    <option>6 inches</option>
+                                    <option>8 inches</option>
+                                    <option>10 inches</option>
+                                    <option>2 Tier</option>
+                                    <option>3 Tier</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">Shape</label>
+                                <select class="form-select" name="shape">
                                     <option>Round</option>
                                     <option>Square</option>
                                     <option>Heart</option>
                                     <option>Custom</option>
                                 </select>
                             </div>
-                        </div>
-
-                        <!-- Flavor Selection -->
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold">Cake Flavor</label>
-                                <select class="form-select" id="cakeFlavor">
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">Flavor</label>
+                                <select class="form-select" name="flavor">
                                     <option>Chocolate</option>
                                     <option>Vanilla</option>
                                     <option>Red Velvet</option>
-                                    <option>Ube (Purple Yam)</option>
+                                    <option>Ube</option>
                                     <option>Mocha</option>
-                                    <option>Pandan</option>
                                     <option>Strawberry</option>
                                 </select>
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold">Frosting/Icing</label>
-                                <select class="form-select" id="cakeFrosting">
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">Frosting</label>
+                                <select class="form-select" name="frosting">
                                     <option>Buttercream</option>
                                     <option>Cream Cheese</option>
                                     <option>Ganache</option>
-                                    <option>Whipped Cream</option>
                                     <option>Fondant</option>
                                 </select>
                             </div>
-                        </div>
-
-                        <!-- Filling Options -->
-                        <div class="mb-4">
-                            <label class="form-label fw-bold">Filling (Optional)</label>
-                            <select class="form-select" id="cakeFilling">
-                                <option>None</option>
-                                <option>Chocolate Ganache</option>
-                                <option>Strawberry Jam</option>
-                                <option>Cookies and Cream</option>
-                                <option>Mango</option>
-                                <option>Ube Halaya</option>
-                                <option>Macapuno</option>
-                            </select>
-                        </div>
-
-                        <!-- Color Theme -->
-                        <div class="mb-4">
-                            <label class="form-label fw-bold">Color Theme / Icing Color</label>
-                            <div class="d-flex gap-2">
-                                <input type="color" class="form-control form-control-color" id="cakeColor" value="#D4AF37" style="width: 60px; height: 50px;">
-                                <input type="text" class="form-control" id="cakeColorText" placeholder="Or describe color scheme (e.g., Pink and Gold)">
-                            </div>
-                        </div>
-
-                        <!-- Lettering / Cake Message -->
-                        <div class="mb-4">
-                            <label class="form-label fw-bold">Cake Lettering / Message</label>
-                            <input type="text" class="form-control" id="cakeLettering" placeholder="e.g., Happy Birthday Maria!">
-                            <small class="text-muted">Max 30 characters (additional characters may incur extra fee)</small>
-                        </div>
-
-                        <!-- Design References -->
-                        <div class="mb-4">
-                            <label class="form-label fw-bold">Upload Design Reference (Optional)</label>
-                            <input type="file" class="form-control" id="cakeDesign" accept="image/*">
-                            <small class="text-muted">Upload an image of your desired cake design, theme, or inspiration</small>
-                        </div>
-
-                        <!-- Additional Decorations -->
-                        <div class="mb-4">
-                            <label class="form-label fw-bold">Additional Decorations (Optional)</label>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="freshFlowers">
-                                        <label class="form-check-label" for="freshFlowers">Fresh Flowers (+P300)</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="edibleGold">
-                                        <label class="form-check-label" for="edibleGold">Edible Gold Leaf (+P500)</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="cakeTopper">
-                                        <label class="form-check-label" for="cakeTopper">Custom Cake Topper (+P250)</label>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="sprinkles">
-                                        <label class="form-check-label" for="sprinkles">Edible Sprinkles (+P100)</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="freshFruits">
-                                        <label class="form-check-label" for="freshFruits">Fresh Fruit Toppings (+P200)</label>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Special Instructions -->
-                        <div class="mb-4">
-                            <label class="form-label fw-bold">Special Instructions / Notes</label>
-                            <textarea class="form-control" id="specialInstructions" rows="3" placeholder="Any special requests or dietary restrictions?"></textarea>
-                        </div>
-
-                        <!-- Quantity -->
-                        <div class="row mb-4">
                             <div class="col-md-6">
-                                <label class="form-label fw-bold">Quantity</label>
-                                <input type="number" class="form-control" id="quantity" value="1" min="1">
+                                <label class="form-label fw-semibold">Filling</label>
+                                <select class="form-select" name="filling">
+                                    <option value="">None</option>
+                                    <option>Chocolate Ganache</option>
+                                    <option>Strawberry Jam</option>
+                                    <option>Cookies and Cream</option>
+                                    <option>Mango</option>
+                                </select>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label fw-bold">Pickup/Delivery Date</label>
-                                <input type="date" class="form-control" id="deliveryDate">
+                                <label class="form-label fw-semibold">Color Palette</label>
+                                <input type="text" class="form-control" name="color_palette" placeholder="Example: Blush pink and gold">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-semibold">Message on Cake</label>
+                                <input type="text" class="form-control" name="message_on_cake" maxlength="200" placeholder="Example: Happy Birthday Maria">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-semibold">Design Reference</label>
+                                <input type="file" class="form-control" name="design_reference" accept="image/*">
                             </div>
                         </div>
 
-                        <hr>
+                        <h6 class="fw-bold mb-3">Decoration Add-ons</h6>
+                        <div class="row g-2 mb-4">
+                            {% for key, option in decoration_options.items %}
+                            <div class="col-md-6">
+                                <label class="form-check border rounded p-3 h-100">
+                                    <input class="form-check-input addon-checkbox" type="checkbox" name="decorations" value="{{ key }}" data-price="{{ option.price }}">
+                                    <span class="form-check-label ms-2">
+                                        <strong>{{ option.label }}</strong><br>
+                                        <span class="text-muted">+ P{{ option.price }}</span>
+                                    </span>
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
 
-                        <div class="d-flex justify-content-end">
-                            <a href="{% url 'cakes' %}" class="btn btn-outline-gold me-2">Cancel</a>
-                            <button type="button" class="btn btn-gold" onclick="processOrder()">
-                                <span id="buttonText">Place Order</span>
-                                <span id="buttonSpinner" style="display: none;">
-                                    <span class="spinner-border spinner-border-sm me-1" role="status"></span>
-                                    Processing...
-                                </span>
-                            </button>
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Quantity</label>
+                                <input type="number" min="1" value="1" class="form-control" name="quantity" id="quantity">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Pickup / Delivery Date</label>
+                                <input type="date" class="form-control" name="delivery_date" id="delivery_date" required>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-semibold">Delivery Address</label>
+                                <textarea class="form-control" name="delivery_address" rows="2" required>{{ defaults.delivery_address }}</textarea>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-semibold">Special Instructions</label>
+                                <textarea class="form-control" name="special_instructions" rows="3" placeholder="Additional notes, allergies, or design reminders"></textarea>
+                            </div>
+                        </div>
+
+                        <h6 class="fw-bold mb-3">Contact Information</h6>
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">Contact Name</label>
+                                <input type="text" class="form-control" name="contact_name" value="{{ defaults.contact_name }}" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">Phone Number</label>
+                                <input type="text" class="form-control" name="contact_phone" value="{{ defaults.contact_phone }}" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">Email Address</label>
+                                <input type="email" class="form-control" name="contact_email" value="{{ defaults.contact_email }}" required>
+                            </div>
+                        </div>
+
+                        <h6 class="fw-bold mb-3">Payment Method</h6>
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label class="form-check border rounded p-3 h-100 payment-option">
+                                    <input class="form-check-input payment-radio" type="radio" name="payment_method" value="cod" checked>
+                                    <span class="form-check-label ms-2">
+                                        <strong>Cash on Delivery</strong><br>
+                                        <span class="text-muted">Payment will be collected during pickup or delivery.</span>
+                                    </span>
+                                </label>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-check border rounded p-3 h-100 payment-option">
+                                    <input class="form-check-input payment-radio" type="radio" name="payment_method" value="gcash">
+                                    <span class="form-check-label ms-2">
+                                        <strong>GCash</strong><br>
+                                        <span class="text-muted">Upload your reference number and proof of payment.</span>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div id="gcash-fields" class="border rounded p-3 mb-4 d-none">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">GCash Reference Number</label>
+                                    <input type="text" class="form-control" name="reference_number" placeholder="Enter transaction reference">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Proof of Payment</label>
+                                    <input type="file" class="form-control" name="proof_image" accept="image/*">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'cakes' %}" class="btn btn-outline-gold">Back to Cakes</a>
+                            <button type="submit" class="btn btn-gold">Place Cake Order</button>
                         </div>
                     </form>
                 </div>
             </div>
         </div>
 
-        <!-- Order Summary Sidebar - Right Side -->
-        <div class="col-md-4">
-            <div class="card sticky-top" style="top: 100px;">
-                <div class="card-header bg-gold-pink text-white">
-                    <h5 class="mb-0"><i class="fas fa-shopping-cart me-2"></i>Order Summary</h5>
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm sticky-top" style="top: 100px;">
+                <div class="card-header bg-gold-pink text-white py-3">
+                    <h5 class="mb-0"><i class="fas fa-receipt me-2"></i>Order Summary</h5>
                 </div>
                 <div class="card-body">
-                    <!-- Your Customizations -->
                     <div class="mb-3">
-                        <h6>Your Customizations:</h6>
-                        <ul class="list-unstyled" id="summaryList">
-                            <li><i class="fas fa-check-circle text-gold-pink me-2"></i>Theme: <span class="text-muted" id="summaryTheme">Not selected</span></li>
-                            <li><i class="fas fa-check-circle text-gold-pink me-2"></i>Size: <span class="text-muted" id="summarySize">Not selected</span></li>
-                            <li><i class="fas fa-check-circle text-gold-pink me-2"></i>Flavor: <span class="text-muted" id="summaryFlavor">Chocolate</span></li>
-                            <li><i class="fas fa-check-circle text-gold-pink me-2"></i>Frosting: <span class="text-muted" id="summaryFrosting">Buttercream</span></li>
-                            <li><i class="fas fa-check-circle text-gold-pink me-2"></i>Filling: <span class="text-muted" id="summaryFilling">None</span></li>
-                            <li><i class="fas fa-check-circle text-gold-pink me-2"></i>Quantity: <span class="text-muted" id="summaryQuantity">1</span></li>
-                        </ul>
+                        <div class="small text-muted">Cake</div>
+                        <div class="fw-semibold">{{ cake.name }}</div>
                     </div>
-
-                    <!-- PAYMENT METHOD SECTION -->
-                    <div class="mb-4">
-                        <h6>Payment Method</h6>
-                        <div class="payment-options">
-                            <div class="form-check payment-option p-3 border rounded mb-2" onclick="selectPayment('cod')">
-                                <input class="form-check-input" type="radio" name="paymentMethod" id="paymentCOD" value="cod" checked>
-                                <label class="form-check-label w-100" for="paymentCOD">
-                                    <div class="d-flex align-items-center">
-                                        <div class="payment-icon me-2">
-                                            <i class="fas fa-money-bill-wave text-gold-pink"></i>
-                                        </div>
-                                        <div>
-                                            <span class="fw-bold">Cash on Delivery</span><br>
-                                            <small class="text-muted">Pay when you receive</small>
-                                        </div>
-                                    </div>
-                                </label>
-                            </div>
-                            <div class="form-check payment-option p-3 border rounded" onclick="selectPayment('gcash')">
-                                <input class="form-check-input" type="radio" name="paymentMethod" id="paymentGCash" value="gcash">
-                                <label class="form-check-label w-100" for="paymentGCash">
-                                    <div class="d-flex align-items-center">
-                                        <div class="payment-icon me-2">
-                                            <i class="fas fa-mobile-alt text-gold-pink"></i>
-                                        </div>
-                                        <div>
-                                            <span class="fw-bold">GCash</span><br>
-                                            <small class="text-muted">Pay via GCash (Manual Verification)</small>
-                                        </div>
-                                    </div>
-                                </label>
-                            </div>
-                        </div>
+                    <div class="mb-3">
+                        <div class="small text-muted">Selected Theme</div>
+                        <div id="summary-theme">Not selected</div>
                     </div>
-
-                    <!-- GCash Details -->
-                    <div id="gcashDetails" style="display: none;">
-                        <div class="gcash-payment-details p-3 bg-light rounded mb-3">
-                            <h6 class="fw-bold mb-2">GCash Payment Instructions:</h6>
-                            <div class="text-center mb-3">
-                                <div class="gcash-qr-placeholder mx-auto mb-2" onclick="enlargeQR()" style="cursor: pointer;">
-                                    <img src="{% static 'images/qr.png' %}" alt="GCash QR Code" class="img-fluid" style="max-width: 120px;">
-                                </div>
-                                <p class="small mb-0">Click QR to enlarge</p>
-                            </div>
-                            <p class="small mb-1"><i class="fas fa-user text-gold-pink me-2"></i><strong>Account Name:</strong> Hanilies Cakeshoppe</p>
-                            <p class="small mb-1"><i class="fas fa-phone text-gold-pink me-2"></i><strong>GCash Number:</strong> 0912 345 6789</p>
-                        </div>
-
-                        <!-- GCash Verification Fields -->
-                        <div class="gcash-verification p-3 border rounded mb-3">
-                            <h6 class="fw-bold mb-2">Payment Verification</h6>
-                            <div class="mb-2">
-                                <label class="form-label small fw-bold">Reference Number <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control form-control-sm" id="gcashReference" placeholder="e.g., 1234567890">
-                            </div>
-                            <div class="mb-2">
-                                <label class="form-label small fw-bold">Upload Screenshot <span class="text-danger">*</span></label>
-                                <input type="file" class="form-control form-control-sm" id="gcashScreenshot" accept="image/*">
-                            </div>
-                            <small class="text-muted">Enter reference number and upload proof of payment</small>
-                        </div>
+                    <div class="mb-3">
+                        <div class="small text-muted">Selected Size</div>
+                        <div id="summary-size">Not selected</div>
                     </div>
-
-                    <!-- Price Breakdown -->
-                    <hr>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>Base Price:</span>
-                        <span class="fw-bold" id="basePrice">P1,299</span>
+                    <div class="mb-3">
+                        <div class="small text-muted">Quantity</div>
+                        <div id="summary-quantity">1</div>
                     </div>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>Customizations:</span>
-                        <span class="fw-bold" id="customizationsPrice">P0</span>
+                    <div class="mb-3">
+                        <div class="small text-muted">Payment</div>
+                        <div id="summary-payment">Cash on Delivery</div>
                     </div>
                     <hr>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Base Price</span>
+                        <span id="summary-base">P{{ cake.price }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Decoration Add-ons</span>
+                        <span id="summary-addons">P0.00</span>
+                    </div>
                     <div class="d-flex justify-content-between mb-3">
-                        <span class="h5">Total:</span>
-                        <span class="h5 text-gold-pink fw-bold" id="finalTotal">P1,299</span>
+                        <span>Total</span>
+                        <strong class="text-gold-pink" id="summary-total">P{{ cake.price }}</strong>
                     </div>
-
-                    <!-- Payment Status -->
-                    <div id="paymentStatus" class="small text-muted">
-                        <i class="fas fa-info-circle me-1"></i>
-                        <span id="paymentMethodText">Cash on Delivery</span>
-                    </div>
+                    <div class="small text-muted">GCash orders will stay under verification until approved by the admin panel.</div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
 
-<!-- QR Code Enlarged Modal -->
-<div class="modal fade" id="qrModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-sm modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header bg-gold-pink text-white">
-                <h5 class="modal-title">GCash QR Code</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body text-center p-4">
-                <img src="{% static 'images/qr.png' %}" alt="GCash QR Code" class="img-fluid" style="max-width: 250px;">
-                <p class="mt-3 mb-0">Scan to pay with GCash</p>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Success Modal -->
-<div class="modal fade" id="successModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-gold-pink text-white">
-                <h5 class="modal-title"><i class="fas fa-check-circle me-2"></i>Order Placed Successfully!</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body text-center p-4">
-                <i class="fas fa-check-circle text-gold-pink fa-5x mb-3"></i>
-                <h4>Thank you for your order!</h4>
-                <p id="successMessage">Your order has been placed successfully.</p>
-                <div class="alert alert-info mt-3" id="paymentMessage" style="display: none;">
-                    <i class="fas fa-clock me-2"></i>
-                    Your GCash payment is pending verification. You will be notified once approved.
-                </div>
-            </div>
-            <div class="modal-footer">
-                <a href="{% url 'order_tracking' %}" class="btn btn-gold">Track Your Order</a>
-            </div>
-        </div>
-    </div>
-</div>
-
+{% block extra_js %}
 <script>
-    let selectedPayment = 'cod';
-    let basePrice = 1299;
-    let customizationsTotal = 0;
+    const baseCakePrice = parseFloat('{{ cake.price }}');
+    const quantityInput = document.getElementById('quantity');
+    const themeSelect = document.getElementById('theme');
+    const sizeSelect = document.getElementById('size');
+    const addonCheckboxes = document.querySelectorAll('.addon-checkbox');
+    const paymentRadios = document.querySelectorAll('.payment-radio');
+    const gcashFields = document.getElementById('gcash-fields');
 
-    function enlargeQR() {
-        const qrModal = new bootstrap.Modal(document.getElementById('qrModal'));
-        qrModal.show();
-    }
+    function updateCakeSummary() {
+        const quantity = parseInt(quantityInput.value || '1', 10);
+        let addonTotal = 0;
 
-    function selectPayment(method) {
-        selectedPayment = method;
-        document.getElementById('paymentCOD').checked = (method === 'cod');
-        document.getElementById('paymentGCash').checked = (method === 'gcash');
-        document.getElementById('gcashDetails').style.display = method === 'gcash' ? 'block' : 'none';
-        document.getElementById('paymentMethodText').textContent = method === 'cod' ? 'Cash on Delivery' : 'GCash (Pending Verification)';
-        
-        document.querySelectorAll('.payment-option').forEach(opt => {
-            opt.classList.remove('selected');
+        addonCheckboxes.forEach((checkbox) => {
+            if (checkbox.checked) {
+                addonTotal += parseFloat(checkbox.dataset.price || '0');
+            }
         });
-        if (event) {
-            event.currentTarget.classList.add('selected');
-        }
+
+        const total = (baseCakePrice * quantity) + addonTotal;
+        document.getElementById('summary-theme').textContent = themeSelect.value || 'Not selected';
+        document.getElementById('summary-size').textContent = sizeSelect.value || 'Not selected';
+        document.getElementById('summary-quantity').textContent = quantity;
+        document.getElementById('summary-addons').textContent = `P${addonTotal.toFixed(2)}`;
+        document.getElementById('summary-total').textContent = `P${total.toFixed(2)}`;
     }
 
-    function calculateTotal() {
-        let total = basePrice;
-        if (document.getElementById('freshFlowers').checked) total += 300;
-        if (document.getElementById('edibleGold').checked) total += 500;
-        if (document.getElementById('cakeTopper').checked) total += 250;
-        if (document.getElementById('sprinkles').checked) total += 100;
-        if (document.getElementById('freshFruits').checked) total += 200;
-        
-        customizationsTotal = total - basePrice;
-        document.getElementById('basePrice').textContent = 'P' + basePrice.toLocaleString();
-        document.getElementById('customizationsPrice').textContent = 'P' + customizationsTotal.toLocaleString();
-        document.getElementById('finalTotal').textContent = 'P' + total.toLocaleString();
-        return total;
+    function updatePaymentSummary() {
+        const selectedPayment = document.querySelector('.payment-radio:checked').value;
+        document.getElementById('summary-payment').textContent = selectedPayment === 'gcash' ? 'GCash' : 'Cash on Delivery';
+        gcashFields.classList.toggle('d-none', selectedPayment !== 'gcash');
     }
 
-    function updateSummary() {
-        const theme = document.getElementById('cakeTheme').value || 'Not selected';
-        const sizeSelect = document.getElementById('cakeSize');
-        const size = sizeSelect.options[sizeSelect.selectedIndex]?.text.split('-')[0] || 'Not selected';
-        const flavor = document.getElementById('cakeFlavor').value;
-        const frosting = document.getElementById('cakeFrosting').value;
-        const filling = document.getElementById('cakeFilling').value;
-        const quantity = document.getElementById('quantity').value;
-        
-        document.getElementById('summaryTheme').textContent = theme;
-        document.getElementById('summarySize').textContent = size;
-        document.getElementById('summaryFlavor').textContent = flavor;
-        document.getElementById('summaryFrosting').textContent = frosting;
-        document.getElementById('summaryFilling').textContent = filling;
-        document.getElementById('summaryQuantity').textContent = quantity;
-        
-        calculateTotal();
-    }
+    themeSelect.addEventListener('change', updateCakeSummary);
+    sizeSelect.addEventListener('change', updateCakeSummary);
+    quantityInput.addEventListener('input', updateCakeSummary);
+    addonCheckboxes.forEach((checkbox) => checkbox.addEventListener('change', updateCakeSummary));
+    paymentRadios.forEach((radio) => radio.addEventListener('change', updatePaymentSummary));
 
-    function validateGcash() {
-        const reference = document.getElementById('gcashReference').value.trim();
-        const screenshot = document.getElementById('gcashScreenshot').files[0];
-        if (!reference) {
-            alert('Please enter your GCash reference number');
-            return false;
-        }
-        if (!screenshot) {
-            alert('Please upload your payment screenshot');
-            return false;
-        }
-        return true;
-    }
-
-    function processOrder() {
-        if (selectedPayment === 'gcash' && !validateGcash()) {
-            return;
-        }
-        
-        const total = calculateTotal();
-        const successModal = new bootstrap.Modal(document.getElementById('successModal'));
-        const successMessage = document.getElementById('successMessage');
-        const paymentMessage = document.getElementById('paymentMessage');
-        
-        if (selectedPayment === 'gcash') {
-            successMessage.innerHTML = 'Your order has been placed! Your GCash payment is pending verification.';
-            paymentMessage.style.display = 'block';
-        } else {
-            successMessage.innerHTML = 'Your order has been placed successfully!';
-            paymentMessage.style.display = 'none';
-        }
-        
-        successModal.show();
-    }
-
-    document.getElementById('cakeTheme').addEventListener('change', updateSummary);
-    document.getElementById('cakeSize').addEventListener('change', updateSummary);
-    document.getElementById('cakeFlavor').addEventListener('change', updateSummary);
-    document.getElementById('cakeFrosting').addEventListener('change', updateSummary);
-    document.getElementById('cakeFilling').addEventListener('change', updateSummary);
-    document.getElementById('quantity').addEventListener('input', updateSummary);
-    document.getElementById('freshFlowers').addEventListener('change', calculateTotal);
-    document.getElementById('edibleGold').addEventListener('change', calculateTotal);
-    document.getElementById('cakeTopper').addEventListener('change', calculateTotal);
-    document.getElementById('sprinkles').addEventListener('change', calculateTotal);
-    document.getElementById('freshFruits').addEventListener('change', calculateTotal);
-    
-    updateSummary();
     const today = new Date().toISOString().split('T')[0];
-    document.getElementById('deliveryDate').min = today;
+    document.getElementById('delivery_date').setAttribute('min', today);
+    updateCakeSummary();
+    updatePaymentSummary();
 </script>
-
-<style>
-    .gcash-qr-placeholder {
-        cursor: pointer;
-        transition: transform 0.2s ease;
-    }
-    .gcash-qr-placeholder:hover {
-        transform: scale(1.05);
-    }
-    .payment-option {
-        cursor: pointer;
-        transition: all 0.3s ease;
-    }
-    .payment-option:hover {
-        border-color: #FF69B4 !important;
-        background: #FFF0F5;
-    }
-    .payment-option.selected {
-        border-color: #FF69B4 !important;
-        background: linear-gradient(135deg, rgba(255,105,180,0.1), rgba(212,175,55,0.1));
-    }
-</style>
 {% endblock %}

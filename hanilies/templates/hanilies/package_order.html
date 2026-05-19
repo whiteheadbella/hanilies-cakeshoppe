@@ -1,451 +1,137 @@
 {% extends 'hanilies/base.html' %}
-{% load static %}
 
-{% block title %}Order Package{% endblock %}
+{% block title %}Book a Package{% endblock %}
 
 {% block content %}
 <div class="container py-4">
-    <!-- Header -->
     <div class="row mb-4">
-        <div class="col-12">
-            <h1 class="display-5 fw-bold">Order Your Package</h1>
-            <p class="lead text-gold-pink">Customize your selected package with add-ons</p>
+        <div class="col-lg-8">
+            <h1 class="display-5 fw-bold mb-2">Book a Package</h1>
+            <p class="lead text-muted mb-0">Step 1 of 3: choose the package and optional inclusions for your event.</p>
         </div>
     </div>
 
-    <!-- Progress Steps -->
-    <div class="d-flex justify-content-center mb-5">
-        <div class="step-indicator d-flex align-items-center">
-            <div class="step active">1</div>
-            <span class="step-label active ms-2 me-3">Package Details</span>
-            <div class="step">2</div>
-            <span class="step-label ms-2 me-3">Cake Customization</span>
-            <div class="step">3</div>
-            <span class="step-label ms-2">Payment & Event</span>
+    {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
-    </div>
+        {% endfor %}
+    {% endif %}
 
-    <div class="row">
-        <!-- Package Order Form -->
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header bg-gold-pink text-white">
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-gold-pink text-white py-3">
                     <h5 class="mb-0"><i class="fas fa-gift me-2"></i>Package Details</h5>
                 </div>
-                <div class="card-body">
-                    <form method="GET" action="{% url 'package_cake_customize' %}">
-                        <!-- Selected Package -->
-                        <div class="mb-4">
-                            <label class="form-label fw-bold">Selected Package</label>
-                            <div class="border rounded p-3 bg-light">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <h5 class="mb-1">Christening Package B</h5>
-                                        <small class="text-muted">2 tier Cake (9" & 6") • 24 Cupcakes • Complete Sweet Corner Setup</small>
-                                    </div>
-                                    <span class="h4 text-gold-pink mb-0">P9,999</span>
+                <div class="card-body p-4">
+                    <form method="post" id="package-step-one">
+                        {% csrf_token %}
+                        <input type="hidden" name="package_id" value="{{ package.id }}">
+
+                        <div class="alert alert-light border mb-4">
+                            <div class="d-flex flex-column flex-md-row justify-content-between gap-3 align-items-md-center">
+                                <div>
+                                    <div class="small text-muted">Selected package</div>
+                                    <div class="h5 mb-1">{{ package.name }}</div>
+                                    <div class="text-muted text-capitalize">{{ package.get_package_type_display }}</div>
+                                </div>
+                                <div class="text-md-end">
+                                    <div class="small text-muted">Base package price</div>
+                                    <div class="h4 text-gold-pink mb-0">P{{ package.base_price }}</div>
                                 </div>
                             </div>
-                            <input type="hidden" name="selected_package" value="christening-b">
-                            <small class="text-muted mt-2 d-block"><i class="fas fa-info-circle me-1"></i> You can customize the cake in the next step</small>
                         </div>
 
-                        <!-- Event Type -->
                         <div class="mb-4">
-                            <label class="form-label fw-bold">Event Type</label>
-                            <select class="form-select" name="event_type" id="eventType" required>
-                                <option>Christening</option>
-                                <option>Kid's Birthday</option>
-                                <option>Adult's Party</option>
-                                <option>Wedding</option>
-                                <option>Corporate Event</option>
+                            <label class="form-label fw-semibold">Event Type</label>
+                            <select class="form-select" name="event_type" required>
+                                {% for value, label in event_types %}
+                                <option value="{{ value }}" {% if draft.event_type == value or package.package_type == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
                             </select>
                         </div>
 
-                        <!-- Sweet Corner Items (Add-ons) -->
-                        <h5 class="mb-3">Sweet Corner Items <small class="text-muted">(Add items and quantity)</small></h5>
-                        <div class="row mb-4">
+                        <h6 class="fw-bold mb-3">Optional Add-ons</h6>
+                        <div class="row g-3 mb-4">
+                            {% for key, option in addon_options.items %}
                             <div class="col-md-6">
-                                <div class="addon-item mb-3">
-                                    <div class="d-flex align-items-center">
-                                        <input class="form-check-input me-2" type="checkbox" id="brownies" onchange="updateSummary()">
-                                        <label class="form-check-label flex-grow-1" for="brownies">
-                                            Chocofudge Brownies <span class="text-gold-pink">P300/dozen</span>
-                                        </label>
-                                        <div class="quantity-selector" style="width: 100px;">
-                                            <select class="form-select form-select-sm" id="brownies_qty" disabled onchange="updateSummary()">
-                                                <option value="1">1 dozen</option>
-                                                <option value="2">2 dozen</option>
-                                                <option value="3">3 dozen</option>
-                                                <option value="4">4 dozen</option>
-                                                <option value="5">5 dozen</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="addon-item mb-3">
-                                    <div class="d-flex align-items-center">
-                                        <input class="form-check-input me-2" type="checkbox" id="cupcakes" onchange="updateSummary()">
-                                        <label class="form-check-label flex-grow-1" for="cupcakes">
-                                            Themed Cupcakes <span class="text-gold-pink">P350/dozen</span>
-                                        </label>
-                                        <div class="quantity-selector" style="width: 100px;">
-                                            <select class="form-select form-select-sm" id="cupcakes_qty" disabled onchange="updateSummary()">
-                                                <option value="1">1 dozen</option>
-                                                <option value="2">2 dozen</option>
-                                                <option value="3">3 dozen</option>
-                                                <option value="4">4 dozen</option>
-                                                <option value="5">5 dozen</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="addon-item mb-3">
-                                    <div class="d-flex align-items-center">
-                                        <input class="form-check-input me-2" type="checkbox" id="cookies" onchange="updateSummary()">
-                                        <label class="form-check-label flex-grow-1" for="cookies">
-                                            Chocochip Cookies <span class="text-gold-pink">P250/dozen</span>
-                                        </label>
-                                        <div class="quantity-selector" style="width: 100px;">
-                                            <select class="form-select form-select-sm" id="cookies_qty" disabled onchange="updateSummary()">
-                                                <option value="1">1 dozen</option>
-                                                <option value="2">2 dozen</option>
-                                                <option value="3">3 dozen</option>
-                                                <option value="4">4 dozen</option>
-                                                <option value="5">5 dozen</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="addon-item mb-3">
-                                    <div class="d-flex align-items-center">
-                                        <input class="form-check-input me-2" type="checkbox" id="marshmallow" onchange="updateSummary()">
-                                        <label class="form-check-label flex-grow-1" for="marshmallow">
-                                            Marshmallow on Stick <span class="text-gold-pink">P200/dozen</span>
-                                        </label>
-                                        <div class="quantity-selector" style="width: 100px;">
-                                            <select class="form-select form-select-sm" id="marshmallow_qty" disabled onchange="updateSummary()">
-                                                <option value="1">1 dozen</option>
-                                                <option value="2">2 dozen</option>
-                                                <option value="3">3 dozen</option>
-                                                <option value="4">4 dozen</option>
-                                                <option value="5">5 dozen</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
+                                <label class="form-check border rounded p-3 h-100">
+                                    <input class="form-check-input package-addon" type="checkbox" name="selected_addons" value="{{ key }}" data-price="{{ option.price }}" {% if key in draft.selected_addons %}checked{% endif %}>
+                                    <span class="form-check-label ms-2">
+                                        <strong>{{ option.label }}</strong><br>
+                                        <span class="text-muted">+ P{{ option.price }}</span>
+                                    </span>
+                                </label>
                             </div>
-
-                            <div class="col-md-6">
-                                <div class="addon-item mb-3">
-                                    <div class="d-flex align-items-center">
-                                        <input class="form-check-input me-2" type="checkbox" id="cakePop" onchange="updateSummary()">
-                                        <label class="form-check-label flex-grow-1" for="cakePop">
-                                            Cake Pop <span class="text-gold-pink">P250/dozen</span>
-                                        </label>
-                                        <div class="quantity-selector" style="width: 100px;">
-                                            <select class="form-select form-select-sm" id="cakePop_qty" disabled onchange="updateSummary()">
-                                                <option value="1">1 dozen</option>
-                                                <option value="2">2 dozen</option>
-                                                <option value="3">3 dozen</option>
-                                                <option value="4">4 dozen</option>
-                                                <option value="5">5 dozen</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="addon-item mb-3">
-                                    <div class="d-flex align-items-center">
-                                        <input class="form-check-input me-2" type="checkbox" id="gummies" onchange="updateSummary()">
-                                        <label class="form-check-label flex-grow-1" for="gummies">
-                                            Assorted Gummies <span class="text-gold-pink">P150/pack</span>
-                                        </label>
-                                        <div class="quantity-selector" style="width: 100px;">
-                                            <select class="form-select form-select-sm" id="gummies_qty" disabled onchange="updateSummary()">
-                                                <option value="1">1 pack</option>
-                                                <option value="2">2 packs</option>
-                                                <option value="3">3 packs</option>
-                                                <option value="4">4 packs</option>
-                                                <option value="5">5 packs</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="addon-item mb-3">
-                                    <div class="d-flex align-items-center">
-                                        <input class="form-check-input me-2" type="checkbox" id="wafer" onchange="updateSummary()">
-                                        <label class="form-check-label flex-grow-1" for="wafer">
-                                            Wafer Sticks <span class="text-gold-pink">P180/jar</span>
-                                        </label>
-                                        <div class="quantity-selector" style="width: 100px;">
-                                            <select class="form-select form-select-sm" id="wafer_qty" disabled onchange="updateSummary()">
-                                                <option value="1">1 jar</option>
-                                                <option value="2">2 jars</option>
-                                                <option value="3">3 jars</option>
-                                                <option value="4">4 jars</option>
-                                                <option value="5">5 jars</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="addon-item mb-3">
-                                    <div class="d-flex align-items-center">
-                                        <input class="form-check-input me-2" type="checkbox" id="chocolateFountain" onchange="updateSummary()">
-                                        <label class="form-check-label flex-grow-1" for="chocolateFountain">
-                                            Chocolate Fountain <span class="text-gold-pink">P1,500</span>
-                                        </label>
-                                        <div class="quantity-selector" style="width: 100px;">
-                                            <select class="form-select form-select-sm" id="chocolateFountain_qty" disabled onchange="updateSummary()">
-                                                <option value="1">1 unit</option>
-                                                <option value="2">2 units</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            {% endfor %}
                         </div>
 
-                        <!-- Balloon & Decorations -->
-                        <h5 class="mb-3">Balloon & Decorations</h5>
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <div class="addon-item mb-3">
-                                    <div class="d-flex align-items-center">
-                                        <input class="form-check-input me-2" type="checkbox" id="lolliBalloon" onchange="updateSummary()">
-                                        <label class="form-check-label flex-grow-1" for="lolliBalloon">
-                                            Lolli Balloon with Print <span class="text-gold-pink">P50/pc</span>
-                                        </label>
-                                        <div class="quantity-selector" style="width: 80px;">
-                                            <select class="form-select form-select-sm" id="lolliBalloon_qty" disabled onchange="updateSummary()">
-                                                <option value="10">10 pcs</option>
-                                                <option value="20">20 pcs</option>
-                                                <option value="30">30 pcs</option>
-                                                <option value="40">40 pcs</option>
-                                                <option value="50">50 pcs</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="addon-item mb-3">
-                                    <div class="d-flex align-items-center">
-                                        <input class="form-check-input me-2" type="checkbox" id="pillarBalloon" onchange="updateSummary()">
-                                        <label class="form-check-label flex-grow-1" for="pillarBalloon">
-                                            Pillar Balloon <span class="text-gold-pink">P100/pc</span>
-                                        </label>
-                                        <div class="quantity-selector" style="width: 80px;">
-                                            <select class="form-select form-select-sm" id="pillarBalloon_qty" disabled onchange="updateSummary()">
-                                                <option value="2">2 pcs</option>
-                                                <option value="4">4 pcs</option>
-                                                <option value="6">6 pcs</option>
-                                                <option value="8">8 pcs</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="addon-item mb-3">
-                                    <div class="d-flex align-items-center">
-                                        <input class="form-check-input me-2" type="checkbox" id="centerpiece" onchange="updateSummary()">
-                                        <label class="form-check-label flex-grow-1" for="centerpiece">
-                                            Centerpiece Balloon <span class="text-gold-pink">P150/pc</span>
-                                        </label>
-                                        <div class="quantity-selector" style="width: 80px;">
-                                            <select class="form-select form-select-sm" id="centerpiece_qty" disabled onchange="updateSummary()">
-                                                <option value="4">4 pcs</option>
-                                                <option value="6">6 pcs</option>
-                                                <option value="8">8 pcs</option>
-                                                <option value="10">10 pcs</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Souvenirs -->
-                        <h5 class="mb-3">Souvenirs</h5>
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <div class="addon-item mb-3">
-                                    <div class="d-flex align-items-center">
-                                        <input class="form-check-input me-2" type="checkbox" id="babyBottle" onchange="updateSummary()">
-                                        <label class="form-check-label flex-grow-1" for="babyBottle">
-                                            Baby Bottle Souvenir w/ picture <span class="text-gold-pink">P50/pc</span>
-                                        </label>
-                                        <div class="quantity-selector" style="width: 80px;">
-                                            <select class="form-select form-select-sm" id="babyBottle_qty" disabled onchange="updateSummary()">
-                                                <option value="12">12 pcs</option>
-                                                <option value="18">18 pcs</option>
-                                                <option value="24">24 pcs</option>
-                                                <option value="30">30 pcs</option>
-                                                <option value="36">36 pcs</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="addon-item mb-3">
-                                    <div class="d-flex align-items-center">
-                                        <input class="form-check-input me-2" type="checkbox" id="invitations" onchange="updateSummary()">
-                                        <label class="form-check-label flex-grow-1" for="invitations">
-                                            Invitations <span class="text-gold-pink">P25/pc</span>
-                                        </label>
-                                        <div class="quantity-selector" style="width: 80px;">
-                                            <select class="form-select form-select-sm" id="invitations_qty" disabled onchange="updateSummary()">
-                                                <option value="10">10 pcs</option>
-                                                <option value="20">20 pcs</option>
-                                                <option value="30">30 pcs</option>
-                                                <option value="40">40 pcs</option>
-                                                <option value="50">50 pcs</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Backdrop Options -->
-                        <div class="mb-4">
-                            <label class="form-label fw-bold">Backdrop Design</label>
-                            <select class="form-select" name="backdrop">
-                                <option value="tarpaulin-2x3">2x3 Tarpaulin with design</option>
-                                <option value="tarpaulin-3x4">3x4 Tarpaulin with design</option>
-                                <option value="name">Name of Celebrant (Styrofoam)</option>
-                                <option value="floral">Floral Backdrop</option>
-                                <option value="balloon">Balloon Arch Backdrop</option>
-                            </select>
-                        </div>
-
-                        <hr>
-
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h4 class="text-gold-pink" id="totalPrice">P9,999</h4>
-                                <small class="text-muted">*Add-ons will be calculated</small>
-                            </div>
-                            <div>
-                                <a href="{% url 'packages' %}" class="btn btn-outline-gold me-2">Cancel</a>
-                                <button type="submit" class="btn btn-gold">Next: Customize Cake</button>
-                            </div>
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'packages' %}" class="btn btn-outline-gold">Back to Packages</a>
+                            <button type="submit" class="btn btn-gold">Next: Customize Cake</button>
                         </div>
                     </form>
                 </div>
             </div>
         </div>
 
-        <!-- Order Summary Sidebar -->
-        <div class="col-md-4">
-            <div class="card sticky-top" style="top: 100px;">
-                <div class="card-header bg-gold-pink text-white">
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm sticky-top" style="top: 100px;">
+                <div class="card-header bg-gold-pink text-white py-3">
                     <h5 class="mb-0"><i class="fas fa-receipt me-2"></i>Package Summary</h5>
                 </div>
                 <div class="card-body">
-                    <h6>Package Inclusions:</h6>
-                    <ul class="list-unstyled mb-3">
-                        <li><i class="fas fa-check-circle text-gold-pink me-2"></i>2 tier Cake (9" & 6")</li>
-                        <li><i class="fas fa-check-circle text-gold-pink me-2"></i>24 Cupcakes with topper</li>
-                        <li><i class="fas fa-check-circle text-gold-pink me-2"></i>6 theme cupcakes</li>
-                        <li><i class="fas fa-check-circle text-gold-pink me-2"></i>24 Lolli Balloon</li>
-                        <li><i class="fas fa-check-circle text-gold-pink me-2"></i>2 Pillar Balloon</li>
-                        <li><i class="fas fa-check-circle text-gold-pink me-2"></i>24 Baby Bottle Souvenirs</li>
-                        <li><i class="fas fa-check-circle text-gold-pink me-2"></i>Sweet Corner Set Up</li>
-                    </ul>
-
-                    <div class="bg-light p-2 rounded mb-2">
-                        <div class="d-flex justify-content-between small">
-                            <span>Package Base:</span>
-                            <span class="fw-bold">P9,999</span>
-                        </div>
-                        <div class="d-flex justify-content-between small" id="addonsTotalRow" style="display: none;">
-                            <span>Add-ons:</span>
-                            <span class="fw-bold" id="addonsTotal">P0</span>
-                        </div>
+                    <div class="mb-3">
+                        <div class="small text-muted">Package</div>
+                        <div class="fw-semibold">{{ package.name }}</div>
                     </div>
+                    {% if package.included_items %}
+                    <div class="mb-3">
+                        <div class="small text-muted">Included items</div>
+                        <div class="small">{{ package.included_items|linebreaksbr }}</div>
+                    </div>
+                    {% endif %}
                     <hr>
-                    <div class="d-flex justify-content-between">
-                        <span class="fw-bold">Total Amount:</span>
-                        <span class="fw-bold text-gold-pink" id="grandTotal">P9,999</span>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Base Package</span>
+                        <span>P{{ package.base_price }}</span>
                     </div>
-                    <div class="alert alert-info small mt-3">
-                        <i class="fas fa-clock me-2"></i>
-                        Event duration: 3-4 hours only
+                    <div class="d-flex justify-content-between mb-3">
+                        <span>Selected Add-ons</span>
+                        <span id="addon-total">P0.00</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Total for Step 1</span>
+                        <strong class="text-gold-pink" id="step-one-total">P{{ package.base_price }}</strong>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script>
-    function updateSummary() {
-        let total = 9999;
-        let addonHtml = '';
-        let hasAddons = false;
+    const packageBasePrice = parseFloat('{{ package.base_price }}');
+    const packageAddonCheckboxes = document.querySelectorAll('.package-addon');
 
-        // Enable/disable quantity selects based on checkbox
-        document.querySelectorAll('.addon-item .form-check-input').forEach(function(checkbox) {
-            const qtySelect = document.getElementById(checkbox.id + '_qty');
-            if (qtySelect) {
-                qtySelect.disabled = !checkbox.checked;
+    function updatePackageStepOneSummary() {
+        let addonTotal = 0;
+        packageAddonCheckboxes.forEach((checkbox) => {
+            if (checkbox.checked) {
+                addonTotal += parseFloat(checkbox.dataset.price || '0');
             }
         });
 
-        // Calculate total from selected add-ons
-        const addons = {
-            brownies: { price: 300, unit: 'dozen' },
-            cupcakes: { price: 350, unit: 'dozen' },
-            cookies: { price: 250, unit: 'dozen' },
-            marshmallow: { price: 200, unit: 'dozen' },
-            cakePop: { price: 250, unit: 'dozen' },
-            gummies: { price: 150, unit: 'pack' },
-            wafer: { price: 180, unit: 'jar' },
-            chocolateFountain: { price: 1500, unit: 'unit' },
-            lolliBalloon: { price: 50, unit: 'pcs' },
-            pillarBalloon: { price: 100, unit: 'pcs' },
-            centerpiece: { price: 150, unit: 'pcs' },
-            babyBottle: { price: 50, unit: 'pcs' },
-            invitations: { price: 25, unit: 'pcs' }
-        };
-
-        let addonsTotalAmount = 0;
-
-        for (const [id, data] of Object.entries(addons)) {
-            const checkbox = document.getElementById(id);
-            if (checkbox && checkbox.checked) {
-                const qtySelect = document.getElementById(id + '_qty');
-                const qty = qtySelect ? parseInt(qtySelect.value) : 1;
-                const itemTotal = data.price * qty;
-                addonsTotalAmount += itemTotal;
-                hasAddons = true;
-            }
-        }
-
-        total += addonsTotalAmount;
-
-        if (hasAddons) {
-            document.getElementById('addonsTotalRow').style.display = 'flex';
-            document.getElementById('addonsTotal').textContent = 'P' + addonsTotalAmount.toLocaleString();
-        } else {
-            document.getElementById('addonsTotalRow').style.display = 'none';
-        }
-
-        document.getElementById('totalPrice').textContent = 'P' + total.toLocaleString();
-        document.getElementById('grandTotal').textContent = 'P' + total.toLocaleString();
+        document.getElementById('addon-total').textContent = `P${addonTotal.toFixed(2)}`;
+        document.getElementById('step-one-total').textContent = `P${(packageBasePrice + addonTotal).toFixed(2)}`;
     }
 
-    // Add event listeners to all checkboxes
-    document.querySelectorAll('.addon-item .form-check-input').forEach(function(checkbox) {
-        checkbox.addEventListener('change', updateSummary);
-    });
-
-    updateSummary();
+    packageAddonCheckboxes.forEach((checkbox) => checkbox.addEventListener('change', updatePackageStepOneSummary));
+    updatePackageStepOneSummary();
 </script>
 {% endblock %}
