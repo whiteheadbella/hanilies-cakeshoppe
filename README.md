@@ -263,6 +263,109 @@ Open the system in your browser at:
 http://127.0.0.1:8000/
 ```
 
+## Current Folder and File Tree
+
+The local project currently looks like this, excluding the virtual environment and Python cache folders:
+
+```text
+hanilies-cakeshoppe/
+|-- .gitignore
+|-- README.md
+|-- db.sqlite3
+|-- manage.py
+|-- requirements.txt
+|-- runtime.txt
+|-- config/
+|   |-- __init__.py
+|   |-- asgi.py
+|   |-- settings.py
+|   |-- urls.py
+|   `-- wsgi.py
+|-- hanilies/
+|   |-- __init__.py
+|   |-- admin.py
+|   |-- apps.py
+|   |-- context_processors.py
+|   |-- models.py
+|   |-- tests.py
+|   |-- urls.py
+|   |-- views.py
+|   |-- management/
+|   |   `-- commands/
+|   |       `-- demo_bot.py
+|   |-- migrations/
+|   |   |-- 0001_initial.py
+|   |   `-- __init__.py
+|   `-- templates/
+|       `-- hanilies/
+|           |-- about.html
+|           |-- base.html
+|           |-- cake_customize.html
+|           |-- cakes.html
+|           |-- contact.html
+|           |-- home.html
+|           |-- login.html
+|           |-- order_tracking.html
+|           |-- package_cake_customize.html
+|           |-- package_order.html
+|           |-- package_payment.html
+|           |-- packages.html
+|           |-- profile.html
+|           `-- register.html
+|-- media/
+|   |-- proofs/
+|   |   |-- qr.png
+|   |   |-- qr_IfTrQ36.png
+|   |   |-- qr_KrHpzP4.png
+|   |   |-- qr_P9xV38F.png
+|   |   |-- qr_kOvWocy.png
+|   |   |-- qr_kagIfRO.png
+|   |   `-- qr_uOi6YTg.png
+|   `-- cakes/
+|       |-- Berry__Gold_Luxe.png
+|       |-- Divine_Grace.png
+|       `-- chocolate.png
+|-- static/
+|   |-- css/
+|   |   |-- admin-custom.css
+|   |   |-- demo-panel.css
+|   |   `-- style.css
+|   |-- images/
+|   |   |-- bg.png
+|   |   |-- cake1.jpg
+|   |   |-- cake2.jpg
+|   |   |-- cake3.jpg
+|   |   |-- cake4.jpg
+|   |   |-- hero-cake.png
+|   |   `-- qr.png
+|   `-- js/
+|       |-- admin-custom.js
+|       `-- demo-panel.js
+`-- templates/
+	|-- admin/
+	|   |-- base_admin.html
+	|   |-- dashboard.html
+	|   |-- cakes/
+	|   |   |-- add.html
+	|   |   |-- edit.html
+	|   |   `-- list.html
+	|   |-- orders/
+	|   |   |-- cake_orders.html
+	|   |   `-- package_orders.html
+	|   |-- packages/
+	|   |   |-- add.html
+	|   |   |-- edit.html
+	|   |   `-- list.html
+	|   |-- payments/
+	|   |   `-- list.html
+	|   `-- users/
+	|       |-- edit.html
+	|       |-- list.html
+	|       `-- role.html
+	`-- includes/
+		`-- demo_panel.html
+```
+
 ## Local Validation Commands
 
 Check the Django project:
@@ -276,6 +379,108 @@ Run tests:
 ```bash
 python manage.py test hanilies.tests
 ```
+
+Run the browser demo bot help:
+
+```bash
+python manage.py demo_bot --help
+```
+
+## Panel Demo Bot
+
+If you want the system to fill the forms for you during a presentation, you can use the built-in Selenium demo bot.
+
+Start the Django server in one terminal:
+
+```bash
+python manage.py runserver
+```
+
+Then run the demo bot in another terminal:
+
+```bash
+python manage.py demo_bot full
+```
+
+You can also start the demo directly from any customer page or admin page while the local server is running:
+
+1. Open `http://127.0.0.1:8000/` or any admin panel page
+2. Use the floating `Demo Bot` button at the lower-right corner
+3. Choose a quick demo, run a custom script, or click `Start Listening`
+4. Say `start demo`, `login demo`, `cake demo`, `package demo`, or `stop demo`
+
+The panel starts the bot in a second browser window and enables narration automatically.
+
+The current full demo journey now covers:
+
+1. Homepage and welcome flow
+2. Customer login
+3. Recommendation engine view before orders
+4. Cakes catalog
+5. Cake customization and order placement
+6. GCash payment proof upload for the cake order
+7. Cake order tracking and payment status
+8. Packages catalog
+9. Package booking and cake customization
+10. GCash payment proof upload for the package order
+11. Package order tracking and payment status
+12. Customer profile summary
+13. Homepage recommendation view again after order history changes
+14. Combined tracking dashboard
+
+Custom script mode lets you choose which pages appear during the presentation, in this order:
+
+1. Homepage Welcome
+2. Customer Login
+3. AI Recommendation View
+4. Cakes Catalog
+5. Cake Customization and Order
+6. Cake Order Tracking
+7. Packages Catalog
+8. Package Booking and Payment
+9. Package Order Tracking
+10. Customer Profile
+11. Tracking Dashboard
+12. About Page
+13. Contact Page
+
+The panel also includes a `Stop Demo` button that terminates the active bot process if you want to end the walkthrough early.
+
+What it does:
+
+1. Creates a demo user automatically if it does not exist
+2. Seeds one active cake and one active package if your catalog is empty
+3. Opens a real browser window
+4. Logs in automatically
+5. Fills the cake order and package booking forms for your panel demo
+6. Opens profile and order tracking pages at the end
+
+Default demo credentials:
+
+```text
+username: paneldemo
+password: PanelDemo123!
+```
+
+Useful commands:
+
+```bash
+python manage.py demo_bot login
+python manage.py demo_bot cake
+python manage.py demo_bot package
+python manage.py demo_bot full --browser edge
+python manage.py demo_bot full --delay 1.5
+python manage.py demo_bot full --close-browser
+python manage.py demo_bot full --narrate --hold-seconds 20 --close-browser
+python manage.py demo_bot custom --script home,login,ai_recommendations,cakes,cake_order,cake_tracking --payment-mode gcash
+```
+
+Notes:
+
+1. Install dependencies first with `pip install -r requirements.txt`
+2. Keep Microsoft Edge or Google Chrome installed on the machine
+3. Use `--delay` to make the bot slower and easier for the panel to follow
+4. Use `--headless` only for testing, not for presentations
 
 ## Current Recommendation Logic Summary
 

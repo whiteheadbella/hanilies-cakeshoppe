@@ -1,3 +1,10 @@
+import json
+import os
+import signal
+import subprocess
+import sys
+
+from django.conf import settings
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, JsonResponse
 from django.contrib.auth import authenticate, login, logout
@@ -11,10 +18,29 @@ from decimal import Decimal, InvalidOperation
 from django.core.exceptions import PermissionDenied
 from django.db.models import Sum, Count, Q
 from django.utils import timezone
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.http import require_POST
 from .models import UserProfile, Cake, CakeOrder, CakeCustomization, Package, PackageOrder, Payment
 
 
 PACKAGE_ORDER_SESSION_KEY = 'package_order_draft'
+DEMO_SCENARIOS = {'login', 'cake', 'package', 'full', 'custom'}
+DEMO_SCRIPT_STEPS = [
+    ('home', 'Homepage Welcome'),
+    ('login', 'Customer Login'),
+    ('ai_recommendations', 'AI Recommendation View'),
+    ('cakes', 'Cakes Catalog'),
+    ('cake_order', 'Cake Customization and Order'),
+    ('cake_tracking', 'Cake Order Tracking'),
+    ('packages', 'Packages Catalog'),
+    ('package_order', 'Package Booking and Payment'),
+    ('package_tracking', 'Package Order Tracking'),
+    ('profile', 'Customer Profile'),
+    ('order_tracking', 'Tracking Dashboard'),
+    ('about', 'About Page'),
+    ('contact', 'Contact Page'),
+]
+DEMO_SESSION_STATE_KEY = 'active_demo_bot'
 
 CAKE_DECORATION_OPTIONS = {
     'fresh_flowers': {'label': 'Fresh Flowers', 'price': Decimal('300.00')},
@@ -111,6 +137,260 @@ def _clear_package_draft(request):
     if PACKAGE_ORDER_SESSION_KEY in request.session:
         del request.session[PACKAGE_ORDER_SESSION_KEY]
         request.session.modified = True
+
+
+def _is_local_demo_request(request):
+    remote_addr = request.META.get('REMOTE_ADDR')
+    return settings.DEBUG and remote_addr in {None, '127.0.0.1', '::1'}
+
+
+def _parse_float(value, default):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _get_demo_state(request):
+    return request.session.get(DEMO_SESSION_STATE_KEY)
+
+
+def _set_demo_state(request, state):
+    request.session[DEMO_SESSION_STATE_KEY] = state
+    request.session.modified = True
+
+
+def _clear_demo_state(request):
+    if DEMO_SESSION_STATE_KEY in request.session:
+        del request.session[DEMO_SESSION_STATE_KEY]
+        request.session.modified = True
+
+
+def _process_is_running(pid):
+    if not pid:
+        return False
+    try:
+        pid_value = int(pid)
+    except (TypeError, ValueError):
+        return False
+
+    if os.name == 'nt':
+        result = subprocess.run(
+            ['tasklist', '/FI', f'PID eq {pid_value}', '/FO', 'CSV', '/NH'],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        output = result.stdout.strip()
+        return bool(output) and 'No tasks are running' not in output
+
+    try:
+        os.kill(pid_value, 0)
+    except OSError:
+        return False
+    return True
+
+
+def _stop_process_tree(pid):
+    if not _process_is_running(pid):
+        return False
+
+    pid_value = str(pid)
+    if os.name == 'nt':
+        result = subprocess.run(
+            ['taskkill', '/PID', pid_value, '/T', '/F'],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        return result.returncode == 0
+
+    try:
+        os.killpg(int(pid), signal.SIGTERM)
+        return True
+    except OSError:
+        return False
+
+
+def _normalize_script_steps(raw_steps):
+    allowed_steps = {step_id for step_id, _ in DEMO_SCRIPT_STEPS}
+    if not isinstance(raw_steps, list):
+        return []
+    normalized_steps = []
+    for step in raw_steps:
+        if not isinstance(step, str):
+            continue
+        step_value = step.strip()
+        if step_value in allowed_steps and step_value not in normalized_steps:
+            normalized_steps.append(step_value)
+    return normalized_steps
+
+
+def _get_running_demo_state(request):
+    state = _get_demo_state(request)
+    if not state:
+        return None
+    if not _process_is_running(state.get('pid')):
+        _clear_demo_state(request)
+        return None
+    return state
+
+
+@require_POST
+def start_demo_bot(request):
+    if not _is_local_demo_request(request):
+        return JsonResponse({
+            'ok': False,
+            'error': 'The demo bot launcher is only available from the local presentation machine.',
+        }, status=403)
+
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        payload = {}
+
+    scenario = payload.get('scenario', 'full')
+    if scenario not in DEMO_SCENARIOS:
+        return JsonResponse({
+            'ok': False,
+            'error': 'Unsupported demo scenario requested.',
+        }, status=400)
+
+    running_state = _get_running_demo_state(request)
+    if running_state:
+        return JsonResponse({
+            'ok': False,
+            'error': 'A demo bot is already running. Stop it before starting another one.',
+            'active_demo': running_state,
+        }, status=409)
+
+    browser = payload.get('browser', 'auto')
+    if browser not in {'auto', 'edge', 'chrome'}:
+        browser = 'auto'
+
+    delay = max(0.0, _parse_float(payload.get('delay'), 1.2))
+    hold_seconds = max(0.0, _parse_float(payload.get('hold_seconds'), 20.0))
+    headless = bool(payload.get('headless', False))
+    close_browser = bool(payload.get('close_browser', True))
+    narrate = bool(payload.get('narrate', True)) and not headless
+    base_url = request.build_absolute_uri('/').rstrip('/')
+    payment_mode = payload.get('payment_mode', 'gcash')
+    if payment_mode not in {'cod', 'gcash'}:
+        payment_mode = 'gcash'
+    script_steps = _normalize_script_steps(payload.get('script_steps', []))
+
+    if scenario == 'custom' and not script_steps:
+        return JsonResponse({
+            'ok': False,
+            'error': 'Choose at least one custom script step before starting the demo.',
+        }, status=400)
+
+    command = [
+        sys.executable,
+        str(settings.BASE_DIR / 'manage.py'),
+        'demo_bot',
+        scenario,
+        '--base-url',
+        base_url,
+        '--browser',
+        browser,
+        '--delay',
+        str(delay),
+        '--hold-seconds',
+        str(hold_seconds if close_browser else 0),
+        '--payment-mode',
+        payment_mode,
+    ]
+
+    if scenario == 'custom':
+        command.extend(['--script', ','.join(script_steps)])
+
+    if narrate:
+        command.append('--narrate')
+    if headless:
+        command.append('--headless')
+    if close_browser or headless:
+        command.append('--close-browser')
+
+    creationflags = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
+    if os.name == 'nt':
+        creationflags |= getattr(subprocess, 'CREATE_NEW_PROCESS_GROUP', 0)
+
+    try:
+        process = subprocess.Popen(
+            command,
+            cwd=settings.BASE_DIR,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=creationflags,
+            start_new_session=(os.name != 'nt'),
+        )
+    except OSError:
+        return JsonResponse({
+            'ok': False,
+            'error': 'Unable to start the demo bot process on this machine.',
+        }, status=500)
+
+    state = {
+        'pid': process.pid,
+        'scenario': scenario,
+        'script_steps': script_steps,
+        'payment_mode': payment_mode,
+        'started_at': timezone.now().isoformat(),
+    }
+    _set_demo_state(request, state)
+
+    return JsonResponse({
+        'ok': True,
+        'scenario': scenario,
+        'pid': process.pid,
+        'script_steps': script_steps,
+        'message': f'{scenario.title()} demo started. Watch the automated browser window for the live walkthrough.',
+    })
+
+
+def demo_bot_status(request):
+    if not _is_local_demo_request(request):
+        return JsonResponse({'ok': False, 'error': 'Local access only.'}, status=403)
+
+    state = _get_running_demo_state(request)
+    if not state:
+        return JsonResponse({'ok': True, 'running': False})
+
+    return JsonResponse({'ok': True, 'running': True, 'active_demo': state})
+
+
+@require_POST
+def stop_demo_bot(request):
+    if not _is_local_demo_request(request):
+        return JsonResponse({'ok': False, 'error': 'Local access only.'}, status=403)
+
+    state = _get_demo_state(request)
+    if not state:
+        return JsonResponse({
+            'ok': False,
+            'error': 'No running demo bot was found for this browser session.',
+        }, status=404)
+
+    pid = state.get('pid')
+    if not _process_is_running(pid):
+        _clear_demo_state(request)
+        return JsonResponse({
+            'ok': True,
+            'message': 'The demo bot had already finished.',
+        })
+
+    if not _stop_process_tree(pid):
+        return JsonResponse({
+            'ok': False,
+            'error': 'Unable to stop the active demo bot process.',
+        }, status=500)
+
+    _clear_demo_state(request)
+    return JsonResponse({
+        'ok': True,
+        'message': 'The active demo bot was stopped.',
+    })
 
 
 def _build_tracking_steps(order_kind, order_status):
@@ -394,6 +674,7 @@ def _build_home_stats():
 # MAIN SITE PAGES
 # ============================================
 
+@ensure_csrf_cookie
 def home(request):
     """Home page"""
     recommended_cakes, recommendation_profile = _build_cake_recommendations(

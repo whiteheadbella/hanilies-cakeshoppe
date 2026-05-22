@@ -1,0 +1,125 @@
+.demo-panel-shell {
+    position: relative;
+    z-index: 1050;
+}
+
+.demo-panel-launcher {
+    position: fixed;
+    right: 1.25rem;
+    bottom: 1.25rem;
+    border-radius: 999px;
+    box-shadow: 0 14px 32px rgba(219, 39, 119, 0.28);
+    padding: 0.95rem 1.25rem;
+    z-index: 1060;
+}
+
+.demo-panel-offcanvas {
+    width: min(440px, 92vw) !important;
+    background:
+        radial-gradient(circle at top right, rgba(212, 175, 55, 0.18), transparent 34%),
+        radial-gradient(circle at bottom left, rgba(255, 105, 180, 0.14), transparent 38%),
+        linear-gradient(180deg, #fffaf7, #ffffff);
+}
+
+.demo-panel-section + .demo-panel-section {
+    margin-top: 1.25rem;
+}
+
+.demo-panel-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.demo-status-pill {
+    min-height: 72px;
+    padding: 1rem 1.1rem;
+    border-radius: 1rem;
+    font-weight: 500;
+    color: #ffffff;
+    background: rgba(52, 58, 64, 0.82);
+    border: 1px solid rgba(52, 58, 64, 0.16);
+    transition: all 0.3s ease;
+}
+
+.demo-status-pill[data-state='idle'] {
+    background: rgba(52, 58, 64, 0.82);
+}
+
+.demo-status-pill[data-state='loading'] {
+    background: rgba(212, 175, 55, 0.88);
+}
+
+.demo-status-pill[data-state='success'] {
+    background: rgba(22, 163, 74, 0.88);
+}
+
+.demo-status-pill[data-state='error'] {
+    background: rgba(220, 38, 38, 0.88);
+}
+
+.demo-status-pill[data-state='listening'] {
+    background: rgba(37, 99, 235, 0.88);
+}
+
+.demo-command-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.demo-command-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.45rem 0.8rem;
+    border-radius: 999px;
+    background: rgba(52, 58, 64, 0.08);
+    color: #343a40;
+    font-size: 0.82rem;
+    font-weight: 500;
+}
+
+.demo-script-list {
+    display: grid;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.demo-script-item {
+    display: flex;
+    gap: 0.85rem;
+    align-items: flex-start;
+    padding: 0.85rem 0.95rem;
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.82);
+    border: 1px solid rgba(255, 105, 180, 0.14);
+    cursor: pointer;
+}
+
+.demo-script-item input {
+    margin-top: 0.2rem;
+}
+
+.demo-script-item strong {
+    display: block;
+    color: #343a40;
+}
+
+.demo-script-item small {
+    display: block;
+    color: #6c757d;
+    margin-top: 0.15rem;
+}
+
+@media (max-width: 576px) {
+    .demo-panel-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .demo-panel-launcher {
+        right: 1rem;
+        left: 1rem;
+        bottom: 1rem;
+        justify-content: center;
+    }
+}

@@ -227,6 +227,73 @@ main { flex: 1 0 auto; width: 100%; }
     background: linear-gradient(90deg, var(--pink-primary), var(--gold-primary));
 }
 
+.demo-launcher-card {
+    background:
+        radial-gradient(circle at top right, rgba(212, 175, 55, 0.28), transparent 30%),
+        radial-gradient(circle at bottom left, rgba(255, 105, 180, 0.18), transparent 35%),
+        linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(253, 242, 248, 0.96));
+    border: 1px solid rgba(255, 105, 180, 0.16);
+}
+
+.demo-voice-panel {
+    padding: 1.5rem;
+    border-radius: 1.5rem;
+    background: linear-gradient(135deg, rgba(52, 58, 64, 0.96), rgba(36, 41, 46, 0.96));
+    box-shadow: var(--shadow-lg);
+}
+
+.demo-status-pill {
+    min-height: 68px;
+    padding: 1rem 1.1rem;
+    border-radius: 1rem;
+    font-weight: 500;
+    color: var(--white);
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    transition: var(--transition);
+}
+
+.demo-status-pill[data-state='idle'] {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.demo-status-pill[data-state='loading'] {
+    background: rgba(212, 175, 55, 0.24);
+    border-color: rgba(212, 175, 55, 0.3);
+}
+
+.demo-status-pill[data-state='success'] {
+    background: rgba(34, 197, 94, 0.2);
+    border-color: rgba(34, 197, 94, 0.34);
+}
+
+.demo-status-pill[data-state='error'] {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.34);
+}
+
+.demo-status-pill[data-state='listening'] {
+    background: rgba(59, 130, 246, 0.2);
+    border-color: rgba(59, 130, 246, 0.34);
+}
+
+.demo-command-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+}
+
+.demo-command-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.45rem 0.8rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.92);
+    font-size: 0.85rem;
+    letter-spacing: 0.01em;
+}
+
 /* Dropdown */
 .dropdown-menu {
     border: none;
