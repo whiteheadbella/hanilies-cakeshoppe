@@ -33,7 +33,7 @@ DEMO_SCRIPT_STEPS = [
     ('cake_order', 'Cake Customization and Order'),
     ('cake_tracking', 'Cake Order Tracking'),
     ('packages', 'Packages Catalog'),
-    ('package_order', 'Package Booking and Payment'),
+    ('package_order', 'Package Order and Payment'),
     ('package_tracking', 'Package Order Tracking'),
     ('profile', 'Customer Profile'),
     ('order_tracking', 'Tracking Dashboard'),
@@ -398,7 +398,7 @@ def _build_tracking_steps(order_kind, order_status):
         flow = [
             ('pending', 'Order Placed', 'Your package order has been received.'),
             ('confirmed', 'Order Confirmed',
-             'Your event booking and package details are confirmed.'),
+             'Your event package order and details are confirmed.'),
             ('preparing', 'Preparation Ongoing',
              'Your package inclusions and cake are being prepared.'),
             ('ready_for_pickup', 'Ready for Pickup',
@@ -587,7 +587,7 @@ def _build_package_recommendations(profile):
 
         if package.id in profile.get('ordered_package_ids', set()):
             score += 10
-            reasons.append('You have booked this package before')
+            reasons.append('You have ordered this package before')
 
         if _price_is_close(package.base_price, profile.get('average_package_budget')):
             score += 8
@@ -597,7 +597,7 @@ def _build_package_recommendations(profile):
         score += popularity_bonus
         if package.order_count:
             reasons.append(
-                f'Popular package with {package.order_count} booking(s)')
+                f'Popular package with {package.order_count} order(s)')
         elif not reasons:
             reasons.append('Strong starter package for upcoming celebrations')
 
@@ -608,7 +608,7 @@ def _build_package_recommendations(profile):
             'description': package.description or 'Bundle your cake, setup, and celebration extras in one order.',
             'price': package.base_price,
             'image_url': package.image.url if package.image else '/static/images/bg.png',
-            'url': f"{reverse('package_order')}?package_id={package.id}",
+            'url': f"{reverse('order_package')}?package_id={package.id}",
             'match_score': _normalize_match_score(score),
             'reason': reasons[0],
             'badge': 'Top Package' if package.order_count else 'Event Ready',
@@ -1125,7 +1125,7 @@ def package_cake_customize(request):
     package_id = draft.get('package_id')
     if not package_id:
         messages.error(request, 'Please select a package first.')
-        return redirect('package_order')
+        return redirect('order_package')
 
     selected_package = get_object_or_404(
         Package, id=package_id, status='active')
@@ -1173,7 +1173,7 @@ def package_payment(request):
     package_id = draft.get('package_id')
     if not package_id:
         messages.error(request, 'Please complete the package selection first.')
-        return redirect('package_order')
+        return redirect('order_package')
 
     selected_package = get_object_or_404(
         Package, id=package_id, status='active')

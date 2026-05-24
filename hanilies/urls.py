@@ -26,6 +26,7 @@ urlpatterns = [
 
     # Order pages
     path('cake-customize/', views.cake_customize, name='cake_customize'),
+    path('order-package/', views.package_order, name='order_package'),
     path('package-order/', views.package_order, name='package_order'),
     path('package-cake-customize/', views.package_cake_customize,
          name='package_cake_customize'),

@@ -7,7 +7,7 @@
     <div class="row mb-4">
         <div class="col-lg-8">
             <h1 class="display-5 fw-bold mb-2">Event Packages</h1>
-            <p class="lead text-muted mb-0">Choose a package, review the live inclusions, and continue to a real booking flow.</p>
+            <p class="lead text-muted mb-0">Choose a package, review the live inclusions, and continue to a real order flow.</p>
         </div>
     </div>
 
@@ -57,7 +57,7 @@
                         <h4 class="h5 mb-0">{{ package.name }}</h4>
                         <span class="badge text-bg-light text-capitalize">{{ package.get_package_type_display }}</span>
                     </div>
-                    <p class="text-muted mb-3">{{ package.description|default:'Package booking with customizable inclusions and cake options.' }}</p>
+                    <p class="text-muted mb-3">{{ package.description|default:'Package order with customizable inclusions and cake options.' }}</p>
                     {% if package.included_items %}
                     <div class="small text-muted mb-3">
                         <div class="fw-semibold text-dark mb-1">Included items</div>
@@ -69,7 +69,7 @@
                             <div class="small text-muted">Package price</div>
                             <div class="h4 text-gold-pink mb-0">P{{ package.base_price }}</div>
                         </div>
-                        <a href="{% url 'package_order' %}?package_id={{ package.id }}" class="btn btn-gold">Book Package</a>
+                        <a href="{% url 'order_package' %}?package_id={{ package.id }}" class="btn btn-gold">Order the Package</a>
                     </div>
                 </div>
             </div>

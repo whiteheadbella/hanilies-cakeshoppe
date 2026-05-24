@@ -22,7 +22,7 @@
                         <i class="fas fa-birthday-cake me-2"></i>Order a Cake
                     </a>
                     <a href="{% url 'packages' %}" class="btn btn-outline-gold btn-lg">
-                        <i class="fas fa-gift me-2"></i>Book a Package
+                        <i class="fas fa-gift me-2"></i>Order the Package
                     </a>
                 </div>
                 <div class="row g-3">
@@ -130,7 +130,7 @@
                     <i class="fas fa-gift me-1"></i> Suggested Event Packages
                 </span>
                 <h2 class="mb-1">Package Matches for Upcoming Events</h2>
-                <p class="text-muted mb-0">Package recommendations use your event history first, then current booking trends.</p>
+                <p class="text-muted mb-0">Package recommendations use your event history first, then current order trends.</p>
             </div>
             <a href="{% url 'packages' %}" class="btn btn-outline-gold">Browse All Packages</a>
         </div>
@@ -156,7 +156,7 @@
                         <div class="alert alert-light border small mb-3">
                             <strong>Why this is suggested:</strong> {{ item.reason }}
                         </div>
-                        <a href="{{ item.url }}" class="btn btn-gold mt-auto">Start Package Booking</a>
+                        <a href="{{ item.url }}" class="btn btn-gold mt-auto">Order the Package</a>
                     </div>
                 </div>
             </div>
@@ -214,8 +214,8 @@
                         </div>
                         <p class="card-text text-muted">{{ package.description|default:'Celebration package with cake, styling, and party extras.'|truncatechars:120 }}</p>
                         <div class="d-flex justify-content-between align-items-center mt-auto">
-                            <small class="text-muted">{{ package.order_count }} booking(s)</small>
-                            <a href="{% url 'package_order' %}?package_id={{ package.id }}" class="btn btn-sm btn-outline-gold">Book</a>
+                            <small class="text-muted">{{ package.order_count }} order(s)</small>
+                            <a href="{% url 'order_package' %}?package_id={{ package.id }}" class="btn btn-sm btn-outline-gold">Order</a>
                         </div>
                     </div>
                 </div>
@@ -230,7 +230,7 @@
         <div class="card border-0 bg-gold-pink">
             <div class="card-body text-center p-5">
                 <h2 class="text-white mb-3">Ready to turn these suggestions into an order?</h2>
-                <p class="text-white mb-4 fs-5">Your homepage is now using live order signals to recommend what to customize or book next.</p>
+                <p class="text-white mb-4 fs-5">Your homepage is now using live order signals to recommend what to customize or order next.</p>
                 <div class="d-flex justify-content-center flex-wrap gap-3">
                     <a href="{% url 'cakes' %}" class="btn btn-gold btn-lg px-4">
                         <i class="fas fa-birthday-cake me-2"></i>Shop Cakes

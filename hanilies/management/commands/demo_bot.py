@@ -633,8 +633,8 @@ class Command(BaseCommand):
         self.last_order_ids["cake"] = self._latest_order_id("cake")
 
     def _run_package_flow(self, driver, wait, By, Select, EC, base_url: str, delay: float):
-        self._open_page(driver, wait, By, f"{base_url}/package-order/", delay)
-        self._announce("Filling the package booking flow.")
+        self._open_page(driver, wait, By, f"{base_url}/order-package/", delay)
+        self._announce("Filling the package order flow.")
 
         wait.until(EC.visibility_of_element_located(
             (By.ID, "package-step-one")))
@@ -719,7 +719,7 @@ class Command(BaseCommand):
             )
             self._upload_file(driver.find_element(
                 By.NAME, "proof_image"), self.demo_proof_path, delay)
-        self._announce("Submitting the package booking.")
+        self._announce("Submitting the package order.")
         self._submit_form(driver.find_element(
             By.ID, "package-step-three"), delay)
         wait.until(lambda browser: "/order-tracking/" in browser.current_url)
