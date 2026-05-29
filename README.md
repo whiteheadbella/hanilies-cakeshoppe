@@ -190,8 +190,10 @@ The repository includes `render.yaml` for Render deployment.
 Current Render flow:
 
 - Build command: `pip install -r requirements.txt && python manage.py collectstatic --no-input`
-- Start command: `python manage.py migrate && gunicorn config.wsgi:application`
+- Start command: `python manage.py migrate && python manage.py sync_repo_media && python manage.py loaddata catalog_seed && gunicorn config.wsgi:application`
 - Persistent disk is used for SQLite and uploaded media
+
+Because Render runs `python manage.py migrate` during service startup, newly added data/schema migrations are applied automatically on the deployed environment as part of the next deploy or restart. That includes the corporate package cleanup migration `hanilies.0004_remove_corporate_package_records`.
 
 Render environment variables currently include:
 

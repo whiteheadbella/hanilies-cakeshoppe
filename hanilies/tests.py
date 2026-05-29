@@ -177,6 +177,15 @@ class CakeOrderViewUnitTests(TestCase):
         self.assertContains(response, 'GCash Payment Instructions')
         self.assertContains(response, reverse('payment_qr_preview'))
 
+    def test_cake_customize_get_renders_special_occasions_theme_option(self):
+        response = self.client.get(reverse('cake_customize'), {
+            'cake_id': str(self.cake.id),
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Special Occasions')
+        self.assertNotContains(response, 'Graduation')
+
     def test_cake_customize_rejects_gcash_without_reference_and_proof(self):
         response = self.client.post(reverse('cake_customize'), {
             'cake_id': str(self.cake.id),
@@ -193,6 +202,25 @@ class CakeOrderViewUnitTests(TestCase):
         self.assertEqual(CakeOrder.objects.count(), 0)
         self.assertEqual(CakeCustomization.objects.count(), 0)
         self.assertEqual(Payment.objects.count(), 0)
+
+    def test_cakes_page_shows_special_occasions_label_for_custom_category(self):
+        special_cake = Cake.objects.create(
+            name='Elegant Celebration Cake',
+            category='custom',
+            description='Made for milestone celebrations.',
+            price=Decimal('1850.00'),
+            stock=2,
+            is_active=True,
+        )
+
+        response = self.client.get(reverse('cakes'), {
+            'category': 'custom',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, special_cake.name)
+        self.assertContains(response, 'Special Occasions')
+        self.assertNotContains(response, '>Custom<', html=False)
 
 
 class PackageFlowUnitTests(TestCase):
@@ -252,6 +280,49 @@ class PackageFlowUnitTests(TestCase):
         self.assertEqual(draft['package_id'], str(self.package.id))
         self.assertEqual(draft['selected_addon_labels'],
                          ['Chocofudge Brownies'])
+
+    def test_package_order_rejects_removed_corporate_event_type(self):
+        response = self.client.post(reverse('package_order'), {
+            'package_id': str(self.package.id),
+            'event_type': 'corporate',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            'Selected event type is no longer available for package bookings.',
+        )
+        self.assertNotIn('package_order_draft', self.client.session)
+
+    def test_order_package_route_blocks_corporate_package_ids(self):
+        corporate_package = Package.objects.create(
+            name='Corporate Launch Bundle',
+            package_type='corporate',
+            description='Legacy corporate package.',
+            base_price=Decimal('9500.00'),
+            status='active',
+        )
+
+        response = self.client.get(reverse('order_package'), {
+            'package_id': str(corporate_package.id),
+        })
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_packages_page_excludes_corporate_packages_from_listing(self):
+        Package.objects.create(
+            name='Corporate Legacy Bundle',
+            package_type='corporate',
+            description='Should not appear in the public package catalog.',
+            base_price=Decimal('8200.00'),
+            status='active',
+        )
+
+        response = self.client.get(reverse('packages'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'Corporate Legacy Bundle')
+        self.assertContains(response, self.package.name)
 
     def test_package_payment_post_creates_order_and_clears_session_draft(self):
         session = self.client.session
@@ -338,6 +409,22 @@ class PackageFlowUnitTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'GCash Payment Instructions')
         self.assertContains(response, reverse('payment_qr_preview'))
+
+    def test_package_cake_customize_get_renders_special_occasions_theme_option(self):
+        session = self.client.session
+        session['package_order_draft'] = {
+            'package_id': str(self.package.id),
+            'event_type': 'kids_birthday',
+            'selected_addon_labels': [],
+            'base_total': '6500.00',
+        }
+        session.save()
+
+        response = self.client.get(reverse('package_cake_customize'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Special Occasions')
+        self.assertNotContains(response, 'Graduation')
 
 
 class OrderingIntegrationTests(TestCase):

@@ -63,7 +63,7 @@ class Cake(models.Model):
         ('wedding', 'Wedding'),
         ('christening', 'Christening'),
         ('anniversary', 'Anniversary'),
-        ('custom', 'Custom'),
+        ('custom', 'Special Occasions'),
     ]
 
     name = models.CharField(max_length=100)
@@ -166,7 +166,6 @@ class Package(models.Model):
         ('kids_birthday', "Kid's Birthday"),
         ('adults_party', "Adult's Party"),
         ('wedding', 'Wedding'),
-        ('corporate', 'Corporate'),
     ]
 
     name = models.CharField(max_length=100)
@@ -202,7 +201,6 @@ class PackageOrder(models.Model):
         ('kids_birthday', "Kid's Birthday"),
         ('adults_party', "Adult's Party"),
         ('wedding', 'Wedding'),
-        ('corporate', 'Corporate'),
     ]
 
     user = models.ForeignKey(

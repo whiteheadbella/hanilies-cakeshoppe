@@ -23,11 +23,9 @@
                     <div class="form-group">
                         <label>Category <span class="text-danger">*</span></label>
                         <select name="category" class="form-control" required>
-                            <option value="birthday">Birthday</option>
-                            <option value="wedding">Wedding</option>
-                            <option value="christening">Christening</option>
-                            <option value="anniversary">Anniversary</option>
-                            <option value="custom">Custom</option>
+                            {% for value, label in cake_categories %}
+                            <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
                         </select>
                     </div>
                 </div>

@@ -50,11 +50,9 @@
                                 <label class="form-label fw-semibold">Theme / Occasion</label>
                                 <select class="form-select" name="theme" id="theme">
                                     <option value="">Select Theme</option>
-                                    <option>Birthday</option>
-                                    <option>Christening</option>
-                                    <option>Wedding</option>
-                                    <option>Anniversary</option>
-                                    <option>Graduation</option>
+                                    {% for theme in theme_options %}
+                                    <option>{{ theme }}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
                             <div class="col-md-6">

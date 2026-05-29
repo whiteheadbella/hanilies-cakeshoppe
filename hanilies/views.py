@@ -61,6 +61,25 @@ CAKE_DECORATION_OPTIONS = {
     'fresh_fruits': {'label': 'Fresh Fruit Toppings', 'price': Decimal('200.00')},
 }
 
+CAKE_THEME_OPTIONS = [
+    'Birthday',
+    'Christening',
+    'Wedding',
+    'Anniversary',
+    'Special Occasions',
+]
+
+CAKE_CATEGORY_VALUES = {value for value, _ in Cake.CAKE_CATEGORIES}
+
+PUBLIC_PACKAGE_TYPES = [
+    choice for choice in Package.PACKAGE_TYPES if choice[0] != 'corporate'
+]
+PUBLIC_PACKAGE_TYPE_VALUES = {value for value, _ in PUBLIC_PACKAGE_TYPES}
+PUBLIC_EVENT_TYPES = [
+    choice for choice in PackageOrder.EVENT_TYPES if choice[0] != 'corporate'
+]
+PUBLIC_EVENT_TYPE_VALUES = {value for value, _ in PUBLIC_EVENT_TYPES}
+
 PACKAGE_ADDON_OPTIONS = {
     'brownies': {'label': 'Chocofudge Brownies', 'price': Decimal('300.00')},
     'cupcakes': {'label': 'Themed Cupcakes', 'price': Decimal('350.00')},
@@ -151,6 +170,11 @@ def _parse_decimal(value, default='0.00'):
         return Decimal(str(value))
     except (InvalidOperation, TypeError, ValueError):
         return Decimal(default)
+
+
+def _get_public_package_queryset():
+    return Package.objects.filter(
+        status='active', package_type__in=PUBLIC_PACKAGE_TYPE_VALUES)
 
 
 def _parse_delivery_datetime(date_value):
@@ -475,7 +499,7 @@ def _ensure_browser_demo_catalog():
             is_active=True,
         )
 
-    package = Package.objects.filter(status='active').order_by('id').first()
+    package = _get_public_package_queryset().order_by('id').first()
     if package is None:
         package = Package.objects.create(
             name='Panel Demo Package',
@@ -1018,7 +1042,7 @@ def _build_cake_recommendations(user):
 
 def _build_package_recommendations(profile):
     package_lookup = dict(Package.PACKAGE_TYPES)
-    packages = list(Package.objects.filter(status='active').annotate(
+    packages = list(_get_public_package_queryset().annotate(
         order_count=Count('orders')).order_by('name'))
     scored_items = []
 
@@ -1131,7 +1155,7 @@ def home(request):
         recommendation_profile)
     featured_cakes = list(Cake.objects.filter(is_active=True).annotate(
         order_count=Count('orders')).order_by('-order_count', 'name')[:4])
-    featured_packages = list(Package.objects.filter(status='active').annotate(
+    featured_packages = list(_get_public_package_queryset().annotate(
         order_count=Count('orders')).order_by('-order_count', 'name')[:3])
 
     context = {
@@ -1191,7 +1215,7 @@ def cakes(request):
 
 def packages(request):
     """Packages listing page"""
-    package_list = Package.objects.filter(status='active').order_by('name')
+    package_list = _get_public_package_queryset().order_by('name')
     selected_type = request.GET.get('type', '').strip()
     search_term = request.GET.get('q', '').strip()
 
@@ -1203,7 +1227,7 @@ def packages(request):
 
     context = {
         'packages': package_list,
-        'package_types': Package.PACKAGE_TYPES,
+        'package_types': PUBLIC_PACKAGE_TYPES,
         'selected_type': selected_type,
         'search_term': search_term,
     }
@@ -1547,6 +1571,7 @@ def cake_customize(request):
         'cake': selected_cake,
         'cakes': cake_queryset.order_by('name'),
         'decoration_options': CAKE_DECORATION_OPTIONS,
+        'theme_options': CAKE_THEME_OPTIONS,
         'defaults': defaults,
         'gcash_account': get_gcash_profile(),
         'gcash_preview': build_gcash_checkout_details(
@@ -1564,7 +1589,7 @@ def package_order(request):
     draft = _get_package_draft(request)
     selected_package_id = request.POST.get('package_id') if request.method == 'POST' else request.GET.get(
         'package_id') or request.GET.get('package') or draft.get('package_id')
-    package_queryset = Package.objects.filter(status='active')
+    package_queryset = _get_public_package_queryset()
 
     if not package_queryset.exists():
         messages.error(
@@ -1575,12 +1600,25 @@ def package_order(request):
         selected_package_id).isdigit() else package_queryset.order_by('name').first()
 
     if request.method == 'POST':
+        event_type = request.POST.get('event_type', selected_package.package_type)
+        if event_type not in PUBLIC_EVENT_TYPE_VALUES:
+            messages.error(
+                request, 'Selected event type is no longer available for package bookings.')
+            context = {
+                'package': selected_package,
+                'packages': package_queryset.order_by('name'),
+                'event_types': PUBLIC_EVENT_TYPES,
+                'addon_options': PACKAGE_ADDON_OPTIONS,
+                'draft': draft,
+            }
+            return render(request, 'hanilies/package_order.html', context)
+
         selected_addons = request.POST.getlist('selected_addons')
         addon_labels, addon_total = _get_selected_option_labels(
             selected_addons, PACKAGE_ADDON_OPTIONS)
         updated_draft = {
             'package_id': str(selected_package.id),
-            'event_type': request.POST.get('event_type', selected_package.package_type),
+            'event_type': event_type,
             'selected_addons': selected_addons,
             'selected_addon_labels': addon_labels,
             'addons_total': str(addon_total),
@@ -1594,7 +1632,7 @@ def package_order(request):
     context = {
         'package': selected_package,
         'packages': package_queryset.order_by('name'),
-        'event_types': PackageOrder.EVENT_TYPES,
+        'event_types': PUBLIC_EVENT_TYPES,
         'addon_options': PACKAGE_ADDON_OPTIONS,
         'draft': draft,
     }
@@ -1610,8 +1648,7 @@ def package_cake_customize(request):
         messages.error(request, 'Please select a package first.')
         return redirect('order_package')
 
-    selected_package = get_object_or_404(
-        Package, id=package_id, status='active')
+    selected_package = get_object_or_404(_get_public_package_queryset(), id=package_id)
 
     if request.method == 'POST':
         size_key = request.POST.get('cake_size', 'standard')
@@ -1643,6 +1680,7 @@ def package_cake_customize(request):
     context = {
         'package': selected_package,
         'draft': draft,
+        'theme_options': CAKE_THEME_OPTIONS,
         'size_options': PACKAGE_CAKE_UPGRADES,
         'decoration_options': PACKAGE_CAKE_DECORATIONS,
     }
@@ -1658,8 +1696,7 @@ def package_payment(request):
         messages.error(request, 'Please complete the package selection first.')
         return redirect('order_package')
 
-    selected_package = get_object_or_404(
-        Package, id=package_id, status='active')
+    selected_package = get_object_or_404(_get_public_package_queryset(), id=package_id)
     defaults = _get_profile_defaults(request.user)
     subtotal = _parse_decimal(
         draft.get('base_total', selected_package.base_price))
@@ -1667,11 +1704,16 @@ def package_payment(request):
     grand_total = subtotal + custom_total
 
     if request.method == 'POST':
+        event_type = request.POST.get(
+            'event_type', draft.get('event_type', selected_package.package_type))
         payment_method = request.POST.get('payment_method', 'cod')
         reference_number = request.POST.get('reference_number', '').strip()
         proof_image = request.FILES.get('proof_image')
 
-        if payment_method == 'gcash' and (not reference_number or proof_image is None):
+        if event_type not in PUBLIC_EVENT_TYPE_VALUES:
+            messages.error(
+                request, 'Selected event type is no longer available for package bookings.')
+        elif payment_method == 'gcash' and (not reference_number or proof_image is None):
             messages.error(
                 request, 'GCash package orders require a reference number and proof of payment.')
         else:
@@ -1679,8 +1721,7 @@ def package_payment(request):
                 user=request.user,
                 package=selected_package,
                 total_price=grand_total,
-                event_type=request.POST.get('event_type', draft.get(
-                    'event_type', selected_package.package_type)),
+                event_type=event_type,
                 event_date=request.POST.get('event_date'),
                 event_time=request.POST.get('event_time') or None,
                 venue=request.POST.get('venue', '').strip(),
@@ -1849,6 +1890,13 @@ def admin_cake_add(request):
             # Get form data
             name = request.POST.get('name')
             category = request.POST.get('category')
+            if category not in CAKE_CATEGORY_VALUES:
+                messages.error(request, 'Selected cake category is not available.')
+                return render(request, 'admin/cakes/add.html', {
+                    'admin_menu': get_admin_menu(request),
+                    'cake_categories': Cake.CAKE_CATEGORIES,
+                })
+
             description = request.POST.get('description')
             price = request.POST.get('price')
             stock = request.POST.get('stock', 0)
@@ -1884,7 +1932,10 @@ def admin_cake_add(request):
             messages.error(request, f'Error adding cake: {str(e)}')
             return redirect('admin_cake_add')
 
-    return render(request, 'admin/cakes/add.html', {'admin_menu': get_admin_menu(request)})
+    return render(request, 'admin/cakes/add.html', {
+        'admin_menu': get_admin_menu(request),
+        'cake_categories': Cake.CAKE_CATEGORIES,
+    })
 
 
 @login_required
@@ -1900,7 +1951,16 @@ def admin_cake_edit(request, cake_id):
         try:
             # Update basic info
             cake.name = request.POST.get('name')
-            cake.category = request.POST.get('category')
+            category = request.POST.get('category')
+            if category not in CAKE_CATEGORY_VALUES:
+                messages.error(request, 'Selected cake category is not available.')
+                return render(request, 'admin/cakes/edit.html', {
+                    'cake': cake,
+                    'admin_menu': get_admin_menu(request),
+                    'cake_categories': Cake.CAKE_CATEGORIES,
+                })
+
+            cake.category = category
             cake.description = request.POST.get('description')
             cake.price = request.POST.get('price')
             cake.stock = request.POST.get('stock')
@@ -1937,7 +1997,8 @@ def admin_cake_edit(request, cake_id):
 
     return render(request, 'admin/cakes/edit.html', {
         'cake': cake,
-        'admin_menu': get_admin_menu(request)
+        'admin_menu': get_admin_menu(request),
+        'cake_categories': Cake.CAKE_CATEGORIES,
     })
 
 
@@ -2071,9 +2132,17 @@ def admin_package_add(request):
 
     if request.method == 'POST':
         try:
+            package_type = request.POST.get('package_type')
+            if package_type not in PUBLIC_PACKAGE_TYPE_VALUES:
+                messages.error(
+                    request, 'Selected package type is no longer available.')
+                return render(request, 'admin/packages/add.html', {
+                    'admin_menu': get_admin_menu(request)
+                })
+
             package = Package(
                 name=request.POST.get('name'),
-                package_type=request.POST.get('package_type'),
+                package_type=package_type,
                 description=request.POST.get('description'),
                 base_price=request.POST.get('base_price'),
                 status=request.POST.get('status', 'active'),
@@ -2108,8 +2177,17 @@ def admin_package_edit(request, package_id):
 
     if request.method == 'POST':
         try:
+            package_type = request.POST.get('package_type')
+            if package_type not in PUBLIC_PACKAGE_TYPE_VALUES:
+                messages.error(
+                    request, 'Selected package type is no longer available.')
+                return render(request, 'admin/packages/edit.html', {
+                    'package': package,
+                    'admin_menu': get_admin_menu(request)
+                })
+
             package.name = request.POST.get('name')
-            package.package_type = request.POST.get('package_type')
+            package.package_type = package_type
             package.description = request.POST.get('description')
             package.base_price = request.POST.get('base_price')
             package.status = request.POST.get('status')

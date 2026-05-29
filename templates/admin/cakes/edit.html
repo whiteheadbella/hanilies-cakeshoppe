@@ -24,11 +24,9 @@
                     <div class="form-group">
                         <label>Category <span class="text-danger">*</span></label>
                         <select name="category" class="form-control" required>
-                            <option value="birthday" {% if cake.category == 'birthday' %}selected{% endif %}>Birthday</option>
-                            <option value="wedding" {% if cake.category == 'wedding' %}selected{% endif %}>Wedding</option>
-                            <option value="christening" {% if cake.category == 'christening' %}selected{% endif %}>Christening</option>
-                            <option value="anniversary" {% if cake.category == 'anniversary' %}selected{% endif %}>Anniversary</option>
-                            <option value="custom" {% if cake.category == 'custom' %}selected{% endif %}>Custom</option>
+                            {% for value, label in cake_categories %}
+                            <option value="{{ value }}" {% if cake.category == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
                         </select>
                     </div>
                 </div>

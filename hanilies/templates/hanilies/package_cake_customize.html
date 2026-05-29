@@ -49,11 +49,9 @@
                                 <label class="form-label fw-semibold">Cake Theme</label>
                                 <select class="form-select" name="theme">
                                     <option value="">Select Theme</option>
-                                    <option>Birthday</option>
-                                    <option>Christening</option>
-                                    <option>Wedding</option>
-                                    <option>Anniversary</option>
-                                    <option>Graduation</option>
+                                    {% for theme in theme_options %}
+                                    <option>{{ theme }}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
                             <div class="col-md-6">
