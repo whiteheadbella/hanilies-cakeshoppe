@@ -1400,6 +1400,25 @@ class MediaSyncCommandTests(TestCase):
         self.assertEqual(synced_file.read_text(encoding='utf-8'), 'repo media content')
 
 
+class MediaServingTests(TestCase):
+    def test_media_file_is_served_from_media_url(self):
+        media_root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, media_root, ignore_errors=True)
+
+        media_file = media_root / 'packages' / 'visible.txt'
+        media_file.parent.mkdir(parents=True, exist_ok=True)
+        media_file.write_text('package image placeholder', encoding='utf-8')
+
+        with override_settings(MEDIA_ROOT=media_root):
+            response = self.client.get('/media/packages/visible.txt')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            b''.join(response.streaming_content),
+            b'package image placeholder',
+        )
+
+
 class CatalogSeedFixtureTests(TestCase):
     def test_catalog_seed_fixture_loads_into_empty_database(self):
         Cake.objects.all().delete()
