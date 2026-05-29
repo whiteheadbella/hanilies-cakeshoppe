@@ -130,7 +130,7 @@ EMAIL_USE_SSL=False
 DEFAULT_FROM_EMAIL=Hanilies Cakeshoppe <your-email@example.com>
 
 HANILIES_GCASH_ACCOUNT_NAME=Hanilies Cakeshoppe
-HANILIES_GCASH_ACCOUNT_NUMBER=09171234567
+HANILIES_GCASH_ACCOUNT_NUMBER=
 HANILIES_GCASH_PAYMENT_NOTE=Send payment using the account details shown on the checkout page.
 ```
 
