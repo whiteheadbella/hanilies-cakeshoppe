@@ -44,7 +44,5 @@ htmlcov/
 staticfiles/
 
 # Generated uploads
-media/cakes/
-media/packages/
 media/designs/
 media/proofs/
