@@ -1566,14 +1566,34 @@ class CatalogSeedFixtureTests(TestCase):
 
         call_command('loaddata', 'catalog_seed', verbosity=0)
 
-        self.assertEqual(Cake.objects.count(), 16)
+        self.assertEqual(Cake.objects.count(), 25)
         self.assertEqual(Package.objects.count(), 12)
         self.assertTrue(Cake.objects.filter(name='Chocolate Fudge Cake').exists())
+        self.assertTrue(Cake.objects.filter(name="Valentine's Day Cake", category='custom').exists())
+        self.assertTrue(Cake.objects.filter(name='New Year Cake', category='custom').exists())
         self.assertTrue(Package.objects.filter(name='Wedding Package A').exists())
 
     def test_catalog_seed_fixture_can_be_loaded_again_without_duplicate_rows(self):
         call_command('loaddata', 'catalog_seed', verbosity=0)
         call_command('loaddata', 'catalog_seed', verbosity=0)
 
-        self.assertEqual(Cake.objects.count(), 16)
+        self.assertEqual(Cake.objects.count(), 25)
         self.assertEqual(Package.objects.count(), 12)
+
+    def test_special_occasions_route_lists_seeded_custom_cakes(self):
+        call_command('loaddata', 'catalog_seed', verbosity=0)
+
+        response = self.client.get(reverse('cakes'), {'category': 'custom'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['cakes'].count(), 9)
+        self.assertContains(response, 'Graduation Cake')
+        self.assertContains(response, 'Debut Cake')
+        self.assertContains(response, 'Gender Reveal Cake')
+        self.assertContains(response, 'Christmas Cake')
+        self.assertContains(response, 'New Year Cake')
+        seeded_cake = Cake.objects.get(name="Valentine's Day Cake")
+        self.assertContains(
+            response,
+            f"{reverse('cake_customize')}?cake_id={seeded_cake.id}",
+        )

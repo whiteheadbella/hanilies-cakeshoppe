@@ -240,6 +240,141 @@
     }
   },
   {
+    "model": "hanilies.cake",
+    "pk": 17,
+    "fields": {
+      "name": "Valentine's Day Cake",
+      "category": "custom",
+      "description": "Romantic cake design for Valentine's Day celebrations.",
+      "price": "1200.00",
+      "stock": 3,
+      "image": "",
+      "is_active": true,
+      "created_at": "2026-05-29T00:00:00.000Z",
+      "updated_at": "2026-05-29T00:00:00.000Z"
+    }
+  },
+  {
+    "model": "hanilies.cake",
+    "pk": 18,
+    "fields": {
+      "name": "Mother's Day Cake",
+      "category": "custom",
+      "description": "Floral celebration cake crafted for Mother's Day.",
+      "price": "850.00",
+      "stock": 3,
+      "image": "",
+      "is_active": true,
+      "created_at": "2026-05-29T00:00:00.000Z",
+      "updated_at": "2026-05-29T00:00:00.000Z"
+    }
+  },
+  {
+    "model": "hanilies.cake",
+    "pk": 19,
+    "fields": {
+      "name": "Father's Day Cake",
+      "category": "custom",
+      "description": "Bold celebration cake made for Father's Day gatherings.",
+      "price": "900.00",
+      "stock": 3,
+      "image": "",
+      "is_active": true,
+      "created_at": "2026-05-29T00:00:00.000Z",
+      "updated_at": "2026-05-29T00:00:00.000Z"
+    }
+  },
+  {
+    "model": "hanilies.cake",
+    "pk": 20,
+    "fields": {
+      "name": "Graduation Cake",
+      "category": "custom",
+      "description": "Milestone cake designed for graduation celebrations.",
+      "price": "1300.00",
+      "stock": 3,
+      "image": "",
+      "is_active": true,
+      "created_at": "2026-05-29T00:00:00.000Z",
+      "updated_at": "2026-05-29T00:00:00.000Z"
+    }
+  },
+  {
+    "model": "hanilies.cake",
+    "pk": 21,
+    "fields": {
+      "name": "Debut Cake",
+      "category": "custom",
+      "description": "Elegant debut cake for 18th birthday and formal milestone events.",
+      "price": "1400.00",
+      "stock": 3,
+      "image": "",
+      "is_active": true,
+      "created_at": "2026-05-29T00:00:00.000Z",
+      "updated_at": "2026-05-29T00:00:00.000Z"
+    }
+  },
+  {
+    "model": "hanilies.cake",
+    "pk": 22,
+    "fields": {
+      "name": "Gender Reveal Cake",
+      "category": "custom",
+      "description": "Celebration cake for surprise gender reveal moments.",
+      "price": "1250.00",
+      "stock": 3,
+      "image": "",
+      "is_active": true,
+      "created_at": "2026-05-29T00:00:00.000Z",
+      "updated_at": "2026-05-29T00:00:00.000Z"
+    }
+  },
+  {
+    "model": "hanilies.cake",
+    "pk": 23,
+    "fields": {
+      "name": "Teachers' Day Cake",
+      "category": "custom",
+      "description": "Appreciation cake prepared for Teachers' Day events.",
+      "price": "950.00",
+      "stock": 3,
+      "image": "",
+      "is_active": true,
+      "created_at": "2026-05-29T00:00:00.000Z",
+      "updated_at": "2026-05-29T00:00:00.000Z"
+    }
+  },
+  {
+    "model": "hanilies.cake",
+    "pk": 24,
+    "fields": {
+      "name": "Christmas Cake",
+      "category": "custom",
+      "description": "Festive cake styled for Christmas gatherings and gift tables.",
+      "price": "1000.00",
+      "stock": 3,
+      "image": "",
+      "is_active": true,
+      "created_at": "2026-05-29T00:00:00.000Z",
+      "updated_at": "2026-05-29T00:00:00.000Z"
+    }
+  },
+  {
+    "model": "hanilies.cake",
+    "pk": 25,
+    "fields": {
+      "name": "New Year Cake",
+      "category": "custom",
+      "description": "Sparkling celebration cake for New Year parties.",
+      "price": "950.00",
+      "stock": 3,
+      "image": "",
+      "is_active": true,
+      "created_at": "2026-05-29T00:00:00.000Z",
+      "updated_at": "2026-05-29T00:00:00.000Z"
+    }
+  },
+  {
     "model": "hanilies.package",
     "pk": 1,
     "fields": {
