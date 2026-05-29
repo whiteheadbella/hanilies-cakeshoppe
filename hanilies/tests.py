@@ -1398,3 +1398,23 @@ class MediaSyncCommandTests(TestCase):
         synced_file = destination_media_root / 'cakes' / 'deploy-sample.txt'
         self.assertTrue(synced_file.exists())
         self.assertEqual(synced_file.read_text(encoding='utf-8'), 'repo media content')
+
+
+class CatalogSeedFixtureTests(TestCase):
+    def test_catalog_seed_fixture_loads_into_empty_database(self):
+        Cake.objects.all().delete()
+        Package.objects.all().delete()
+
+        call_command('loaddata', 'catalog_seed', verbosity=0)
+
+        self.assertEqual(Cake.objects.count(), 16)
+        self.assertEqual(Package.objects.count(), 12)
+        self.assertTrue(Cake.objects.filter(name='Chocolate Fudge Cake').exists())
+        self.assertTrue(Package.objects.filter(name='Wedding Package A').exists())
+
+    def test_catalog_seed_fixture_can_be_loaded_again_without_duplicate_rows(self):
+        call_command('loaddata', 'catalog_seed', verbosity=0)
+        call_command('loaddata', 'catalog_seed', verbosity=0)
+
+        self.assertEqual(Cake.objects.count(), 16)
+        self.assertEqual(Package.objects.count(), 12)
