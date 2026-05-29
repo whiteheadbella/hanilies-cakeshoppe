@@ -43,6 +43,15 @@ DEMO_SCRIPT_STEPS = [
     ('contact', 'Contact Page'),
 ]
 DEMO_SESSION_STATE_KEY = 'active_demo_bot'
+DEMO_BROWSER_USERNAME = os.environ.get('DEMO_BOT_USERNAME', 'paneldemo')
+DEMO_BROWSER_PASSWORD = os.environ.get('DEMO_BOT_PASSWORD', 'PanelDemo123!')
+DEMO_BROWSER_EMAIL = os.environ.get('DEMO_BOT_EMAIL', 'paneldemo@example.com')
+DEMO_BROWSER_SCENARIO_STEPS = {
+    'login': ['home', 'login', 'profile'],
+    'cake': ['home', 'login', 'ai_recommendations', 'cakes', 'cake_order', 'cake_tracking'],
+    'package': ['home', 'login', 'packages', 'package_order', 'package_tracking'],
+    'full': ['home', 'login', 'ai_recommendations', 'cakes', 'cake_order', 'cake_tracking', 'packages', 'package_order', 'package_tracking', 'profile', 'order_tracking'],
+}
 
 CAKE_DECORATION_OPTIONS = {
     'fresh_flowers': {'label': 'Fresh Flowers', 'price': Decimal('300.00')},
@@ -325,6 +334,14 @@ def _is_local_demo_request(request):
     return settings.DEBUG and remote_addr in {None, '127.0.0.1', '::1'}
 
 
+def _get_demo_request_mode(request):
+    if _is_local_demo_request(request):
+        return 'local'
+    if getattr(settings, 'DEMO_BOT_REMOTE_ENABLED', False):
+        return 'browser'
+    return None
+
+
 def _parse_float(value, default):
     try:
         return float(value)
@@ -407,10 +424,226 @@ def _normalize_script_steps(raw_steps):
     return normalized_steps
 
 
+def _resolve_demo_script_steps(scenario, raw_steps):
+    if scenario == 'custom':
+        return _normalize_script_steps(raw_steps)
+    return list(DEMO_BROWSER_SCENARIO_STEPS.get(scenario, DEMO_BROWSER_SCENARIO_STEPS['full']))
+
+
+def _ensure_browser_demo_user():
+    user, created = User.objects.get_or_create(
+        username=DEMO_BROWSER_USERNAME,
+        defaults={
+            'email': DEMO_BROWSER_EMAIL,
+            'first_name': 'Panel',
+            'last_name': 'Demo',
+        },
+    )
+    if created or not user.check_password(DEMO_BROWSER_PASSWORD):
+        user.email = DEMO_BROWSER_EMAIL
+        user.first_name = 'Panel'
+        user.last_name = 'Demo'
+        user.set_password(DEMO_BROWSER_PASSWORD)
+        user.save()
+
+    profile, _ = UserProfile.objects.get_or_create(
+        user=user,
+        defaults={
+            'role': 'viewer',
+            'phone': '09171234567',
+            'address': '123 Demo Street, Lucena City',
+        },
+    )
+    profile.role = 'viewer'
+    if not profile.phone:
+        profile.phone = '09171234567'
+    if not profile.address:
+        profile.address = '123 Demo Street, Lucena City'
+    profile.save()
+    return user
+
+
+def _ensure_browser_demo_catalog():
+    cake = Cake.objects.filter(is_active=True).order_by('id').first()
+    if cake is None:
+        cake = Cake.objects.create(
+            name='Panel Demo Cake',
+            category='birthday',
+            description='A seeded cake for browser-based panel demonstrations.',
+            price='1850.00',
+            stock=5,
+            is_active=True,
+        )
+
+    package = Package.objects.filter(status='active').order_by('id').first()
+    if package is None:
+        package = Package.objects.create(
+            name='Panel Demo Package',
+            package_type='kids_birthday',
+            description='A seeded package for browser-based panel demonstrations.',
+            base_price='7500.00',
+            features='Host\nBackdrop\nBasic styling',
+            included_items='Cake\nCupcakes\nBalloons',
+            status='active',
+        )
+
+    return cake, package
+
+
+def _ensure_browser_demo_orders(user, cake, package, payment_mode):
+    default_payment_status = 'verifying' if payment_mode == 'gcash' else 'pending'
+    reference_number = 'DEMO-GCASH-001' if payment_mode == 'gcash' else ''
+
+    cake_order = CakeOrder.objects.filter(user=user, cake=cake).order_by('-id').first()
+    if cake_order is None:
+        cake_order = CakeOrder.objects.create(
+            user=user,
+            cake=cake,
+            quantity=1,
+            total_price=cake.price,
+            order_status='confirmed',
+            theme='Panel showcase',
+            size='8 inches',
+            shape='Round',
+            flavor='Chocolate',
+            frosting='Buttercream',
+            filling='Chocolate Ganache',
+            color_palette='Gold and blush',
+            message_on_cake='Final Defense Demo',
+            special_instructions='Prepared for the remote final defense walkthrough.',
+            delivery_date=timezone.now() + timedelta(days=7),
+            delivery_address='123 Demo Street, Lucena City',
+            contact_name='Panel Demo',
+            contact_phone='09171234567',
+            contact_email=DEMO_BROWSER_EMAIL,
+        )
+    CakeCustomization.objects.get_or_create(
+        cake_order=cake_order,
+        defaults={
+            'message_on_cake': cake_order.message_on_cake,
+            'color_palette': cake_order.color_palette,
+            'additional_decorations': 'Fresh Flowers\nEdible Sprinkles',
+        },
+    )
+    cake_payment = cake_order.payments.order_by('-created_at').first()
+    if cake_payment is None:
+        cake_payment = Payment.objects.create(
+            amount=cake_order.total_price,
+            payment_method=payment_mode,
+            payment_status=default_payment_status,
+            cake_order=cake_order,
+            reference_number=reference_number,
+        )
+    else:
+        cake_payment.payment_method = payment_mode
+        cake_payment.payment_status = default_payment_status
+        cake_payment.reference_number = reference_number
+        cake_payment.save(update_fields=['payment_method', 'payment_status', 'reference_number', 'updated_at'])
+
+    package_order = PackageOrder.objects.filter(user=user, package=package).order_by('-id').first()
+    if package_order is None:
+        package_order = PackageOrder.objects.create(
+            user=user,
+            package=package,
+            total_price=package.base_price,
+            order_status='preparing',
+            event_type=package.package_type,
+            event_date=timezone.localdate() + timedelta(days=14),
+            event_time=datetime.strptime('14:00', '%H:%M').time(),
+            venue='Hanilies Demo Hall, Lucena City',
+            contact_name='Panel Demo',
+            contact_phone='09171234567',
+            contact_email=DEMO_BROWSER_EMAIL,
+            selected_addons='Themed Cupcakes\nBackdrop Decor',
+            cake_flavor='Vanilla',
+            cake_frosting='Buttercream',
+            cake_filling='Mango',
+            cake_message='Celebrate Success',
+        )
+    package_payment = package_order.payments.order_by('-created_at').first()
+    if package_payment is None:
+        package_payment = Payment.objects.create(
+            amount=package_order.total_price,
+            payment_method=payment_mode,
+            payment_status=default_payment_status,
+            package_order=package_order,
+            reference_number=reference_number,
+        )
+    else:
+        package_payment.payment_method = payment_mode
+        package_payment.payment_status = default_payment_status
+        package_payment.reference_number = reference_number
+        package_payment.save(update_fields=['payment_method', 'payment_status', 'reference_number', 'updated_at'])
+
+    Notification.objects.get_or_create(
+        user=user,
+        notification_type='order_status',
+        title='Your cake order has been confirmed.',
+        cake_order=cake_order,
+        defaults={
+            'message': 'This seeded order is ready to showcase cake tracking during the panel defense.',
+            'status_value': cake_order.order_status,
+        },
+    )
+    Notification.objects.get_or_create(
+        user=user,
+        notification_type='order_status',
+        title='Your package booking is now being prepared.',
+        package_order=package_order,
+        defaults={
+            'message': 'This seeded package booking is ready to showcase the remote demo flow.',
+            'status_value': package_order.order_status,
+        },
+    )
+
+    return cake_order, package_order
+
+
+def _build_browser_demo_payload(request, scenario, script_steps, payment_mode):
+    demo_user = _ensure_browser_demo_user()
+    cake, package = _ensure_browser_demo_catalog()
+    cake_order, package_order = _ensure_browser_demo_orders(
+        demo_user,
+        cake,
+        package,
+        payment_mode,
+    )
+
+    step_urls = {
+        'home': reverse('home'),
+        'login': reverse('login'),
+        'ai_recommendations': reverse('home'),
+        'cakes': reverse('cakes'),
+        'cake_order': f"{reverse('cake_customize')}?cake_id={cake.id}",
+        'cake_tracking': f"{reverse('order_tracking')}?type=cake&id={cake_order.id}",
+        'packages': reverse('packages'),
+        'package_order': f"{reverse('order_package')}?package_id={package.id}",
+        'package_tracking': f"{reverse('order_tracking')}?type=package&id={package_order.id}",
+        'profile': reverse('profile'),
+        'order_tracking': reverse('order_tracking'),
+        'about': reverse('about'),
+        'contact': reverse('contact'),
+    }
+
+    launch_step = script_steps[0] if script_steps else 'home'
+    return {
+        'scenario': scenario,
+        'script_steps': script_steps,
+        'launch_url': step_urls.get(launch_step, reverse('home')),
+        'step_urls': step_urls,
+        'credentials': {
+            'username': DEMO_BROWSER_USERNAME,
+            'password': DEMO_BROWSER_PASSWORD,
+        },
+    }
+
+
 def _get_running_demo_state(request):
     state = _get_demo_state(request)
     if not state:
         return None
+    if state.get('mode') == 'browser':
+        return state
     if not _process_is_running(state.get('pid')):
         _clear_demo_state(request)
         return None
@@ -419,10 +652,11 @@ def _get_running_demo_state(request):
 
 @require_POST
 def start_demo_bot(request):
-    if not _is_local_demo_request(request):
+    demo_mode = _get_demo_request_mode(request)
+    if demo_mode is None:
         return JsonResponse({
             'ok': False,
-            'error': 'The demo bot launcher is only available from the local presentation machine.',
+            'error': 'The demo bot is not enabled for this environment.',
         }, status=403)
 
     try:
@@ -465,6 +699,31 @@ def start_demo_bot(request):
             'ok': False,
             'error': 'Choose at least one custom script step before starting the demo.',
         }, status=400)
+
+    if demo_mode == 'browser':
+        resolved_steps = _resolve_demo_script_steps(scenario, payload.get('script_steps', []))
+        browser_demo = _build_browser_demo_payload(
+            request,
+            scenario,
+            resolved_steps,
+            payment_mode,
+        )
+        state = {
+            'mode': 'browser',
+            'scenario': scenario,
+            'script_steps': resolved_steps,
+            'payment_mode': payment_mode,
+            'started_at': timezone.now().isoformat(),
+        }
+        _set_demo_state(request, state)
+        return JsonResponse({
+            'ok': True,
+            'mode': 'browser',
+            'scenario': scenario,
+            'active_demo': state,
+            'browser_demo': browser_demo,
+            'message': f'{scenario.title()} demo prepared. This browser will walk through the deployed site for the panel defense.',
+        })
 
     command = [
         sys.executable,
@@ -523,6 +782,7 @@ def start_demo_bot(request):
 
     return JsonResponse({
         'ok': True,
+        'mode': 'local',
         'scenario': scenario,
         'pid': process.pid,
         'script_steps': script_steps,
@@ -531,8 +791,8 @@ def start_demo_bot(request):
 
 
 def demo_bot_status(request):
-    if not _is_local_demo_request(request):
-        return JsonResponse({'ok': False, 'error': 'Local access only.'}, status=403)
+    if _get_demo_request_mode(request) is None:
+        return JsonResponse({'ok': False, 'error': 'Demo bot access is not enabled here.'}, status=403)
 
     state = _get_running_demo_state(request)
     if not state:
@@ -543,8 +803,8 @@ def demo_bot_status(request):
 
 @require_POST
 def stop_demo_bot(request):
-    if not _is_local_demo_request(request):
-        return JsonResponse({'ok': False, 'error': 'Local access only.'}, status=403)
+    if _get_demo_request_mode(request) is None:
+        return JsonResponse({'ok': False, 'error': 'Demo bot access is not enabled here.'}, status=403)
 
     state = _get_demo_state(request)
     if not state:
@@ -552,6 +812,13 @@ def stop_demo_bot(request):
             'ok': False,
             'error': 'No running demo bot was found for this browser session.',
         }, status=404)
+
+    if state.get('mode') == 'browser':
+        _clear_demo_state(request)
+        return JsonResponse({
+            'ok': True,
+            'message': 'The browser-based demo walkthrough was stopped.',
+        })
 
     pid = state.get('pid')
     if not _process_is_running(pid):

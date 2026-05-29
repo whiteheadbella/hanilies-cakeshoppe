@@ -17,15 +17,185 @@
     const paymentModeSelect = document.getElementById('demo-payment-mode');
     const scriptSteps = Array.from(panel.querySelectorAll('.demo-script-step'));
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const browserDemoStorageKey = 'haniliesRemoteBrowserDemo';
     let isLaunching = false;
     let isStopping = false;
     let isListening = false;
     let recognition = null;
     let lastRunningState = false;
+    let browserDemoTimer = null;
+
+    const browserStepMessages = {
+        home: 'Opening the homepage for the defense walkthrough...',
+        login: 'Logging in with the panel demo account...',
+        ai_recommendations: 'Showing personalized recommendations for the demo account...',
+        cakes: 'Showing the live cake catalog...',
+        cake_order: 'Opening the cake customization page...',
+        cake_tracking: 'Showing the demo cake order tracking page...',
+        packages: 'Showing the live package catalog...',
+        package_order: 'Opening the package order flow...',
+        package_tracking: 'Showing the demo package tracking page...',
+        profile: 'Showing the demo customer profile...',
+        order_tracking: 'Opening the full tracking dashboard...',
+        about: 'Opening the about page...',
+        contact: 'Opening the contact page...'
+    };
 
     function setStatus(message, state) {
         statusNode.textContent = message;
         statusNode.dataset.state = state;
+    }
+
+    function loadBrowserDemoPlan() {
+        try {
+            const rawValue = window.sessionStorage.getItem(browserDemoStorageKey);
+            return rawValue ? JSON.parse(rawValue) : null;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function saveBrowserDemoPlan(plan) {
+        window.sessionStorage.setItem(browserDemoStorageKey, JSON.stringify(plan));
+    }
+
+    function clearBrowserDemoPlan() {
+        window.sessionStorage.removeItem(browserDemoStorageKey);
+        if (browserDemoTimer) {
+            window.clearTimeout(browserDemoTimer);
+            browserDemoTimer = null;
+        }
+    }
+
+    function locationMatchesTarget(targetUrl) {
+        if (!targetUrl) {
+            return false;
+        }
+
+        const target = new URL(targetUrl, window.location.origin);
+        if (target.pathname !== window.location.pathname) {
+            return false;
+        }
+
+        if (target.search) {
+            return target.search === window.location.search;
+        }
+
+        return true;
+    }
+
+    function getCurrentBrowserStep(plan) {
+        return Array.isArray(plan.script_steps) ? plan.script_steps[plan.currentIndex] : null;
+    }
+
+    async function finishBrowserDemo(message) {
+        clearBrowserDemoPlan();
+        try {
+            await fetch(stopEndpoint, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfTokenInput ? csrfTokenInput.value : '',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+        } catch (error) {
+            // Ignore stop errors here; the local browser state is already cleared.
+        }
+
+        setStatus(message, 'success');
+        speak(message);
+        setControlState(false);
+    }
+
+    function advanceBrowserDemo(plan) {
+        const nextIndex = (plan.currentIndex || 0) + 1;
+        if (!Array.isArray(plan.script_steps) || nextIndex >= plan.script_steps.length) {
+            finishBrowserDemo('Defense demo finished. You can start another walkthrough anytime.');
+            return;
+        }
+
+        plan.currentIndex = nextIndex;
+        plan.loginSubmitted = false;
+        saveBrowserDemoPlan(plan);
+
+        const nextStep = getCurrentBrowserStep(plan);
+        const nextUrl = plan.step_urls ? plan.step_urls[nextStep] : null;
+        if (!nextUrl) {
+            finishBrowserDemo('Defense demo finished. You can start another walkthrough anytime.');
+            return;
+        }
+
+        window.location.assign(nextUrl);
+    }
+
+    function scheduleBrowserDemoAction(callback, delay) {
+        if (browserDemoTimer) {
+            return;
+        }
+
+        browserDemoTimer = window.setTimeout(() => {
+            browserDemoTimer = null;
+            callback();
+        }, delay);
+    }
+
+    function maybeRunBrowserDemo() {
+        const plan = loadBrowserDemoPlan();
+        if (!plan || plan.mode !== 'browser') {
+            return;
+        }
+
+        const currentStep = getCurrentBrowserStep(plan);
+        if (!currentStep) {
+            finishBrowserDemo('Defense demo finished. You can start another walkthrough anytime.');
+            return;
+        }
+
+        setStatus(browserStepMessages[currentStep] || 'Running the defense walkthrough...', 'loading');
+        lastRunningState = true;
+        setControlState(true);
+
+        if (currentStep === 'login' && plan.loginSubmitted && window.location.pathname !== '/login/') {
+            advanceBrowserDemo(plan);
+            return;
+        }
+
+        const targetUrl = plan.step_urls ? plan.step_urls[currentStep] : null;
+        if (currentStep !== 'login' && !locationMatchesTarget(targetUrl)) {
+            window.location.assign(targetUrl);
+            return;
+        }
+
+        if (currentStep === 'login') {
+            if (!locationMatchesTarget(targetUrl)) {
+                window.location.assign(targetUrl);
+                return;
+            }
+
+            const usernameInput = document.querySelector('input[name="username"]');
+            const passwordInput = document.querySelector('input[name="password"]');
+            const loginForm = usernameInput ? usernameInput.form : null;
+            if (!usernameInput || !passwordInput || !loginForm) {
+                setStatus('Unable to find the login form for the browser demo.', 'error');
+                return;
+            }
+
+            scheduleBrowserDemoAction(() => {
+                usernameInput.value = plan.credentials.username;
+                passwordInput.value = plan.credentials.password;
+                usernameInput.dispatchEvent(new Event('input', { bubbles: true }));
+                passwordInput.dispatchEvent(new Event('input', { bubbles: true }));
+                plan.loginSubmitted = true;
+                saveBrowserDemoPlan(plan);
+                loginForm.submit();
+            }, 1200);
+            return;
+        }
+
+        const holdDuration = currentStep === 'home' || currentStep === 'ai_recommendations' ? 3200 : 2400;
+        scheduleBrowserDemoAction(() => {
+            advanceBrowserDemo(plan);
+        }, holdDuration);
     }
 
     function speak(message) {
@@ -116,6 +286,24 @@
                 throw new Error(data.error || 'Unable to start the demo bot.');
             }
 
+            if (data.mode === 'browser' && data.browser_demo) {
+                const browserPlan = {
+                    ...data.browser_demo,
+                    mode: 'browser',
+                    currentIndex: 0,
+                    loginSubmitted: false
+                };
+                saveBrowserDemoPlan(browserPlan);
+                const confirmation = source === 'voice'
+                    ? `Voice command received. ${data.message}`
+                    : data.message;
+                setStatus(confirmation, 'success');
+                speak(confirmation);
+                setControlState(true);
+                window.location.assign(browserPlan.launch_url);
+                return;
+            }
+
             const confirmation = source === 'voice'
                 ? `Voice command received. ${data.message}`
                 : data.message;
@@ -154,6 +342,8 @@
                 throw new Error(data.error || 'Unable to stop the demo bot.');
             }
 
+            clearBrowserDemoPlan();
+
             setStatus(data.message, 'success');
             if (source === 'voice') {
                 speak('Stopping the demo now.');
@@ -187,6 +377,10 @@
 
             if (!data.ok) {
                 return;
+            }
+
+            if (!data.running && loadBrowserDemoPlan()) {
+                clearBrowserDemoPlan();
             }
 
             if (data.running) {
@@ -302,5 +496,6 @@
 
     setControlState(false);
     refreshStatus();
+    maybeRunBrowserDemo();
     window.setInterval(refreshStatus, 4000);
 })();

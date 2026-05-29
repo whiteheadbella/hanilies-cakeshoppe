@@ -1,5 +1,6 @@
 from datetime import date, time, timedelta
 from decimal import Decimal
+import json
 from pathlib import Path
 import shutil
 import tempfile
@@ -1378,6 +1379,58 @@ class HomeRecommendationTests(TestCase):
         self.assertGreaterEqual(len(response.context['recommended_cakes']), 1)
         self.assertGreaterEqual(
             len(response.context['recommended_packages']), 1)
+
+
+@override_settings(DEBUG=False, DEMO_BOT_REMOTE_ENABLED=True)
+class RemoteBrowserDemoBotTests(TestCase):
+    def test_remote_demo_bot_start_prepares_browser_walkthrough(self):
+        response = self.client.post(
+            reverse('start_demo_bot'),
+            data=json.dumps({'scenario': 'full', 'payment_mode': 'cod'}),
+            content_type='application/json',
+            REMOTE_ADDR='198.51.100.20',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload['mode'], 'browser')
+        self.assertEqual(payload['browser_demo']['credentials']['username'], 'paneldemo')
+        self.assertIn('launch_url', payload['browser_demo'])
+        self.assertIn('cake_tracking', payload['browser_demo']['step_urls'])
+
+        demo_user = User.objects.get(username='paneldemo')
+        self.assertTrue(demo_user.cake_orders.exists())
+        self.assertTrue(demo_user.package_orders.exists())
+
+    def test_remote_demo_bot_status_and_stop_work_for_browser_mode(self):
+        self.client.post(
+            reverse('start_demo_bot'),
+            data=json.dumps({'scenario': 'login', 'payment_mode': 'gcash'}),
+            content_type='application/json',
+            REMOTE_ADDR='198.51.100.20',
+        )
+
+        status_response = self.client.get(
+            reverse('demo_bot_status'),
+            REMOTE_ADDR='198.51.100.20',
+        )
+        self.assertEqual(status_response.status_code, 200)
+        status_payload = status_response.json()
+        self.assertTrue(status_payload['running'])
+        self.assertEqual(status_payload['active_demo']['mode'], 'browser')
+
+        stop_response = self.client.post(
+            reverse('stop_demo_bot'),
+            REMOTE_ADDR='198.51.100.20',
+        )
+        self.assertEqual(stop_response.status_code, 200)
+
+        final_status = self.client.get(
+            reverse('demo_bot_status'),
+            REMOTE_ADDR='198.51.100.20',
+        )
+        self.assertEqual(final_status.status_code, 200)
+        self.assertFalse(final_status.json()['running'])
 
 
 class MediaSyncCommandTests(TestCase):
