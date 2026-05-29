@@ -41,15 +41,6 @@
             <div class="col-lg-6">
                 <div class="card border-0 shadow-lg overflow-hidden">
                     <img src="{% static 'images/hero-cake.png' %}" class="img-fluid hero-image" alt="Celebration cake display">
-                    <div class="card-body p-4">
-                        <div class="d-flex justify-content-between align-items-start gap-3">
-                            <div>
-                                <h5 class="mb-1">How the recommendation feature works</h5>
-                                <p class="text-muted mb-0">The homepage scores cakes and event packages from your order history first, then uses best-selling products as fallback signals.</p>
-                            </div>
-                            <span class="badge bg-dark-subtle text-dark">Live Data</span>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -77,10 +68,13 @@
             {% for item in recommended_cakes %}
             <div class="col-lg-4">
                 <div class="card h-100 border-0 shadow-sm">
-                    <div class="position-relative">
+                    <div class="position-relative image-zoom-frame">
                         <img src="{{ item.image_url }}" class="card-img-top" alt="{{ item.name }}">
                         <span class="badge bg-dark position-absolute top-0 start-0 m-3">{{ item.match_score }}% Match</span>
                         <span class="badge bg-gold-pink position-absolute top-0 end-0 m-3">{{ item.badge }}</span>
+                        <button type="button" class="image-zoom-trigger" data-zoom-src="{{ item.image_url }}" data-zoom-title="{{ item.name }}">
+                            <i class="fas fa-search-plus"></i> Zoom
+                        </button>
                     </div>
                     <div class="card-body d-flex flex-column">
                         <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
@@ -139,10 +133,13 @@
             {% for item in recommended_packages %}
             <div class="col-lg-4">
                 <div class="card h-100 border-0 shadow-sm">
-                    <div class="position-relative">
+                    <div class="position-relative image-zoom-frame">
                         <img src="{{ item.image_url }}" class="card-img-top" alt="{{ item.name }}">
                         <span class="badge bg-dark position-absolute top-0 start-0 m-3">{{ item.match_score }}% Match</span>
                         <span class="badge bg-gold-pink position-absolute top-0 end-0 m-3">{{ item.badge }}</span>
+                        <button type="button" class="image-zoom-trigger" data-zoom-src="{{ item.image_url }}" data-zoom-title="{{ item.name }}">
+                            <i class="fas fa-search-plus"></i> Zoom
+                        </button>
                     </div>
                     <div class="card-body d-flex flex-column">
                         <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
@@ -181,7 +178,12 @@
             {% for cake in featured_cakes %}
             <div class="col-md-6 col-lg-3">
                 <div class="card h-100 border-0 shadow-sm">
-                    <img src="{{ cake.image_url }}" class="card-img-top" alt="{{ cake.name }}">
+                    <div class="image-zoom-frame">
+                        <img src="{{ cake.image_url }}" class="card-img-top" alt="{{ cake.name }}">
+                        <button type="button" class="image-zoom-trigger" data-zoom-src="{{ cake.image_url }}" data-zoom-title="{{ cake.name }}">
+                            <i class="fas fa-search-plus"></i> Zoom
+                        </button>
+                    </div>
                     <div class="card-body d-flex flex-column">
                         <h5 class="card-title mb-1">{{ cake.name }}</h5>
                         <p class="text-muted small mb-2">{{ cake.get_category_display }}</p>
@@ -203,7 +205,12 @@
             {% for package in featured_packages %}
             <div class="col-lg-4">
                 <div class="card h-100 border-0 shadow-sm">
-                    <img src="{% if package.image %}{{ package.image.url }}{% else %}{% static 'images/bg.png' %}{% endif %}" class="card-img-top" alt="{{ package.name }}">
+                    <div class="image-zoom-frame">
+                        <img src="{% if package.image %}{{ package.image.url }}{% else %}{% static 'images/bg.png' %}{% endif %}" class="card-img-top" alt="{{ package.name }}">
+                        <button type="button" class="image-zoom-trigger" data-zoom-src="{% if package.image %}{{ package.image.url }}{% else %}{% static 'images/bg.png' %}{% endif %}" data-zoom-title="{{ package.name }}">
+                            <i class="fas fa-search-plus"></i> Zoom
+                        </button>
+                    </div>
                     <div class="card-body d-flex flex-column">
                         <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
                             <div>

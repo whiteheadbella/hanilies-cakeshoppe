@@ -109,6 +109,27 @@
                                     <label class="form-label fw-semibold">Proof of Payment</label>
                                     <input type="file" class="form-control" name="proof_image" accept="image/*">
                                 </div>
+                                <div class="col-12">
+                                    <div class="alert alert-light border mb-0">
+                                        <div class="row g-3 align-items-center">
+                                            <div class="col-md-4 text-center">
+                                                <div class="image-zoom-frame d-inline-block rounded-4">
+                                                    <img id="package-gcash-qr-image" src="{{ gcash_preview.qr_code_data_uri }}" alt="GCash payment instructions QR" class="img-fluid bg-white border rounded p-2" style="max-width: 220px;">
+                                                    <button type="button" id="package-gcash-qr-zoom" class="image-zoom-trigger" data-zoom-src="{{ gcash_preview.qr_code_data_uri }}" data-zoom-title="GCash QR Code">
+                                                        <i class="fas fa-search-plus"></i> Zoom
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-8">
+                                                <h6 class="fw-bold mb-2">GCash Payment Instructions</h6>
+                                                <div class="small mb-1"><strong>Account Name:</strong> {{ gcash_account.account_name }}</div>
+                                                <div class="small mb-1"><strong>GCash Number:</strong> {{ gcash_account.account_number }}</div>
+                                                <div class="small mb-1"><strong>Amount:</strong> <span id="package-gcash-amount">{{ gcash_preview.amount_label }}</span></div>
+                                                <div class="small text-muted" id="package-gcash-note">{{ gcash_account.payment_note }}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -171,10 +192,44 @@
 <script>
     const packagePaymentRadios = document.querySelectorAll('.package-payment-radio');
     const packageGcashFields = document.getElementById('package-gcash-fields');
+    const packageGcashQrImage = document.getElementById('package-gcash-qr-image');
+    const packageGcashQrZoom = document.getElementById('package-gcash-qr-zoom');
+    const packageGcashAmount = document.getElementById('package-gcash-amount');
+    const packageGcashNote = document.getElementById('package-gcash-note');
+    const packagePaymentQrPreviewUrl = '{{ payment_qr_preview_url }}';
+    const packageOrderLabel = '{{ package.name|escapejs }} package booking';
+    const packageGrandTotal = parseFloat('{{ grand_total }}');
+
+    async function refreshPackageGcashQr() {
+        try {
+            const params = new URLSearchParams({
+                amount: packageGrandTotal.toFixed(2),
+                order_label: packageOrderLabel,
+            });
+            const response = await fetch(`${packagePaymentQrPreviewUrl}?${params.toString()}`, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            });
+            if (!response.ok) {
+                throw new Error('QR preview request failed.');
+            }
+
+            const payload = await response.json();
+            packageGcashQrImage.src = payload.qr_code_data_uri;
+            packageGcashQrZoom.dataset.zoomSrc = payload.qr_code_data_uri;
+            packageGcashAmount.textContent = payload.amount_label;
+            packageGcashNote.textContent = payload.instruction_note;
+        } catch (error) {
+            packageGcashNote.textContent = 'Unable to refresh the QR preview. You can still send payment manually using the GCash number above.';
+        }
+    }
 
     function updatePackagePaymentFields() {
         const selectedPayment = document.querySelector('.package-payment-radio:checked').value;
         packageGcashFields.classList.toggle('d-none', selectedPayment !== 'gcash');
+
+        if (selectedPayment === 'gcash') {
+            refreshPackageGcashQr();
+        }
     }
 
     packagePaymentRadios.forEach((radio) => radio.addEventListener('change', updatePackagePaymentFields));

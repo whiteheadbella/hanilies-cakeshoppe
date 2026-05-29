@@ -27,6 +27,36 @@ class UserProfile(models.Model):
         return f"{self.user.username} - {self.get_role_display()}"
 
 
+class Notification(models.Model):
+    NOTIFICATION_TYPES = [
+        ('order_status', 'Order Status'),
+        ('payment_status', 'Payment Status'),
+    ]
+
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='notifications')
+    notification_type = models.CharField(
+        max_length=20, choices=NOTIFICATION_TYPES)
+    title = models.CharField(max_length=150)
+    message = models.TextField()
+    status_value = models.CharField(max_length=30, blank=True)
+    cake_order = models.ForeignKey(
+        'CakeOrder', on_delete=models.CASCADE, null=True, blank=True, related_name='notifications')
+    package_order = models.ForeignKey(
+        'PackageOrder', on_delete=models.CASCADE, null=True, blank=True, related_name='notifications')
+    payment = models.ForeignKey(
+        'Payment', on_delete=models.CASCADE, null=True, blank=True, related_name='notifications')
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Notification #{self.id} - {self.title}"
+
+
 class Cake(models.Model):
     CAKE_CATEGORIES = [
         ('birthday', 'Birthday'),
@@ -99,6 +129,22 @@ class CakeOrder(models.Model):
 
     def __str__(self):
         return f"Order #{self.id} - {self.user.username}"
+
+    @property
+    def email(self):
+        return self.contact_email
+
+    @email.setter
+    def email(self, value):
+        self.contact_email = value
+
+    @property
+    def status(self):
+        return self.order_status
+
+    @status.setter
+    def status(self, value):
+        self.order_status = value
 
 
 class CakeCustomization(models.Model):
@@ -191,6 +237,22 @@ class PackageOrder(models.Model):
     def __str__(self):
         return f"Package Order #{self.id} - {self.user.username}"
 
+    @property
+    def email(self):
+        return self.contact_email
+
+    @email.setter
+    def email(self, value):
+        self.contact_email = value
+
+    @property
+    def status(self):
+        return self.order_status
+
+    @status.setter
+    def status(self, value):
+        self.order_status = value
+
 
 class Payment(models.Model):
     PAYMENT_METHODS = [
@@ -226,3 +288,21 @@ class Payment(models.Model):
 
     def __str__(self):
         return f"Payment #{self.id} - {self.amount}"
+
+
+class ActivityLog(models.Model):
+    actor = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name='activity_logs')
+    actor_role = models.CharField(max_length=100, blank=True)
+    action = models.CharField(max_length=100)
+    target_type = models.CharField(max_length=50, blank=True)
+    target_id = models.PositiveIntegerField(null=True, blank=True)
+    description = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        actor_label = self.actor.username if self.actor else 'Deleted user'
+        return f"{self.action} by {actor_label}"

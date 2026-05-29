@@ -30,7 +30,13 @@
                 <td>{{ user.date_joined|date:"Y-m-d" }}</td>
                 <td>
                     <a href="{% url 'admin_user_edit' user.id %}" style="color: #FF69B4; margin-right: 10px;">Edit</a>
-                    <a href="{% url 'admin_user_role' user.id %}" style="color: #D4AF37;">Change Role</a>
+                    <a href="{% url 'admin_user_role' user.id %}" style="color: #D4AF37; margin-right: 10px;">Change Role</a>
+                    {% if user != request.user %}
+                    <form method="post" action="{% url 'admin_user_delete' user.id %}" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" onclick="return confirm('Delete user {{ user.username|escapejs }}?');" style="background: none; border: none; padding: 0; color: #d94b4b; cursor: pointer; text-decoration: underline; font: inherit;">Delete</button>
+                    </form>
+                    {% endif %}
                 </td>
             </tr>
             {% empty %}

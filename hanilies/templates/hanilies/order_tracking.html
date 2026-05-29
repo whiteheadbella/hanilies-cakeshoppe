@@ -140,6 +140,42 @@
                             </div>
                         </div>
                     </div>
+
+                    {% if selected_payment.proof_image or selected_customization.design_reference %}
+                    <div class="row g-3 mt-3">
+                        {% if selected_payment.proof_image %}
+                        <div class="col-md-6">
+                            <div class="card border-0 shadow-sm h-100 overflow-hidden">
+                                <div class="card-body">
+                                    <div class="small text-muted mb-2">Uploaded Payment Proof</div>
+                                    <div class="image-zoom-frame rounded-4 overflow-hidden">
+                                        <img src="{{ selected_payment.proof_image.url }}" alt="Payment proof for order {{ selected_order.id }}" class="img-fluid w-100 rounded-4" style="height: 240px; object-fit: cover;">
+                                        <button type="button" class="image-zoom-trigger" data-zoom-src="{{ selected_payment.proof_image.url }}" data-zoom-title="Payment Proof for Order #{{ selected_order.id }}">
+                                            <i class="fas fa-search-plus"></i> Zoom
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if selected_customization.design_reference %}
+                        <div class="col-md-6">
+                            <div class="card border-0 shadow-sm h-100 overflow-hidden">
+                                <div class="card-body">
+                                    <div class="small text-muted mb-2">Uploaded Cake Design Reference</div>
+                                    <div class="image-zoom-frame rounded-4 overflow-hidden">
+                                        <img src="{{ selected_customization.design_reference.url }}" alt="Cake design reference for order {{ selected_order.id }}" class="img-fluid w-100 rounded-4" style="height: 240px; object-fit: cover;">
+                                        <button type="button" class="image-zoom-trigger" data-zoom-src="{{ selected_customization.design_reference.url }}" data-zoom-title="Cake Design Reference for Order #{{ selected_order.id }}">
+                                            <i class="fas fa-search-plus"></i> Zoom
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
                     {% endif %}
                 </div>
             </div>
@@ -168,6 +204,27 @@
                         </div>
                         {% endfor %}
                     </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mt-4">
+                <div class="card-header bg-light py-3">
+                    <h5 class="mb-0"><i class="fas fa-bell me-2"></i>Notifications</h5>
+                </div>
+                <div class="card-body p-4">
+                    {% if selected_notifications %}
+                        <div class="d-flex flex-column gap-3">
+                            {% for notification in selected_notifications %}
+                                <div class="border rounded-3 p-3 {% if not notification.is_read %}border-warning bg-light{% endif %}">
+                                    <div class="fw-semibold">{{ notification.title }}</div>
+                                    <div class="text-muted mt-1">{{ notification.message }}</div>
+                                    <div class="small text-muted mt-2">{{ notification.created_at|date:'F d, Y h:i A' }}</div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">No notifications yet for this order.</p>
+                    {% endif %}
                 </div>
             </div>
             {% endif %}

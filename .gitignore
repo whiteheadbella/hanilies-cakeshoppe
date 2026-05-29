@@ -41,6 +41,10 @@ htmlcov/
 # Deployment
 .heroku/
 .cache/
+staticfiles/
 
 # Generated uploads
+media/cakes/
+media/packages/
+media/designs/
 media/proofs/

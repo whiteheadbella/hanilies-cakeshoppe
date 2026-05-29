@@ -24,16 +24,32 @@
                 <td>₱{{ order.total_price }}</td>
                 <td><span class="status-badge status-{{ order.order_status }}">{{ order.get_order_status_display }}</span></td>
                 <td>
-                    <form method="post" action="{% url 'admin_package_order_update' order.id %}" style="display: inline;">
-                        {% csrf_token %}
-                        <select name="status" onchange="this.form.submit()" class="form-control" style="width: auto; display: inline-block; padding: 4px 8px; font-size: 0.8rem;">
-                            <option value="pending" {% if order.order_status == 'pending' %}selected{% endif %}>Pending</option>
-                            <option value="confirmed" {% if order.order_status == 'confirmed' %}selected{% endif %}>Confirmed</option>
-                            <option value="preparing" {% if order.order_status == 'preparing' %}selected{% endif %}>Preparing</option>
-                            <option value="ready_for_pickup" {% if order.order_status == 'ready_for_pickup' %}selected{% endif %}>Ready for Pickup</option>
-                            <option value="completed" {% if order.order_status == 'completed' %}selected{% endif %}>Completed</option>
-                            <option value="cancelled" {% if order.order_status == 'cancelled' %}selected{% endif %}>Cancelled</option>
-                        </select>
+                    <form method="post"
+                          action="{% url 'admin_package_order_update' order.id %}"
+                          data-update-url="{% url 'admin_package_order_update' order.id %}"
+                          data-delete-url="{% url 'admin_package_order_delete' order.id %}"
+                          data-order-label="package order #{{ order.id }}"
+                          onsubmit="return submitPackageOrderAction(this);"
+                          style="display: inline; margin: 0;">
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            {% csrf_token %}
+                            <input type="hidden" name="status" value="{{ order.order_status }}">
+                            <select name="action"
+                                    class="form-control"
+                                    data-current-value="{{ order.order_status }}"
+                                    style="width: auto; display: inline-block; padding: 4px 8px; font-size: 0.8rem;">
+                                <option value="pending" {% if order.order_status == 'pending' %}selected{% endif %}>Pending</option>
+                                <option value="confirmed" {% if order.order_status == 'confirmed' %}selected{% endif %}>Confirmed</option>
+                                <option value="preparing" {% if order.order_status == 'preparing' %}selected{% endif %}>Preparing</option>
+                                <option value="ready_for_pickup" {% if order.order_status == 'ready_for_pickup' %}selected{% endif %}>Ready for Pickup</option>
+                                <option value="completed" {% if order.order_status == 'completed' %}selected{% endif %}>Completed</option>
+                                <option value="cancelled" {% if order.order_status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                                <option value="delete">Delete Order</option>
+                            </select>
+                            <button type="submit" style="border: none; border-radius: 20px; padding: 4px 10px; background: linear-gradient(135deg, #FF69B4, #D4AF37); color: white; font-size: 0.8rem; font-weight: 600; cursor: pointer;">
+                                Apply
+                            </button>
+                        </div>
                     </form>
                 </td>
             </tr>
@@ -43,4 +59,33 @@
         </tbody>
     </table>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function submitPackageOrderAction(form) {
+    const actionField = form.querySelector('select[name="action"]');
+    const statusField = form.querySelector('input[name="status"]');
+    const selectedValue = actionField.value;
+    const currentValue = actionField.dataset.currentValue;
+
+    if (selectedValue === 'delete') {
+        const orderLabel = form.dataset.orderLabel || 'this order';
+        const confirmed = window.confirm(`Delete ${orderLabel}? This cannot be undone.`);
+
+        if (!confirmed) {
+            actionField.value = currentValue;
+            return false;
+        }
+
+        form.action = form.dataset.deleteUrl;
+        statusField.value = currentValue;
+        return true;
+    }
+
+    form.action = form.dataset.updateUrl;
+    statusField.value = selectedValue;
+    return true;
+}
+</script>
 {% endblock %}

@@ -1,13 +1,23 @@
-from datetime import date, time
+from datetime import date, time, timedelta
 from decimal import Decimal
-
+import shutil
+import tempfile
+from unittest.mock import patch
+from django.contrib.messages import get_messages
 from django.contrib.auth.models import User
+from django.core import mail
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
+from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import Cake, CakeCustomization, CakeOrder, Package, PackageOrder, Payment, UserProfile
+from .models import ActivityLog, Cake, CakeCustomization, CakeOrder, Notification, Package, PackageOrder, Payment, UserProfile
+from .payment_qr import build_gcash_checkout_details
 from .views import CAKE_DECORATION_OPTIONS, _get_selected_option_labels, _parse_delivery_datetime
+
+
+TEST_MEDIA_ROOT = tempfile.mkdtemp()
 
 
 class ViewHelperUnitTests(TestCase):
@@ -31,6 +41,49 @@ class ViewHelperUnitTests(TestCase):
 
         self.assertEqual(labels, ['Fresh Flowers', 'Edible Sprinkles'])
         self.assertEqual(total, Decimal('400.00'))
+
+
+class PaymentQrUnitTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='qr-tester',
+            password='TestPass123!',
+            email='qr@example.com',
+        )
+
+    def test_build_gcash_checkout_details_returns_png_data_uri(self):
+        preview = build_gcash_checkout_details(
+            '2450.50', 'Chocolate Dream cake order')
+
+        self.assertEqual(preview['amount_label'], 'P2450.50')
+        self.assertTrue(preview['qr_code_data_uri'].startswith(
+            'data:image/png;base64,'))
+        self.assertIn('Account Name:', preview['instruction_payload'])
+        self.assertIn('Amount: PHP 2450.50', preview['instruction_payload'])
+
+    def test_payment_qr_preview_returns_json_for_logged_in_user(self):
+        self.client.login(username='qr-tester', password='TestPass123!')
+
+        response = self.client.get(reverse('payment_qr_preview'), {
+            'amount': '1500.00',
+            'order_label': 'Chocolate Dream cake order',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload['amount_label'], 'P1500.00')
+        self.assertEqual(payload['merchant_name'], 'Hanilies Cakeshoppe')
+        self.assertTrue(payload['qr_code_data_uri'].startswith(
+            'data:image/png;base64,'))
+
+    def test_payment_qr_preview_rejects_non_positive_amount(self):
+        self.client.login(username='qr-tester', password='TestPass123!')
+
+        response = self.client.get(reverse('payment_qr_preview'), {
+            'amount': '0.00',
+        })
+
+        self.assertEqual(response.status_code, 400)
 
 
 class CakeModelUnitTests(TestCase):
@@ -111,6 +164,15 @@ class CakeOrderViewUnitTests(TestCase):
         self.assertEqual(payment.payment_status, 'pending')
         self.assertEqual(payment.amount, Decimal('2700.00'))
         self.assertEqual(payment.cake_order_id, cake_order.id)
+
+    def test_cake_customize_get_renders_gcash_qr_preview(self):
+        response = self.client.get(reverse('cake_customize'), {
+            'cake_id': str(self.cake.id),
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'GCash Payment Instructions')
+        self.assertContains(response, reverse('payment_qr_preview'))
 
     def test_cake_customize_rejects_gcash_without_reference_and_proof(self):
         response = self.client.post(reverse('cake_customize'), {
@@ -256,6 +318,23 @@ class PackageFlowUnitTests(TestCase):
         self.assertEqual(PackageOrder.objects.count(), 0)
         self.assertEqual(Payment.objects.count(), 0)
         self.assertIn('package_order_draft', self.client.session)
+
+    def test_package_payment_get_renders_gcash_qr_preview(self):
+        session = self.client.session
+        session['package_order_draft'] = {
+            'package_id': str(self.package.id),
+            'event_type': 'kids_birthday',
+            'selected_addon_labels': [],
+            'base_total': '6500.00',
+            'cake_custom_total': '0.00',
+        }
+        session.save()
+
+        response = self.client.get(reverse('package_payment'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'GCash Payment Instructions')
+        self.assertContains(response, reverse('payment_qr_preview'))
 
 
 class OrderingIntegrationTests(TestCase):
@@ -403,6 +482,21 @@ class SecurityValidationTests(TestCase):
             email='admin@example.com',
         )
         UserProfile.objects.create(user=self.admin_user, role='admin')
+        self.cake = Cake.objects.create(
+            name='Admin Test Cake',
+            category='birthday',
+            description='Cake used for admin order tests.',
+            price=Decimal('999.00'),
+            stock=4,
+            is_active=True,
+        )
+        self.package = Package.objects.create(
+            name='Admin Test Package',
+            package_type='christening',
+            description='Package used for admin order tests.',
+            base_price=Decimal('5000.00'),
+            status='active',
+        )
 
     def test_guest_is_redirected_to_login_for_protected_tracking_route(self):
         response = self.client.get(reverse('order_tracking'))
@@ -425,6 +519,78 @@ class SecurityValidationTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context['role'], 'admin')
+
+    def test_admin_dashboard_includes_total_sales_for_paid_payments_today(self):
+        Payment.objects.create(
+            amount=Decimal('1250.00'),
+            payment_method='gcash',
+            payment_status='paid',
+            paid_at=timezone.now(),
+        )
+        Payment.objects.create(
+            amount=Decimal('700.00'),
+            payment_method='cod',
+            payment_status='paid',
+            paid_at=timezone.now() - timedelta(days=1),
+        )
+        Payment.objects.create(
+            amount=Decimal('300.00'),
+            payment_method='gcash',
+            payment_status='pending',
+            paid_at=timezone.now(),
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.get(reverse('admin_dashboard'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['total_sales_today'], Decimal('1250.00'))
+        self.assertContains(response, "Today's Sales")
+        self.assertContains(response, 'P1250.00')
+
+    def test_admin_dashboard_includes_weekly_and_monthly_sales_totals(self):
+        now = timezone.now()
+        Payment.objects.create(
+            amount=Decimal('900.00'),
+            payment_method='gcash',
+            payment_status='paid',
+            paid_at=now,
+        )
+        Payment.objects.create(
+            amount=Decimal('400.00'),
+            payment_method='cod',
+            payment_status='paid',
+            paid_at=now - timedelta(days=2),
+        )
+        Payment.objects.create(
+            amount=Decimal('600.00'),
+            payment_method='gcash',
+            payment_status='paid',
+            paid_at=now - timedelta(days=10),
+        )
+        Payment.objects.create(
+            amount=Decimal('2000.00'),
+            payment_method='gcash',
+            payment_status='paid',
+            paid_at=now - timedelta(days=40),
+        )
+        Payment.objects.create(
+            amount=Decimal('500.00'),
+            payment_method='gcash',
+            payment_status='pending',
+            paid_at=now,
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.get(reverse('admin_dashboard'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['total_sales_week'], Decimal('1300.00'))
+        self.assertEqual(response.context['total_sales_month'], Decimal('1900.00'))
+        self.assertContains(response, "This Week's Sales")
+        self.assertContains(response, "This Month's Sales")
+        self.assertContains(response, 'P1300.00')
+        self.assertContains(response, 'P1900.00')
 
     def test_viewer_is_redirected_from_admin_payments(self):
         self.client.login(username='viewer-user', password='TestPass123!')
@@ -450,6 +616,671 @@ class SecurityValidationTests(TestCase):
         self.assertEqual(users_response.status_code, 200)
         self.assertEqual(payments_response.context['payments'].count(), 1)
         self.assertGreaterEqual(users_response.context['users'].count(), 2)
+
+    def test_admin_can_access_activity_logs_page(self):
+        ActivityLog.objects.create(
+            actor=self.admin_user,
+            actor_role='Admin - All Management',
+            action='test_action',
+            target_type='payment',
+            target_id=1,
+            description='Created for access test.',
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.get(reverse('admin_activity_logs'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Audit Trail')
+        self.assertContains(response, 'Created for access test.')
+
+    def test_admin_dashboard_shows_recent_audit_trail_entries(self):
+        for index in range(6):
+            ActivityLog.objects.create(
+                actor=self.admin_user,
+                actor_role='Admin - All Management',
+                action=f'action_{index}',
+                target_type='payment',
+                target_id=index + 1,
+                description=f'Audit entry {index}',
+            )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.get(reverse('admin_dashboard'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Recent Audit Trail')
+        self.assertContains(response, 'Audit entry 5')
+        self.assertContains(response, 'Audit entry 1')
+        self.assertNotContains(response, 'Audit entry 0')
+        self.assertEqual(len(response.context['recent_activity_logs']), 5)
+
+    def test_admin_can_delete_user_via_post_route(self):
+        delete_user = User.objects.create_user(
+            username='delete-me',
+            password='TestPass123!',
+            email='delete-me@example.com',
+        )
+        UserProfile.objects.create(user=delete_user, role='viewer')
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.post(
+            reverse('admin_user_delete', args=[delete_user.id]))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers['Location'], reverse('admin_users'))
+        self.assertFalse(User.objects.filter(id=delete_user.id).exists())
+
+    def test_admin_users_page_renders_delete_action_for_other_users(self):
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.get(reverse('admin_users'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Delete')
+        self.assertContains(response, reverse('admin_user_delete', args=[self.viewer.id]))
+
+    def test_admin_payments_includes_verifying_gcash_in_review_list(self):
+        order = CakeOrder.objects.create(
+            user=self.viewer,
+            cake=self.cake,
+            quantity=1,
+            total_price=Decimal('999.00'),
+            contact_name='Viewer User',
+            contact_phone='09123456789',
+            contact_email='viewer@example.com',
+        )
+        payment = Payment.objects.create(
+            amount=Decimal('999.00'),
+            payment_method='gcash',
+            payment_status='verifying',
+            cake_order=order,
+            reference_number='0917234567',
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.get(reverse('admin_payments'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(payment, response.context['pending_payments'])
+        self.assertContains(response, 'Payments For Review')
+        self.assertContains(response, 'Verifying')
+
+    def test_admin_payment_verify_creates_activity_log(self):
+        order = CakeOrder.objects.create(
+            user=self.viewer,
+            cake=self.cake,
+            quantity=1,
+            total_price=Decimal('999.00'),
+            contact_name='Viewer User',
+            contact_phone='09123456789',
+            contact_email='viewer@example.com',
+        )
+        payment = Payment.objects.create(
+            amount=Decimal('999.00'),
+            payment_method='gcash',
+            payment_status='verifying',
+            cake_order=order,
+            reference_number='0917234567',
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.post(reverse('admin_payment_verify', args=[payment.id]), {
+            'action': 'approve',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        log = ActivityLog.objects.get(action='payment_status_updated', target_id=payment.id)
+        self.assertEqual(log.actor, self.admin_user)
+        self.assertIn('Updated payment', log.description)
+
+    def test_admin_can_delete_verified_payment_via_post_route(self):
+        order = CakeOrder.objects.create(
+            user=self.viewer,
+            cake=self.cake,
+            quantity=1,
+            total_price=Decimal('1500.00'),
+            contact_name='Viewer User',
+            contact_phone='09123456789',
+            contact_email='viewer@example.com',
+        )
+        payment = Payment.objects.create(
+            amount=Decimal('1500.00'),
+            payment_method='gcash',
+            payment_status='paid',
+            cake_order=order,
+            reference_number='PAID-001',
+            paid_at=timezone.now(),
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.post(
+            reverse('admin_payment_delete', args=[payment.id]))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers['Location'], reverse('admin_payments'))
+        self.assertFalse(Payment.objects.filter(id=payment.id).exists())
+
+    def test_admin_can_delete_rejected_payment_via_post_route(self):
+        order = PackageOrder.objects.create(
+            user=self.viewer,
+            package=self.package,
+            total_price=Decimal('4200.00'),
+            event_type='christening',
+            event_date=date(2026, 6, 1),
+            event_time=time(10, 30),
+            venue='Oroquieta City Hall',
+            contact_name='Viewer User',
+            contact_phone='09123456789',
+            contact_email='viewer@example.com',
+        )
+        payment = Payment.objects.create(
+            amount=Decimal('4200.00'),
+            payment_method='cod',
+            payment_status='failed',
+            package_order=order,
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.post(
+            reverse('admin_payment_delete', args=[payment.id]))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers['Location'], reverse('admin_payments'))
+        self.assertFalse(Payment.objects.filter(id=payment.id).exists())
+
+    def test_admin_payments_page_renders_delete_actions_for_completed_payments(self):
+        cake_order = CakeOrder.objects.create(
+            user=self.viewer,
+            cake=self.cake,
+            quantity=1,
+            total_price=Decimal('1800.00'),
+            contact_name='Viewer User',
+            contact_phone='09123456789',
+            contact_email='viewer@example.com',
+        )
+        package_order = PackageOrder.objects.create(
+            user=self.viewer,
+            package=self.package,
+            total_price=Decimal('5200.00'),
+            event_type='christening',
+            event_date=date(2026, 6, 1),
+            event_time=time(10, 30),
+            venue='Oroquieta City Hall',
+            contact_name='Viewer User',
+            contact_phone='09123456789',
+            contact_email='viewer@example.com',
+        )
+        verified_payment = Payment.objects.create(
+            amount=Decimal('1800.00'),
+            payment_method='gcash',
+            payment_status='paid',
+            cake_order=cake_order,
+            reference_number='PAID-002',
+            paid_at=timezone.now(),
+        )
+        rejected_payment = Payment.objects.create(
+            amount=Decimal('5200.00'),
+            payment_method='cod',
+            payment_status='failed',
+            package_order=package_order,
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.get(reverse('admin_payments'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse('admin_payment_delete', args=[verified_payment.id]))
+        self.assertContains(response, reverse('admin_payment_delete', args=[rejected_payment.id]))
+        self.assertContains(response, 'Delete')
+
+    def test_admin_can_delete_cake_order_via_post_route(self):
+        order = CakeOrder.objects.create(
+            user=self.viewer,
+            cake=self.cake,
+            quantity=1,
+            total_price=Decimal('999.00'),
+            contact_name='Viewer User',
+            contact_phone='09123456789',
+            contact_email='viewer@example.com',
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.post(
+            reverse('admin_cake_order_delete', args=[order.id]))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.headers['Location'], reverse('admin_cake_orders'))
+        self.assertFalse(CakeOrder.objects.filter(id=order.id).exists())
+
+    def test_admin_cake_orders_page_renders_delete_action_option(self):
+        CakeOrder.objects.create(
+            user=self.viewer,
+            cake=self.cake,
+            quantity=1,
+            total_price=Decimal('999.00'),
+            contact_name='Viewer User',
+            contact_phone='09123456789',
+            contact_email='viewer@example.com',
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.get(reverse('admin_cake_orders'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Delete Order')
+
+    def test_admin_can_delete_package_order_via_post_route(self):
+        order = PackageOrder.objects.create(
+            user=self.viewer,
+            package=self.package,
+            total_price=Decimal('5000.00'),
+            event_type='christening',
+            event_date=date(2026, 6, 1),
+            event_time=time(10, 30),
+            venue='Oroquieta City Hall',
+            contact_name='Viewer User',
+            contact_phone='09123456789',
+            contact_email='viewer@example.com',
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.post(
+            reverse('admin_package_order_delete', args=[order.id]))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers['Location'], reverse(
+            'admin_package_orders'))
+        self.assertFalse(PackageOrder.objects.filter(id=order.id).exists())
+
+    def test_admin_package_orders_page_renders_delete_action_option(self):
+        PackageOrder.objects.create(
+            user=self.viewer,
+            package=self.package,
+            total_price=Decimal('5000.00'),
+            event_type='christening',
+            event_date=date(2026, 6, 1),
+            event_time=time(10, 30),
+            venue='Oroquieta City Hall',
+            contact_name='Viewer User',
+            contact_phone='09123456789',
+            contact_email='viewer@example.com',
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.get(reverse('admin_package_orders'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Delete Order')
+
+
+class OrderStatusNotificationTests(TestCase):
+    def setUp(self):
+        self.customer = User.objects.create_user(
+            username='notified-user',
+            password='TestPass123!',
+            email='customer@example.com',
+            first_name='Notified',
+            last_name='User',
+        )
+        UserProfile.objects.create(user=self.customer, role='viewer')
+
+        self.admin_user = User.objects.create_user(
+            username='status-admin',
+            password='TestPass123!',
+            email='status-admin@example.com',
+        )
+        UserProfile.objects.create(user=self.admin_user, role='admin')
+
+        self.cake = Cake.objects.create(
+            name='Status Cake',
+            category='birthday',
+            description='Cake for notification tests.',
+            price=Decimal('1200.00'),
+            stock=3,
+            is_active=True,
+        )
+        self.package = Package.objects.create(
+            name='Status Package',
+            package_type='christening',
+            description='Package for notification tests.',
+            base_price=Decimal('6500.00'),
+            status='active',
+        )
+
+        self.client.login(username='status-admin', password='TestPass123!')
+
+    def test_admin_cake_order_update_creates_customer_notification_for_key_status(self):
+        order = CakeOrder.objects.create(
+            user=self.customer,
+            cake=self.cake,
+            quantity=1,
+            total_price=Decimal('1200.00'),
+            order_status='pending',
+            contact_name='Notified User',
+            contact_phone='09170000000',
+            contact_email='customer@example.com',
+        )
+
+        response = self.client.post(reverse('admin_cake_order_update', args=[order.id]), {
+            'status': 'confirmed',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        order.refresh_from_db()
+        self.assertEqual(order.order_status, 'confirmed')
+        notification = Notification.objects.get(cake_order=order)
+        self.assertEqual(notification.user, self.customer)
+        self.assertEqual(notification.notification_type, 'order_status')
+        self.assertIn('Current status: Confirmed.', notification.message)
+
+    def test_admin_cake_order_update_sends_customer_email(self):
+        order = CakeOrder.objects.create(
+            user=self.customer,
+            cake=self.cake,
+            quantity=1,
+            total_price=Decimal('1200.00'),
+            order_status='pending',
+            contact_name='Notified User',
+            contact_phone='09170000000',
+            contact_email='customer@example.com',
+        )
+
+        response = self.client.post(reverse('admin_cake_order_update', args=[order.id]), {
+            'status': 'confirmed',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].subject, 'Cake Order #1 updated')
+        self.assertIn('Current status: Confirmed.', mail.outbox[0].body)
+        self.assertEqual(mail.outbox[0].to, ['customer@example.com'])
+
+    def test_admin_package_order_update_creates_customer_notification_for_key_status(self):
+        order = PackageOrder.objects.create(
+            user=self.customer,
+            package=self.package,
+            total_price=Decimal('6500.00'),
+            order_status='pending',
+            event_type='christening',
+            event_date=date(2026, 6, 1),
+            event_time=time(10, 30),
+            venue='Oroquieta City Hall',
+            contact_name='Notified User',
+            contact_phone='09170000000',
+            contact_email='customer@example.com',
+        )
+
+        response = self.client.post(reverse('admin_package_order_update', args=[order.id]), {
+            'status': 'preparing',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        order.refresh_from_db()
+        self.assertEqual(order.order_status, 'preparing')
+        self.assertTrue(Notification.objects.filter(
+            package_order=order).exists())
+
+    def test_no_notification_is_created_when_status_does_not_change(self):
+        order = CakeOrder.objects.create(
+            user=self.customer,
+            cake=self.cake,
+            quantity=1,
+            total_price=Decimal('1200.00'),
+            order_status='pending',
+            contact_name='Notified User',
+            contact_phone='09170000000',
+            contact_email='customer@example.com',
+        )
+
+        response = self.client.post(reverse('admin_cake_order_update', args=[order.id]), {
+            'status': 'pending',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Notification.objects.filter(
+            cake_order=order).exists())
+
+    def test_payment_approval_creates_customer_notification(self):
+        order = CakeOrder.objects.create(
+            user=self.customer,
+            cake=self.cake,
+            quantity=1,
+            total_price=Decimal('1200.00'),
+            order_status='confirmed',
+            contact_name='Notified User',
+            contact_phone='09170000000',
+            contact_email='customer@example.com',
+        )
+        payment = Payment.objects.create(
+            amount=Decimal('1200.00'),
+            payment_method='gcash',
+            payment_status='verifying',
+            cake_order=order,
+            reference_number='REF-001',
+        )
+
+        response = self.client.post(reverse('admin_payment_verify', args=[payment.id]), {
+            'action': 'approve',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        payment.refresh_from_db()
+        self.assertEqual(payment.payment_status, 'paid')
+        notification = Notification.objects.get(payment=payment)
+        self.assertEqual(notification.notification_type, 'payment_status')
+        self.assertIn('payment status is now Paid', notification.message)
+
+    def test_payment_approval_sends_customer_email(self):
+        order = CakeOrder.objects.create(
+            user=self.customer,
+            cake=self.cake,
+            quantity=1,
+            total_price=Decimal('1200.00'),
+            order_status='confirmed',
+            contact_name='Notified User',
+            contact_phone='09170000000',
+            contact_email='customer@example.com',
+        )
+        payment = Payment.objects.create(
+            amount=Decimal('1200.00'),
+            payment_method='gcash',
+            payment_status='verifying',
+            cake_order=order,
+            reference_number='REF-003',
+        )
+
+        response = self.client.post(reverse('admin_payment_verify', args=[payment.id]), {
+            'action': 'approve',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].subject, f'Payment #{payment.id} updated')
+        self.assertIn('payment status is now Paid', mail.outbox[0].body)
+        self.assertEqual(mail.outbox[0].to, ['customer@example.com'])
+
+    def test_payment_rejection_creates_customer_notification(self):
+        order = PackageOrder.objects.create(
+            user=self.customer,
+            package=self.package,
+            total_price=Decimal('6500.00'),
+            order_status='confirmed',
+            event_type='christening',
+            event_date=date(2026, 6, 1),
+            event_time=time(10, 30),
+            venue='Oroquieta City Hall',
+            contact_name='Notified User',
+            contact_phone='09170000000',
+            contact_email='customer@example.com',
+        )
+        payment = Payment.objects.create(
+            amount=Decimal('6500.00'),
+            payment_method='gcash',
+            payment_status='verifying',
+            package_order=order,
+            reference_number='REF-002',
+        )
+
+        response = self.client.post(reverse('admin_payment_verify', args=[payment.id]), {
+            'action': 'reject',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        payment.refresh_from_db()
+        self.assertEqual(payment.payment_status, 'failed')
+        notification = Notification.objects.get(payment=payment)
+        self.assertEqual(notification.notification_type, 'payment_status')
+        self.assertIn('payment status is now Failed', notification.message)
+
+
+class InAppNotificationViewTests(TestCase):
+    def setUp(self):
+        self.customer = User.objects.create_user(
+            username='profile-user',
+            password='TestPass123!',
+            email='profile-user@example.com',
+            first_name='Profile',
+            last_name='User',
+        )
+        UserProfile.objects.create(user=self.customer, role='viewer')
+        self.cake = Cake.objects.create(
+            name='Tracked Cake',
+            category='birthday',
+            description='Cake for tracking tests.',
+            price=Decimal('900.00'),
+            stock=2,
+            is_active=True,
+        )
+        self.cake_order = CakeOrder.objects.create(
+            user=self.customer,
+            cake=self.cake,
+            quantity=1,
+            total_price=Decimal('900.00'),
+            order_status='confirmed',
+            contact_name='Profile User',
+            contact_phone='09170000000',
+            contact_email='profile-user@example.com',
+        )
+        self.notification = Notification.objects.create(
+            user=self.customer,
+            notification_type='order_status',
+            title='Cake Order #1 updated',
+            message='Your cake order has been confirmed.',
+            status_value='confirmed',
+            cake_order=self.cake_order,
+            is_read=False,
+        )
+        self.client.login(username='profile-user', password='TestPass123!')
+
+    def test_profile_page_lists_recent_notifications(self):
+        response = self.client.get(reverse('profile'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Recent Notifications')
+        self.assertContains(response, self.notification.title)
+
+    def test_order_tracking_marks_selected_order_notifications_read(self):
+        response = self.client.get(
+            f'{reverse("order_tracking")}?type=cake&id={self.cake_order.id}')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.notification.message)
+        self.notification.refresh_from_db()
+        self.assertTrue(self.notification.is_read)
+
+
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+class AdminPackageImageUploadTests(TestCase):
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        shutil.rmtree(TEST_MEDIA_ROOT, ignore_errors=True)
+
+    def setUp(self):
+        self.admin_user = User.objects.create_user(
+            username='package-admin',
+            password='TestPass123!',
+            email='package-admin@example.com',
+        )
+        UserProfile.objects.create(user=self.admin_user, role='admin')
+        self.client.login(username='package-admin', password='TestPass123!')
+
+    def test_admin_package_add_saves_uploaded_image(self):
+        uploaded_image = SimpleUploadedFile(
+            'package.jpg',
+            (
+                b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00'
+                b'\x00\x00\x00\xff\xff\xff\x21\xf9\x04\x01\x00\x00\x00\x00'
+                b'\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01'
+                b'\x00\x3b'
+            ),
+            content_type='image/gif',
+        )
+
+        response = self.client.post(reverse('admin_package_add'), {
+            'name': 'Image Package',
+            'package_type': 'christening',
+            'description': 'Package with uploaded image.',
+            'base_price': '4500.00',
+            'status': 'active',
+            'features': 'Backdrop\nCupcakes',
+            'image': uploaded_image,
+        })
+
+        self.assertEqual(response.status_code, 302)
+        package = Package.objects.get(name='Image Package')
+        self.assertTrue(bool(package.image))
+        self.assertIn('packages/', package.image.name)
+
+    def test_admin_package_edit_replaces_image_when_new_file_uploaded(self):
+        original_image = SimpleUploadedFile(
+            'original.jpg',
+            (
+                b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00'
+                b'\x00\x00\x00\xff\xff\xff\x21\xf9\x04\x01\x00\x00\x00\x00'
+                b'\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01'
+                b'\x00\x3b'
+            ),
+            content_type='image/gif',
+        )
+        package = Package.objects.create(
+            name='Editable Package',
+            package_type='christening',
+            description='Package before edit.',
+            base_price=Decimal('5500.00'),
+            status='active',
+            features='Stage lights',
+            image=original_image,
+        )
+        original_name = package.image.name
+
+        replacement_image = SimpleUploadedFile(
+            'replacement.jpg',
+            (
+                b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00'
+                b'\x00\x00\x00\xff\xff\xff\x21\xf9\x04\x01\x00\x00\x00\x00'
+                b'\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01'
+                b'\x00\x3b'
+            ),
+            content_type='image/gif',
+        )
+
+        response = self.client.post(reverse('admin_package_edit', args=[package.id]), {
+            'name': 'Editable Package',
+            'package_type': 'christening',
+            'description': 'Package after edit.',
+            'base_price': '5500.00',
+            'status': 'active',
+            'features': 'Stage lights\nBalloons',
+            'image': replacement_image,
+        })
+
+        self.assertEqual(response.status_code, 302)
+        package.refresh_from_db()
+        self.assertTrue(bool(package.image))
+        self.assertNotEqual(package.image.name, original_name)
 
 
 class HomeRecommendationTests(TestCase):

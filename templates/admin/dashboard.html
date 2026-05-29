@@ -425,6 +425,51 @@
             </div>
         </div>
     </div>
+
+    <div class="stat-card" onclick="window.location.href='{% url 'admin_payments' %}'">
+        <div class="stat-card-inner">
+            <div class="stat-icon-wrapper">
+                <i class="fas fa-peso-sign"></i>
+            </div>
+            <div class="stat-info">
+                <h3>Today's Sales</h3>
+                <div class="stat-number">P{{ total_sales_today|floatformat:2 }}</div>
+                <div class="stat-change">
+                    <i class="fas fa-receipt"></i> Paid today
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="stat-card" onclick="window.location.href='{% url 'admin_payments' %}'">
+        <div class="stat-card-inner">
+            <div class="stat-icon-wrapper">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <div class="stat-info">
+                <h3>This Week's Sales</h3>
+                <div class="stat-number">P{{ total_sales_week|floatformat:2 }}</div>
+                <div class="stat-change">
+                    <i class="fas fa-calendar-week"></i> Paid this week
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="stat-card" onclick="window.location.href='{% url 'admin_payments' %}'">
+        <div class="stat-card-inner">
+            <div class="stat-icon-wrapper">
+                <i class="fas fa-calendar-alt"></i>
+            </div>
+            <div class="stat-info">
+                <h3>This Month's Sales</h3>
+                <div class="stat-number">P{{ total_sales_month|floatformat:2 }}</div>
+                <div class="stat-change">
+                    <i class="fas fa-wallet"></i> Paid this month
+                </div>
+            </div>
+        </div>
+    </div>
     
     <div class="stat-card" onclick="window.location.href='{% url 'admin_users' %}'">
         <div class="stat-card-inner">
@@ -458,6 +503,53 @@
         <a href="{% url 'admin_users' %}" class="action-btn outline">
             <i class="fas fa-user-plus"></i> Manage Users
         </a>
+    </div>
+</div>
+
+<!-- Recent Audit Trail -->
+<div class="module-card">
+    <div class="module-header">
+        <h2><i class="fas fa-clipboard-list"></i> Recent Audit Trail</h2>
+        <a href="{% url 'admin_activity_logs' %}" class="view-all-link">
+            View All <i class="fas fa-arrow-right"></i>
+        </a>
+    </div>
+    <div class="table-responsive">
+        <table class="module-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Staff</th>
+                    <th>Action</th>
+                    <th>Target</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in recent_activity_logs %}
+                <tr>
+                    <td>{{ log.created_at|date:"M d, Y H:i" }}</td>
+                    <td>{{ log.actor.username|default:"Deleted user" }}</td>
+                    <td>{{ log.action|title }}</td>
+                    <td>
+                        {% if log.target_type %}
+                        {{ log.target_type|title }}{% if log.target_id %} #{{ log.target_id }}{% endif %}
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td>{{ log.description }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="empty-state">
+                        <i class="fas fa-clipboard-list"></i>
+                        <p>No audit trail entries yet</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
 

@@ -1,223 +1,65 @@
 # Hanilies Cakeshoppe
 
-Hanilies Cakeshoppe is a Django-based cake ordering and event package booking system with a custom admin dashboard, real customer ordering flows, payment recording, order tracking, and a rule-based recommendation feature.
+Hanilies Cakeshoppe is a Django web application for cake ordering and event package booking. It includes customer ordering flows, payment submission, order tracking, profile summaries, notification delivery, and a custom admin panel for managing products, orders, payments, users, and activity logs.
 
-The current version is no longer a static prototype. It is now a functional local web system where customers can browse live products, place cake and package orders, submit payment details, and track actual transactions saved in the database.
+The project is designed to run locally with SQLite and can be deployed on Render.
 
-## System Overview
+## Features
 
-The system supports two main customer transactions:
+### Customer features
 
-1. Cake ordering with customization options, payment method selection, and real order creation
-2. Event package booking through a three-step flow with add-ons, package cake customization, event details, and payment submission
+- Browse cakes and event packages
+- Search and filter catalog pages
+- Place customized cake orders
+- Book event packages through a multi-step flow
+- Submit Cash on Delivery or GCash payment details
+- Track live cake and package orders
+- View profile stats and recent notifications
+- Receive in-app notifications and optional email updates
 
-It also includes:
+### Admin features
 
-1. User registration, login, logout, and profile management
-2. A custom admin panel for managing cakes, packages, orders, payments, and users
-3. Order tracking for both cake and package orders
-4. A rule-based personalized recommendation feature on the homepage
+- Custom admin dashboard with sales summaries
+- Cake and package management
+- Cake and package order status management
+- Payment verification workflow
+- User management and role updates
+- Activity log for staff actions
 
-## Fully Functional Features
+### Current implementation highlights
 
-### Customer Side
+- Homepage recommendations are rule-based and use prior customer orders with best-seller fallback
+- Cake orders create real `CakeOrder`, `CakeCustomization`, and `Payment` records
+- Package bookings use a session-backed draft flow before final payment submission
+- Notifications are stored in the database and can also trigger plain-text email delivery
+- The app includes focused automated tests for ordering, tracking, payments, notifications, admin security, and dashboard metrics
 
-1. Live homepage with personalized cake and package suggestions
-2. Cake catalog with search and category filtering
-3. Package catalog with search and package-type filtering
-4. Real cake customization and ordering flow
-5. Real three-step package booking flow
-6. Cash on Delivery and GCash payment recording
-7. Order tracking page with live order status and payment details
-8. User profile page with real order count and total spending
+## Tech stack
 
-### Admin Side
+- Python
+- Django
+- SQLite for local development
+- Django templates
+- Bootstrap 5
+- JavaScript
+- Pillow for image handling
+- WhiteNoise for static file serving in deployment
 
-1. Custom admin dashboard
-2. Cake management
-3. Package management
-4. Cake order monitoring and status updates
-5. Package order monitoring and status updates
-6. Payment verification management
-7. User and role management
+## Requirements
 
-## Technology Stack
-
-### Front-End
-
-1. HTML5
-2. CSS3
-3. Bootstrap 5
-4. JavaScript
-5. Django Templates
-6. Font Awesome
-
-### Back-End
-
-1. Python
-2. Django 6.0.3
-3. Django ORM
-4. SQLite for local development
-5. Django Session Framework
-6. Django Authentication System
-7. Django Messages Framework
-8. Django Test Framework
-
-### Supporting Libraries and Tools
-
-1. Pillow for image handling
-2. asgiref
-3. sqlparse
-4. tzdata
-
-### Current Data and Logic Components
-
-1. Cake model
-2. CakeOrder model
-3. CakeCustomization model
-4. Package model
-5. PackageOrder model
-6. Payment model
-7. UserProfile model
-8. Rule-based recommendation engine using historical orders and best-selling items
-
-## Tools Used
-
-### Front-End Tools
-
-1. HTML5 for page structure
-2. CSS3 for styling
-3. Bootstrap 5 for responsive layout and interface components
-4. JavaScript for client-side interactions such as live totals and payment field toggling
-5. Django Templates for rendering dynamic content from the backend
-
-### Back-End Tools
-
-1. Python for system logic and feature implementation
-2. Django for routing, models, authentication, views, forms, and request handling
-3. Django ORM for querying and updating database records
-4. SQLite for local data storage
-5. Django Sessions for the multi-step package booking draft flow
-6. Django Authentication for account access and role-aware navigation
-7. Django Test Framework for validating recommendation behavior and core functionality
-
-## Methodology
-
-### System Development Methodology
-
-The project currently follows an iterative and incremental development methodology. The system began as a partially functional prototype with existing models and templates, then each major module was improved step by step until it became a working local web application.
-
-The development process followed this pattern:
-
-1. Assess the existing prototype and identify functional gaps
-2. Replace static templates with live database-driven pages
-3. Implement missing back-end logic for orders, payments, and tracking
-4. Validate each flow locally through Django checks, tests, and browser-based verification
-5. Improve the homepage and customer experience using real recommendation logic
-
-### Recommendation Methodology
-
-The recommendation feature uses a rule-based methodology, not machine learning.
-
-The system analyzes:
-
-1. Previous cake orders
-2. Previous package bookings
-3. Preferred cake category
-4. Preferred flavor
-5. Average spending range
-6. Best-selling cakes
-7. Best-selling packages
-
-Based on these rules, the system computes match scores and recommends the most relevant cakes and event packages to the customer.
-
-## From-To Changes
-
-### From
-
-The system originally had the correct basic models and page structure, but several customer-side pages were still static, hardcoded, or demo-only.
-
-Before the update:
-
-1. Homepage recommendations were placeholder content only
-2. Cake and package catalogs were mostly static presentation pages
-3. Cake ordering did not fully create real order records in the intended live flow
-4. Package ordering was not fully implemented as a working multi-step transaction
-5. Order tracking relied on demo-style content instead of live user orders
-6. Profile statistics were hardcoded
-7. Several customer interactions looked functional in the UI but were not yet complete end-to-end
-
-### To
-
-The system is now a fully functional local Django web application with real customer-side ordering, payment recording, tracking, profile summaries, and homepage recommendations.
-
-After the update:
-
-1. Homepage uses rule-based personalized recommendations
-2. Cakes and packages are loaded from the database
-3. Cake orders create real CakeOrder, CakeCustomization, and Payment records
-4. Package bookings run through a real three-step transaction flow
-5. Order tracking shows real cake and package orders per logged-in user
-6. Profile page shows real order count and spending totals
-7. Admin users can review new transactions through the custom admin dashboard
-
-## Added
-
-1. Real cake ordering flow
-2. Real package booking flow
-3. Session-based package draft handling
-4. Payment record creation for cake and package orders
-5. Cake customization record creation
-6. Homepage rule-based recommendation engine
-7. Homepage live best-seller and recommendation insights
-8. Automated tests for homepage recommendation behavior
-9. Live order tracking for customer orders
-10. Live profile summaries
-
-## Updated
-
-1. Homepage content and recommendation logic
-2. Cake catalog page
-3. Package catalog page
-4. Cake customization page
-5. Package order page
-6. Package cake customization page
-7. Package payment page
-8. Order tracking page
-9. Profile page
-10. Base navigation for role-aware admin access
-11. Default image fallback behavior
-
-## Removed
-
-1. Hardcoded homepage recommendation cards
-2. Hardcoded cake listing content
-3. Hardcoded package listing content
-4. Hardcoded tracking page data
-5. Old demo-only ordering behavior that did not represent full real transactions
-
-## Prerequisites
-
-Before running the project locally, make sure the following are installed:
-
-1. Python 3.13 or higher
-2. pip
-3. virtualenv or the built-in Python venv module
-4. Git if you want to clone the repository
-
-Optional but recommended:
-
-1. VS Code
-2. Python extension for VS Code
+- Python 3.13+
+- `pip`
+- Git
 
 Notes:
 
-1. The repository includes `runtime.txt` with `python-3.14.3` for deployment/runtime targeting
-2. The current local development setup uses SQLite and does not require PostgreSQL
+- The repository standardizes on a local `venv/` virtual environment
+- `runtime.txt` and Render config currently target Python `3.14.3`
+- Local development uses SQLite by default and does not require PostgreSQL
 
-## Local Setup
+## Quick start
 
-### 1. Clone the project
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/whiteheadbella/hanilies-cakeshoppe.git
@@ -239,13 +81,13 @@ venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
-### 4. Apply database migrations
+### 4. Apply migrations
 
 ```bash
 python manage.py migrate
 ```
 
-### 5. Create a superuser
+### 5. Create an admin account
 
 ```bash
 python manage.py createsuperuser
@@ -257,140 +99,79 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
-Open the system in your browser at:
+Open the app at:
 
 ```text
 http://127.0.0.1:8000/
 ```
 
-## Current Folder and File Tree
+## Environment variables
 
-The local project currently looks like this, excluding the virtual environment and Python cache folders:
+The app loads a root `.env` file through `python-dotenv`. Only `SECRET_KEY` is required in production. Most settings have safe development defaults.
 
-```text
-hanilies-cakeshoppe/
-|-- .gitignore
-|-- README.md
-|-- db.sqlite3
-|-- manage.py
-|-- requirements.txt
-|-- runtime.txt
-|-- config/
-|   |-- __init__.py
-|   |-- asgi.py
-|   |-- settings.py
-|   |-- urls.py
-|   `-- wsgi.py
-|-- hanilies/
-|   |-- __init__.py
-|   |-- admin.py
-|   |-- apps.py
-|   |-- context_processors.py
-|   |-- models.py
-|   |-- tests.py
-|   |-- urls.py
-|   |-- views.py
-|   |-- management/
-|   |   `-- commands/
-|   |       `-- demo_bot.py
-|   |-- migrations/
-|   |   |-- 0001_initial.py
-|   |   `-- __init__.py
-|   `-- templates/
-|       `-- hanilies/
-|           |-- about.html
-|           |-- base.html
-|           |-- cake_customize.html
-|           |-- cakes.html
-|           |-- contact.html
-|           |-- home.html
-|           |-- login.html
-|           |-- order_tracking.html
-|           |-- package_cake_customize.html
-|           |-- package_order.html
-|           |-- package_payment.html
-|           |-- packages.html
-|           |-- profile.html
-|           `-- register.html
-|-- media/
-|   |-- proofs/
-|   |   |-- qr.png
-|   |   |-- qr_IfTrQ36.png
-|   |   |-- qr_KrHpzP4.png
-|   |   |-- qr_P9xV38F.png
-|   |   |-- qr_kOvWocy.png
-|   |   |-- qr_kagIfRO.png
-|   |   `-- qr_uOi6YTg.png
-|   `-- cakes/
-|       |-- Berry__Gold_Luxe.png
-|       |-- Divine_Grace.png
-|       `-- chocolate.png
-|-- static/
-|   |-- css/
-|   |   |-- admin-custom.css
-|   |   |-- demo-panel.css
-|   |   `-- style.css
-|   |-- images/
-|   |   |-- bg.png
-|   |   |-- cake1.jpg
-|   |   |-- cake2.jpg
-|   |   |-- cake3.jpg
-|   |   |-- cake4.jpg
-|   |   |-- hero-cake.png
-|   |   `-- qr.png
-|   `-- js/
-|       |-- admin-custom.js
-|       `-- demo-panel.js
-`-- templates/
-	|-- admin/
-	|   |-- base_admin.html
-	|   |-- dashboard.html
-	|   |-- cakes/
-	|   |   |-- add.html
-	|   |   |-- edit.html
-	|   |   `-- list.html
-	|   |-- orders/
-	|   |   |-- cake_orders.html
-	|   |   `-- package_orders.html
-	|   |-- packages/
-	|   |   |-- add.html
-	|   |   |-- edit.html
-	|   |   `-- list.html
-	|   |-- payments/
-	|   |   `-- list.html
-	|   `-- users/
-	|       |-- edit.html
-	|       |-- list.html
-	|       `-- role.html
-	`-- includes/
-		`-- demo_panel.html
+Example `.env`:
+
+```env
+DEBUG=True
+SECRET_KEY=replace-this-in-production
+ALLOWED_HOSTS=127.0.0.1,localhost
+CSRF_TRUSTED_ORIGINS=http://127.0.0.1:8000,http://localhost:8000
+
+SQLITE_PATH=db.sqlite3
+MEDIA_ROOT=media
+
+EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_HOST_USER=your-email@example.com
+EMAIL_HOST_PASSWORD=your-app-password
+EMAIL_USE_TLS=True
+EMAIL_USE_SSL=False
+DEFAULT_FROM_EMAIL=Hanilies Cakeshoppe <your-email@example.com>
+
+HANILIES_GCASH_ACCOUNT_NAME=Hanilies Cakeshoppe
+HANILIES_GCASH_ACCOUNT_NUMBER=09171234567
+HANILIES_GCASH_PAYMENT_NOTE=Send payment using the account details shown on the checkout page.
 ```
 
-## Local Validation Commands
+## Email behavior
 
-Check the Django project:
+- In development, email defaults to Django's console backend when no email backend is configured
+- In production, email defaults to SMTP unless explicitly overridden
+- Order and payment status updates can create both database notifications and email messages
+- Gmail SMTP should use an app password instead of the regular account password
+
+## Useful commands
+
+Run a Django system check:
 
 ```bash
 python manage.py check
 ```
 
-Run tests:
+Run the app test suite:
 
 ```bash
-python manage.py test hanilies.tests
+python manage.py test hanilies.tests -v 2
 ```
 
-Run the browser demo bot help:
+View demo bot help:
 
 ```bash
 python manage.py demo_bot --help
 ```
 
-## Panel Demo Bot
+Collect static files for deployment:
 
-If you want the system to fill the forms for you during a presentation, you can use the built-in Selenium demo bot.
+```bash
+python manage.py collectstatic --no-input
+```
 
-Start the Django server in one terminal:
+## Demo bot
+
+The project includes a Selenium-backed demo command for presentation flows.
+
+Start the app in one terminal:
 
 ```bash
 python manage.py runserver
@@ -402,109 +183,71 @@ Then run the demo bot in another terminal:
 python manage.py demo_bot full
 ```
 
-You can also start the demo directly from any customer page or admin page while the local server is running:
+## Deployment
 
-1. Open `http://127.0.0.1:8000/` or any admin panel page
-2. Use the floating `Demo Bot` button at the lower-right corner
-3. Choose a quick demo, run a custom script, or click `Start Listening`
-4. Say `start demo`, `login demo`, `cake demo`, `package demo`, or `stop demo`
+The repository includes `render.yaml` for Render deployment.
 
-The panel starts the bot in a second browser window and enables narration automatically.
+Current Render flow:
 
-The current full demo journey now covers:
+- Build command: `pip install -r requirements.txt && python manage.py collectstatic --no-input`
+- Start command: `python manage.py migrate && gunicorn config.wsgi:application`
+- Persistent disk is used for SQLite and uploaded media
 
-1. Homepage and welcome flow
-2. Customer login
-3. Recommendation engine view before orders
-4. Cakes catalog
-5. Cake customization and order placement
-6. GCash payment proof upload for the cake order
-7. Cake order tracking and payment status
-8. Packages catalog
-9. Package booking and cake customization
-10. GCash payment proof upload for the package order
-11. Package order tracking and payment status
-12. Customer profile summary
-13. Homepage recommendation view again after order history changes
-14. Combined tracking dashboard
+Render environment variables currently include:
 
-Custom script mode lets you choose which pages appear during the presentation, in this order:
+- `PYTHON_VERSION`
+- `DEBUG`
+- `SECRET_KEY`
+- `ALLOWED_HOSTS`
+- `CSRF_TRUSTED_ORIGINS`
+- `SQLITE_PATH`
+- `MEDIA_ROOT`
+- `EMAIL_BACKEND`
+- `EMAIL_HOST`
+- `EMAIL_PORT`
+- `EMAIL_USE_TLS`
+- `EMAIL_USE_SSL`
+- `EMAIL_HOST_USER`
+- `EMAIL_HOST_PASSWORD`
+- `DEFAULT_FROM_EMAIL`
 
-1. Homepage Welcome
-2. Customer Login
-3. AI Recommendation View
-4. Cakes Catalog
-5. Cake Customization and Order
-6. Cake Order Tracking
-7. Packages Catalog
-8. Package Booking and Payment
-9. Package Order Tracking
-10. Customer Profile
-11. Tracking Dashboard
-12. About Page
-13. Contact Page
-
-The panel also includes a `Stop Demo` button that terminates the active bot process if you want to end the walkthrough early.
-
-What it does:
-
-1. Creates a demo user automatically if it does not exist
-2. Seeds one active cake and one active package if your catalog is empty
-3. Opens a real browser window
-4. Logs in automatically
-5. Fills the cake order and package booking forms for your panel demo
-6. Opens profile and order tracking pages at the end
-
-Default demo credentials:
+## Project structure
 
 ```text
-username: paneldemo
-password: PanelDemo123!
+hanilies-cakeshoppe/
+|-- config/                 Django project settings and entry points
+|-- hanilies/               App models, views, URLs, tests, and management commands
+|-- templates/              Custom admin and shared templates
+|-- static/                 Source static assets
+|-- media/                  Uploaded files during local use
+|-- manage.py               Django management entry point
+|-- requirements.txt        Python dependencies
+|-- render.yaml             Render deployment configuration
+`-- runtime.txt             Python runtime target
 ```
 
-Useful commands:
+## Core routes
 
-```bash
-python manage.py demo_bot login
-python manage.py demo_bot cake
-python manage.py demo_bot package
-python manage.py demo_bot full --browser edge
-python manage.py demo_bot full --delay 1.5
-python manage.py demo_bot full --close-browser
-python manage.py demo_bot full --narrate --hold-seconds 20 --close-browser
-python manage.py demo_bot custom --script home,login,ai_recommendations,cakes,cake_order,cake_tracking --payment-mode gcash
-```
+- `/` home page
+- `/cakes/` cake catalog
+- `/packages/` package catalog
+- `/cake-customize/` cake ordering flow
+- `/order-package/` package ordering flow
+- `/package-payment/` package payment step
+- `/order-tracking/` customer order tracking
+- `/profile/` customer profile
+- `/admin-panel/` custom admin panel
 
-Notes:
+## Validation status
 
-1. Install dependencies first with `pip install -r requirements.txt`
-2. Keep Microsoft Edge or Google Chrome installed on the machine
-3. Use `--delay` to make the bot slower and easier for the panel to follow
-4. Use `--headless` only for testing, not for presentations
+The following project commands have been verified in this workspace:
 
-## Current Recommendation Logic Summary
+- `python manage.py check`
+- `python manage.py makemigrations --check`
+- `python manage.py test hanilies.tests -v 2`
 
-The current homepage recommendation system is rule-based.
+## Repository notes
 
-It works by:
-
-1. Checking a user's previous cake and package orders
-2. Finding common categories and flavors
-3. Measuring closeness to previous budget patterns
-4. Comparing products against best-selling catalog items
-5. Computing a match score
-6. Displaying the top cake and package suggestions on the homepage
-
-## Project Status
-
-Current local status:
-
-1. Functional customer ordering system
-2. Functional admin dashboard
-3. Functional payment recording and verification flow
-4. Functional rule-based recommendation homepage
-5. Functional automated tests for homepage recommendation behavior
-
-## Important Note
-
-This repository can be worked on locally without pushing changes to GitHub. The current system state described in this README reflects the live local implementation and not just the original prototype version.
+- Static fallback cake images use `/static/images/bg.png`
+- The canonical package-order route is `/order-package/`, with `/package-order/` kept as a compatibility alias
+- Customer notifications are backed by the `Notification` model and can also send email through Django mail settings

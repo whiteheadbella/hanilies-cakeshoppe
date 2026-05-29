@@ -18,6 +18,7 @@
             <thead>
                 <tr>
                     <th>ID</th>
+                    <th>Image</th>
                     <th>Name</th>
                     <th>Type</th>
                     <th>Base Price</th>
@@ -29,6 +30,13 @@
                 {% for package in packages %}
                   <tr>
                     <td>{{ package.id }}</td>
+                    <td>
+                        {% if package.image %}
+                            <img src="{{ package.image.url }}" alt="{{ package.name }}" style="width: 80px; height: 60px; object-fit: cover; border-radius: 10px;">
+                        {% else %}
+                            <span class="text-muted">No image</span>
+                        {% endif %}
+                    </td>
                     <td>
                         <strong>{{ package.name }}</strong><br>
                         <small class="text-muted">{{ package.description|truncatechars:50 }}</small>
@@ -58,7 +66,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="7" class="text-center">
+                    <td colspan="8" class="text-center">
                         <div style="padding: 40px;">
                             <i class="fas fa-gift fa-3x text-muted mb-3"></i>
                             <p>No packages found.</p>

@@ -5,6 +5,7 @@ import subprocess
 import sys
 
 from django.conf import settings
+from django.core.mail import send_mail
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, JsonResponse
 from django.contrib.auth import authenticate, login, logout
@@ -13,14 +14,15 @@ from django.contrib.auth.models import User
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
 from django.urls import reverse
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from django.core.exceptions import PermissionDenied
 from django.db.models import Sum, Count, Q
 from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_POST
-from .models import UserProfile, Cake, CakeOrder, CakeCustomization, Package, PackageOrder, Payment
+from .models import UserProfile, Notification, Cake, CakeOrder, CakeCustomization, Package, PackageOrder, Payment, ActivityLog
+from .payment_qr import build_gcash_checkout_details, get_gcash_profile
 
 
 PACKAGE_ORDER_SESSION_KEY = 'package_order_draft'
@@ -80,6 +82,60 @@ PACKAGE_CAKE_DECORATIONS = {
     'fresh_fruits': {'label': 'Fresh Fruit Toppings', 'price': Decimal('200.00')},
 }
 
+ORDER_STATUS_NOTIFICATION_CONFIG = {
+    'cake': {
+        'confirmed': {
+            'headline': 'Your cake order has been confirmed.',
+            'subject': 'Cake order confirmed',
+        },
+        'preparing': {
+            'headline': 'Your cake is now being prepared.',
+            'subject': 'Cake order now preparing',
+        },
+        'out_for_delivery': {
+            'headline': 'Your cake order is out for delivery.',
+            'subject': 'Cake order out for delivery',
+        },
+        'delivered': {
+            'headline': 'Your cake order has been marked as delivered.',
+            'subject': 'Cake order delivered',
+        },
+    },
+    'package': {
+        'confirmed': {
+            'headline': 'Your package booking has been confirmed.',
+            'subject': 'Package booking confirmed',
+        },
+        'preparing': {
+            'headline': 'Your package booking is now being prepared.',
+            'subject': 'Package booking now preparing',
+        },
+        'ready_for_pickup': {
+            'headline': 'Your package booking is ready for pickup.',
+            'subject': 'Package booking ready for pickup',
+        },
+        'completed': {
+            'headline': 'Your package booking has been completed.',
+            'subject': 'Package booking completed',
+        },
+    },
+}
+
+PAYMENT_STATUS_NOTIFICATION_CONFIG = {
+    'verifying': {
+        'headline': 'Your payment proof is now under verification.',
+        'subject': 'Payment under verification',
+    },
+    'paid': {
+        'headline': 'Your payment has been approved and recorded successfully.',
+        'subject': 'Payment approved',
+    },
+    'failed': {
+        'headline': 'Your payment could not be verified. Please review your payment details or contact Hanilies Cakeshoppe.',
+        'subject': 'Payment verification update',
+    },
+}
+
 
 def _parse_decimal(value, default='0.00'):
     try:
@@ -137,6 +193,131 @@ def _clear_package_draft(request):
     if PACKAGE_ORDER_SESSION_KEY in request.session:
         del request.session[PACKAGE_ORDER_SESSION_KEY]
         request.session.modified = True
+
+
+def _create_customer_notification(user, notification_type, title, message, status_value='', cake_order=None, package_order=None, payment=None):
+    notification = Notification.objects.create(
+        user=user,
+        notification_type=notification_type,
+        title=title,
+        message=message,
+        status_value=status_value,
+        cake_order=cake_order,
+        package_order=package_order,
+        payment=payment,
+    )
+
+    if user.email:
+        send_mail(
+            title,
+            message,
+            settings.DEFAULT_FROM_EMAIL,
+            [user.email],
+            fail_silently=False,
+        )
+
+    return notification
+
+
+def _create_order_status_notification(order, order_type, previous_status):
+    if previous_status == order.order_status:
+        return None
+
+    notification = ORDER_STATUS_NOTIFICATION_CONFIG.get(
+        order_type, {}).get(order.order_status)
+    if not notification:
+        return None
+
+    order_label = 'Cake Order' if order_type == 'cake' else 'Package Booking'
+    return _create_customer_notification(
+        order.user,
+        'order_status',
+        f'{order_label} #{order.id} updated',
+        (
+            f'{notification["headline"]} '
+            f'Current status: {order.get_order_status_display()}. '
+            'Open your tracking page for the latest details.'
+        ),
+        status_value=order.order_status,
+        cake_order=order if order_type == 'cake' else None,
+        package_order=order if order_type == 'package' else None,
+    )
+
+
+def _create_payment_status_notification(payment, previous_status):
+    if previous_status == payment.payment_status:
+        return None
+
+    notification = PAYMENT_STATUS_NOTIFICATION_CONFIG.get(
+        payment.payment_status)
+    if not notification:
+        return None
+
+    if payment.cake_order_id:
+        order = payment.cake_order
+        order_label = 'Cake Order'
+    elif payment.package_order_id:
+        order = payment.package_order
+        order_label = 'Package Booking'
+    else:
+        return None
+
+    return _create_customer_notification(
+        order.user,
+        'payment_status',
+        f'Payment #{payment.id} updated',
+        (
+            f'{notification["headline"]} '
+            f'For {order_label} #{order.id}, the payment status is now '
+            f'{payment.get_payment_status_display()}. '
+            'Check your order tracking page for the latest status.'
+        ),
+        status_value=payment.payment_status,
+        cake_order=payment.cake_order if payment.cake_order_id else None,
+        package_order=payment.package_order if payment.package_order_id else None,
+        payment=payment,
+    )
+
+
+def _log_staff_activity(actor, action, description, target_type='', target_id=None):
+    if not actor or not actor.is_authenticated:
+        return None
+
+    actor_role = 'Administrator' if actor.is_superuser else ''
+    if hasattr(actor, 'profile'):
+        actor_role = actor.profile.get_role_display()
+
+    return ActivityLog.objects.create(
+        actor=actor,
+        actor_role=actor_role,
+        action=action,
+        target_type=target_type,
+        target_id=target_id,
+        description=description,
+    )
+
+
+def _build_payment_qr_response(amount, order_label):
+    preview = build_gcash_checkout_details(amount, order_label)
+    return {
+        'amount': preview['amount'],
+        'amount_label': preview['amount_label'],
+        'merchant_name': preview['account_name'],
+        'merchant_number': preview['account_number'],
+        'instruction_note': preview['payment_note'],
+        'instruction_payload': preview['instruction_payload'],
+        'qr_code_data_uri': preview['qr_code_data_uri'],
+    }
+
+
+@login_required
+def payment_qr_preview(request):
+    amount = _parse_decimal(request.GET.get('amount'))
+    if amount <= Decimal('0.00'):
+        return JsonResponse({'error': 'A positive amount is required.'}, status=400)
+
+    order_label = request.GET.get('order_label', '').strip() or 'Order payment'
+    return JsonResponse(_build_payment_qr_response(amount, order_label))
 
 
 def _is_local_demo_request(request):
@@ -885,9 +1066,17 @@ def profile(request):
         package_orders.aggregate(total=Sum('total_price')).get(
             'total') or Decimal('0.00')
     )
+    recent_notifications = list(
+        Notification.objects.filter(user=request.user).select_related(
+            'cake_order', 'package_order', 'payment'
+        )[:6]
+    )
     context = {
         'order_count': cake_orders.count() + package_orders.count(),
         'total_spent': total_spent,
+        'recent_notifications': recent_notifications,
+        'unread_notification_count': sum(
+            1 for notification in recent_notifications if not notification.is_read),
     }
     return render(request, 'hanilies/profile.html', context)
 
@@ -927,11 +1116,12 @@ def change_password(request):
 def update_preferences(request):
     """Update user preferences"""
     if request.method == 'POST':
-        email_notifications = request.POST.get('email_notifications') == 'on'
+        account_notifications = request.POST.get(
+            'account_notifications') == 'on'
         promo_emails = request.POST.get('promo_emails') == 'on'
         sms_notifications = request.POST.get('sms_notifications') == 'on'
 
-        request.session['email_notifications'] = email_notifications
+        request.session['account_notifications'] = account_notifications
         request.session['promo_emails'] = promo_emails
         request.session['sms_notifications'] = sms_notifications
 
@@ -973,12 +1163,29 @@ def order_tracking(request):
             selected_order = package_orders[0]
 
     selected_payment = None
+    selected_customization = None
     tracking_steps = []
+    selected_notifications = []
     if selected_order is not None:
         selected_payment = selected_order.payments.order_by(
             '-created_at').first()
+        if selected_type == 'cake':
+            selected_customization = getattr(selected_order, 'customization', None)
         tracking_steps = _build_tracking_steps(
             selected_type, selected_order.order_status)
+
+        notification_queryset = Notification.objects.filter(user=request.user)
+        if selected_type == 'cake':
+            notification_queryset = notification_queryset.filter(
+                cake_order=selected_order)
+        else:
+            notification_queryset = notification_queryset.filter(
+                package_order=selected_order)
+
+        notification_queryset.filter(is_read=False).update(is_read=True)
+        selected_notifications = list(
+            notification_queryset.select_related('payment')[:8]
+        )
 
     context = {
         'cake_orders': cake_orders,
@@ -986,7 +1193,9 @@ def order_tracking(request):
         'selected_order': selected_order,
         'selected_order_type': selected_type,
         'selected_payment': selected_payment,
+        'selected_customization': selected_customization,
         'tracking_steps': tracking_steps,
+        'selected_notifications': selected_notifications,
     }
     return render(request, 'hanilies/order_tracking.html', context)
 
@@ -1054,7 +1263,7 @@ def cake_customize(request):
                 additional_decorations='\n'.join(decoration_labels),
             )
 
-            Payment.objects.create(
+            payment = Payment.objects.create(
                 amount=total_price,
                 payment_method=payment_method,
                 payment_status='verifying' if payment_method == 'gcash' else 'pending',
@@ -1066,11 +1275,18 @@ def cake_customize(request):
                 request, f'Cake order #{cake_order.id} was placed successfully.')
             return redirect(f"{reverse('order_tracking')}?type=cake&id={cake_order.id}")
 
+    cake_order_label = f'{selected_cake.name} cake order'
     context = {
         'cake': selected_cake,
         'cakes': cake_queryset.order_by('name'),
         'decoration_options': CAKE_DECORATION_OPTIONS,
         'defaults': defaults,
+        'gcash_account': get_gcash_profile(),
+        'gcash_preview': build_gcash_checkout_details(
+            selected_cake.price,
+            cake_order_label,
+        ),
+        'payment_qr_preview_url': reverse('payment_qr_preview'),
     }
     return render(request, 'hanilies/cake_customize.html', context)
 
@@ -1212,7 +1428,7 @@ def package_payment(request):
                 cake_message=draft.get('cake_message', ''),
             )
 
-            Payment.objects.create(
+            payment = Payment.objects.create(
                 amount=grand_total,
                 payment_method=payment_method,
                 payment_status='verifying' if payment_method == 'gcash' else 'pending',
@@ -1226,6 +1442,7 @@ def package_payment(request):
                 request, f'Package order #{package_order.id} was placed successfully.')
             return redirect(f"{reverse('order_tracking')}?type=package&id={package_order.id}")
 
+    package_order_label = f'{selected_package.name} package booking'
     context = {
         'package': selected_package,
         'draft': draft,
@@ -1233,6 +1450,12 @@ def package_payment(request):
         'subtotal': subtotal,
         'custom_total': custom_total,
         'grand_total': grand_total,
+        'gcash_account': get_gcash_profile(),
+        'gcash_preview': build_gcash_checkout_details(
+            grand_total,
+            package_order_label,
+        ),
+        'payment_qr_preview_url': reverse('payment_qr_preview'),
     }
     return render(request, 'hanilies/package_payment.html', context)
 
@@ -1252,6 +1475,7 @@ def get_admin_menu(request):
             'icon': 'calendar-check'},
         {'name': 'Payments', 'url': 'admin_payments', 'icon': 'credit-card'},
         {'name': 'Users', 'url': 'admin_users', 'icon': 'users'},
+        {'name': 'Audit Trail', 'url': 'admin_activity_logs', 'icon': 'clipboard-list'},
     ]
     return menu
 
@@ -1287,6 +1511,23 @@ def admin_dashboard(request):
 
     role = getattr(request.user, 'profile', None)
     admin_menu = get_admin_menu(request)
+    today = timezone.localdate()
+    start_of_week = today - timedelta(days=today.weekday())
+    start_of_month = today.replace(day=1)
+    total_sales_today = Payment.objects.filter(
+        payment_status='paid',
+        paid_at__date=today,
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    total_sales_week = Payment.objects.filter(
+        payment_status='paid',
+        paid_at__date__gte=start_of_week,
+        paid_at__date__lte=today,
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    total_sales_month = Payment.objects.filter(
+        payment_status='paid',
+        paid_at__date__gte=start_of_month,
+        paid_at__date__lte=today,
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
     context = {
         'admin_menu': admin_menu,
@@ -1297,10 +1538,15 @@ def admin_dashboard(request):
         'total_packages': Package.objects.filter(status='active').count(),
         'total_package_orders': PackageOrder.objects.count(),
         'total_users': User.objects.filter(is_active=True).count(),
-        'pending_payments': Payment.objects.filter(payment_status='pending').count(),
+        'pending_payments': Payment.objects.filter(
+            payment_status__in=['pending', 'verifying']).count(),
+        'total_sales_today': total_sales_today,
+        'total_sales_week': total_sales_week,
+        'total_sales_month': total_sales_month,
+        'recent_activity_logs': ActivityLog.objects.select_related('actor').all()[:5],
         'recent_cake_orders': CakeOrder.objects.all().order_by('-created_at')[:5],
         'recent_package_orders': PackageOrder.objects.all().order_by('-created_at')[:5],
-        'now': datetime.now(),  # Add current date and time
+        'now': timezone.now(),
     }
 
     return render(request, 'admin/dashboard.html', context)
@@ -1356,6 +1602,13 @@ def admin_cake_add(request):
                 cake.image = request.FILES['image']
 
             cake.save()
+            _log_staff_activity(
+                request.user,
+                'cake_created',
+                f'Created cake "{cake.name}".',
+                'cake',
+                cake.id,
+            )
             messages.success(
                 request, f'Cake "{cake.name}" added successfully!')
             return redirect('admin_cakes')
@@ -1400,6 +1653,13 @@ def admin_cake_edit(request, cake_id):
                     cake.image = None
 
             cake.save()
+            _log_staff_activity(
+                request.user,
+                'cake_updated',
+                f'Updated cake "{cake.name}".',
+                'cake',
+                cake.id,
+            )
             messages.success(
                 request, f'Cake "{cake.name}" updated successfully!')
             return redirect('admin_cakes')
@@ -1422,8 +1682,16 @@ def admin_cake_delete(request, cake_id):
         return redirect('admin_dashboard')
 
     cake = get_object_or_404(Cake, id=cake_id)
+    cake_name = cake.name
     cake.delete()
-    messages.success(request, f'Cake "{cake.name}" deleted successfully!')
+    _log_staff_activity(
+        request.user,
+        'cake_deleted',
+        f'Deleted cake "{cake_name}".',
+        'cake',
+        cake_id,
+    )
+    messages.success(request, f'Cake "{cake_name}" deleted successfully!')
     return redirect('admin_cakes')
 
 
@@ -1468,10 +1736,44 @@ def admin_cake_order_update(request, order_id):
 
     if request.method == 'POST':
         order = get_object_or_404(CakeOrder, id=order_id)
-        order.order_status = request.POST.get('status')
-        order.save()
-        messages.success(
-            request, f'Order #{order.id} status updated to {order.get_order_status_display()}')
+        previous_status = order.order_status
+        new_status = request.POST.get('status')
+
+        if new_status and new_status != previous_status:
+            order.order_status = new_status
+            order.save()
+            _create_order_status_notification(order, 'cake', previous_status)
+            _log_staff_activity(
+                request.user,
+                'cake_order_status_updated',
+                f'Updated cake order #{order.id} from {previous_status} to {order.order_status}.',
+                'cake_order',
+                order.id,
+            )
+            messages.success(
+                request, f'Order #{order.id} status updated to {order.get_order_status_display()}')
+    return redirect('admin_cake_orders')
+
+
+@login_required
+@require_POST
+def admin_cake_order_delete(request, order_id):
+    """Delete a cake order"""
+    if not is_admin_user(request.user):
+        messages.error(request, 'Permission denied')
+        return redirect('admin_dashboard')
+
+    order = get_object_or_404(CakeOrder, id=order_id)
+    order_id_value = order.id
+    order.delete()
+    _log_staff_activity(
+        request.user,
+        'cake_order_deleted',
+        f'Deleted cake order #{order_id_value}.',
+        'cake_order',
+        order_id_value,
+    )
+    messages.success(request, f'Order #{order_id_value} deleted successfully!')
     return redirect('admin_cake_orders')
 
 
@@ -1508,9 +1810,17 @@ def admin_package_add(request):
                 description=request.POST.get('description'),
                 base_price=request.POST.get('base_price'),
                 status=request.POST.get('status', 'active'),
-                features=request.POST.get('features', '')  # Add features
+                features=request.POST.get('features', ''),
+                image=request.FILES.get('image'),
             )
             package.save()
+            _log_staff_activity(
+                request.user,
+                'package_created',
+                f'Created package "{package.name}".',
+                'package',
+                package.id,
+            )
             messages.success(
                 request, f'Package "{package.name}" added successfully!')
             return redirect('admin_packages')
@@ -1536,9 +1846,20 @@ def admin_package_edit(request, package_id):
             package.description = request.POST.get('description')
             package.base_price = request.POST.get('base_price')
             package.status = request.POST.get('status')
-            package.features = request.POST.get(
-                'features', '')  # Update features
+            package.features = request.POST.get('features', '')
+
+            uploaded_image = request.FILES.get('image')
+            if uploaded_image:
+                package.image = uploaded_image
+
             package.save()
+            _log_staff_activity(
+                request.user,
+                'package_updated',
+                f'Updated package "{package.name}".',
+                'package',
+                package.id,
+            )
             messages.success(
                 request, f'Package "{package.name}" updated successfully!')
             return redirect('admin_packages')
@@ -1561,6 +1882,13 @@ def admin_package_delete(request, package_id):
     package = get_object_or_404(Package, id=package_id)
     package_name = package.name
     package.delete()
+    _log_staff_activity(
+        request.user,
+        'package_deleted',
+        f'Deleted package "{package_name}".',
+        'package',
+        package_id,
+    )
     messages.success(
         request, f'Package "{package_name}" deleted successfully!')
     return redirect('admin_packages')
@@ -1607,10 +1935,45 @@ def admin_package_order_update(request, order_id):
 
     if request.method == 'POST':
         order = get_object_or_404(PackageOrder, id=order_id)
-        order.order_status = request.POST.get('status')
-        order.save()
-        messages.success(
-            request, f'Package Order #{order.id} status updated to {order.get_order_status_display()}')
+        previous_status = order.order_status
+        new_status = request.POST.get('status')
+
+        if new_status and new_status != previous_status:
+            order.order_status = new_status
+            order.save()
+            _create_order_status_notification(order, 'package', previous_status)
+            _log_staff_activity(
+                request.user,
+                'package_order_status_updated',
+                f'Updated package order #{order.id} from {previous_status} to {order.order_status}.',
+                'package_order',
+                order.id,
+            )
+            messages.success(
+                request, f'Package Order #{order.id} status updated to {order.get_order_status_display()}')
+    return redirect('admin_package_orders')
+
+
+@login_required
+@require_POST
+def admin_package_order_delete(request, order_id):
+    """Delete a package order"""
+    if not is_admin_user(request.user):
+        messages.error(request, 'Permission denied')
+        return redirect('admin_dashboard')
+
+    order = get_object_or_404(PackageOrder, id=order_id)
+    order_id_value = order.id
+    order.delete()
+    _log_staff_activity(
+        request.user,
+        'package_order_deleted',
+        f'Deleted package order #{order_id_value}.',
+        'package_order',
+        order_id_value,
+    )
+    messages.success(
+        request, f'Package Order #{order_id_value} deleted successfully!')
     return redirect('admin_package_orders')
 
 
@@ -1629,7 +1992,8 @@ def admin_payments(request):
     payments = Payment.objects.all().order_by('-created_at')
 
     # Categorize payments
-    pending_payments = payments.filter(payment_status='pending')
+    pending_payments = payments.filter(
+        payment_status__in=['pending', 'verifying'])
     verified_payments = payments.filter(payment_status='paid')
     rejected_payments = payments.filter(payment_status='failed')
 
@@ -1653,6 +2017,7 @@ def admin_payment_verify(request, payment_id):
 
     if request.method == 'POST':
         action = request.POST.get('action')
+        previous_status = payment.payment_status
 
         if action == 'approve':
             payment.payment_status = 'paid'
@@ -1661,16 +2026,69 @@ def admin_payment_verify(request, payment_id):
                 request, f'Payment #{payment.id} has been approved!')
         elif action == 'reject':
             payment.payment_status = 'failed'
+            payment.paid_at = None
             messages.warning(
                 request, f'Payment #{payment.id} has been rejected.')
         else:
             payment.payment_status = 'verifying'
+            payment.paid_at = None
             messages.info(
                 request, f'Payment #{payment.id} is under verification.')
 
         payment.save()
+        if previous_status != payment.payment_status:
+            _create_payment_status_notification(payment, previous_status)
+            _log_staff_activity(
+                request.user,
+                'payment_status_updated',
+                f'Updated payment #{payment.id} from {previous_status} to {payment.payment_status}.',
+                'payment',
+                payment.id,
+            )
 
     return redirect('admin_payments')
+
+
+@login_required
+@require_POST
+def admin_payment_delete(request, payment_id):
+    """Delete a completed payment from the admin panel"""
+    if not is_admin_user(request.user):
+        messages.error(request, 'Permission denied')
+        return redirect('admin_dashboard')
+
+    payment = get_object_or_404(Payment, id=payment_id)
+
+    if payment.payment_status not in ['paid', 'failed']:
+        messages.error(
+            request, 'Only verified or rejected payments can be deleted.')
+        return redirect('admin_payments')
+
+    payment_id_value = payment.id
+    payment.delete()
+    _log_staff_activity(
+        request.user,
+        'payment_deleted',
+        f'Deleted payment #{payment_id_value}.',
+        'payment',
+        payment_id_value,
+    )
+    messages.success(request, f'Payment #{payment_id_value} deleted successfully!')
+    return redirect('admin_payments')
+
+
+@login_required
+def admin_activity_logs(request):
+    """List recorded staff audit trail entries"""
+    if not is_admin_user(request.user):
+        messages.error(request, 'Permission denied')
+        return redirect('admin_dashboard')
+
+    activity_logs = ActivityLog.objects.select_related('actor').all()[:100]
+    return render(request, 'admin/activity_logs.html', {
+        'activity_logs': activity_logs,
+        'admin_menu': get_admin_menu(request),
+    })
 
 
 # ============================================
@@ -1711,6 +2129,14 @@ def admin_user_edit(request, user_id):
             edit_user.profile.address = request.POST.get('address')
             edit_user.profile.save()
 
+        _log_staff_activity(
+            request.user,
+            'user_updated',
+            f'Updated user "{edit_user.username}".',
+            'user',
+            edit_user.id,
+        )
+
         messages.success(
             request, f'User "{edit_user.username}" updated successfully!')
         return redirect('admin_users')
@@ -1719,6 +2145,33 @@ def admin_user_edit(request, user_id):
         'edit_user': edit_user,
         'admin_menu': get_admin_menu(request)
     })
+
+
+@login_required
+@require_POST
+def admin_user_delete(request, user_id):
+    """Delete a user from the admin panel"""
+    if not is_admin_user(request.user):
+        messages.error(request, 'Permission denied')
+        return redirect('admin_dashboard')
+
+    delete_user = get_object_or_404(User, id=user_id)
+
+    if delete_user == request.user:
+        messages.error(request, 'You cannot delete your own account.')
+        return redirect('admin_users')
+
+    username = delete_user.username
+    delete_user.delete()
+    _log_staff_activity(
+        request.user,
+        'user_deleted',
+        f'Deleted user "{username}".',
+        'user',
+        user_id,
+    )
+    messages.success(request, f'User "{username}" deleted successfully!')
+    return redirect('admin_users')
 
 
 @login_required
@@ -1737,6 +2190,14 @@ def admin_user_role(request, user_id):
             edit_user.profile.save()
         else:
             UserProfile.objects.create(user=edit_user, role=new_role)
+
+        _log_staff_activity(
+            request.user,
+            'user_role_updated',
+            f'Changed role for user "{edit_user.username}" to {new_role}.',
+            'user',
+            edit_user.id,
+        )
 
         messages.success(
             request, f'User "{edit_user.username}" role updated to {new_role}')

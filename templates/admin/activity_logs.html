@@ -1,0 +1,47 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Audit Trail{% endblock %}
+{% block page_title %}Audit Trail{% endblock %}
+{% block page_icon %}clipboard-list{% endblock %}
+
+{% block content %}
+<div class="module-card">
+    <div class="module-header">
+        <h2><i class="fas fa-history"></i> Audit Trail</h2>
+    </div>
+    <table class="module-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Staff</th>
+                <th>Role</th>
+                <th>Action</th>
+                <th>Target</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in activity_logs %}
+            <tr>
+                <td>{{ log.created_at|date:"Y-m-d H:i" }}</td>
+                <td>{{ log.actor.username|default:"Deleted user" }}</td>
+                <td>{{ log.actor_role|default:"-" }}</td>
+                <td>{{ log.action|title }}</td>
+                <td>
+                    {% if log.target_type %}
+                    {{ log.target_type|title }}{% if log.target_id %} #{{ log.target_id }}{% endif %}
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+                <td>{{ log.description }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" class="text-center">No audit trail entries recorded yet.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
