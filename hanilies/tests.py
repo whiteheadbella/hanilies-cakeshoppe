@@ -1,11 +1,13 @@
 from datetime import date, time, timedelta
 from decimal import Decimal
+from pathlib import Path
 import shutil
 import tempfile
 from unittest.mock import patch
 from django.contrib.messages import get_messages
 from django.contrib.auth.models import User
 from django.core import mail
+from django.core.management import call_command
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.test.utils import override_settings
@@ -1376,3 +1378,23 @@ class HomeRecommendationTests(TestCase):
         self.assertGreaterEqual(len(response.context['recommended_cakes']), 1)
         self.assertGreaterEqual(
             len(response.context['recommended_packages']), 1)
+
+
+class MediaSyncCommandTests(TestCase):
+    def test_sync_repo_media_copies_repo_media_into_media_root(self):
+        source_base_dir = Path(tempfile.mkdtemp())
+        destination_media_root = Path(tempfile.mkdtemp())
+
+        self.addCleanup(shutil.rmtree, source_base_dir, ignore_errors=True)
+        self.addCleanup(shutil.rmtree, destination_media_root, ignore_errors=True)
+
+        source_file = source_base_dir / 'media' / 'cakes' / 'deploy-sample.txt'
+        source_file.parent.mkdir(parents=True, exist_ok=True)
+        source_file.write_text('repo media content', encoding='utf-8')
+
+        with override_settings(BASE_DIR=source_base_dir, MEDIA_ROOT=destination_media_root):
+            call_command('sync_repo_media')
+
+        synced_file = destination_media_root / 'cakes' / 'deploy-sample.txt'
+        self.assertTrue(synced_file.exists())
+        self.assertEqual(synced_file.read_text(encoding='utf-8'), 'repo media content')
