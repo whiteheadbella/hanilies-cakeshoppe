@@ -1648,6 +1648,73 @@ class HomeRecommendationTests(TestCase):
 
 @override_settings(DEBUG=False, DEMO_BOT_REMOTE_ENABLED=True)
 class RemoteBrowserDemoBotTests(TestCase):
+    def test_remote_demo_bot_prefers_latest_image_backed_showcase_catalog(self):
+        Cake.objects.create(
+            name='Older Demo Cake',
+            category='birthday',
+            description='Older cake for ordering.',
+            price=Decimal('750.00'),
+            stock=2,
+            image='cakes/older-demo.jpg',
+            is_active=True,
+        )
+        showcase_cake = Cake.objects.create(
+            name='Showcase Special Occasion Cake',
+            category='custom',
+            description='Newest special-occasion cake with image.',
+            price=Decimal('1450.00'),
+            stock=3,
+            image='cakes/showcase-demo.jpg',
+            is_active=True,
+        )
+        Package.objects.create(
+            name='Older Demo Package',
+            package_type='christening',
+            description='Older package for ordering.',
+            base_price=Decimal('6500.00'),
+            image='packages/older-demo.jpg',
+            status='active',
+        )
+        showcase_package = Package.objects.create(
+            name='Showcase Wedding Package',
+            package_type='wedding',
+            description='Newest package with main image and thumbnails.',
+            base_price=Decimal('15000.00'),
+            image='packages/showcase-demo.jpg',
+            status='active',
+        )
+        PackageThumbnail.objects.create(
+            package=showcase_package,
+            image='packages/thumbnails/showcase-1.jpg',
+            sort_order=1,
+        )
+
+        response = self.client.post(
+            reverse('start_demo_bot'),
+            data=json.dumps({'scenario': 'full', 'payment_mode': 'cod'}),
+            content_type='application/json',
+            REMOTE_ADDR='198.51.100.20',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()['browser_demo']
+        self.assertEqual(
+            payload['step_urls']['cakes'],
+            f"{reverse('cakes')}?category=custom",
+        )
+        self.assertEqual(
+            payload['step_urls']['cake_order'],
+            f"{reverse('cake_customize')}?cake_id={showcase_cake.id}",
+        )
+        self.assertEqual(
+            payload['step_urls']['packages'],
+            f"{reverse('packages')}?type={showcase_package.package_type}",
+        )
+        self.assertEqual(
+            payload['step_urls']['package_order'],
+            f"{reverse('order_package')}?package_id={showcase_package.id}",
+        )
+
     def test_remote_demo_bot_start_prepares_browser_walkthrough(self):
         response = self.client.post(
             reverse('start_demo_bot'),

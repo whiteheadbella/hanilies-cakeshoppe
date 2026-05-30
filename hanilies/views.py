@@ -537,7 +537,18 @@ def _ensure_browser_demo_user():
 
 
 def _ensure_browser_demo_catalog():
-    cake = Cake.objects.filter(is_active=True).order_by('id').first()
+    cake = Cake.objects.filter(
+        is_active=True,
+        category='custom',
+    ).exclude(
+        image=''
+    ).order_by('-updated_at', '-id').first()
+    if cake is None:
+        cake = Cake.objects.filter(is_active=True).exclude(
+            image=''
+        ).order_by('-updated_at', '-id').first()
+    if cake is None:
+        cake = Cake.objects.filter(is_active=True).order_by('-updated_at', '-id').first()
     if cake is None:
         cake = Cake.objects.create(
             name='Panel Demo Cake',
@@ -548,7 +559,13 @@ def _ensure_browser_demo_catalog():
             is_active=True,
         )
 
-    package = _get_public_package_queryset().order_by('id').first()
+    package = _get_public_package_queryset().annotate(
+        thumbnail_count=Count('thumbnails', distinct=True),
+    ).filter(
+        Q(thumbnail_count__gt=0) | ~Q(image=''),
+    ).order_by('-thumbnail_count', '-updated_at', '-id').first()
+    if package is None:
+        package = _get_public_package_queryset().order_by('-updated_at', '-id').first()
     if package is None:
         package = Package.objects.create(
             name='Panel Demo Package',
@@ -686,10 +703,10 @@ def _build_browser_demo_payload(request, scenario, script_steps, payment_mode):
         'home': reverse('home'),
         'login': reverse('login'),
         'ai_recommendations': reverse('home'),
-        'cakes': reverse('cakes'),
+        'cakes': f"{reverse('cakes')}?category={cake.category}",
         'cake_order': f"{reverse('cake_customize')}?cake_id={cake.id}",
         'cake_tracking': f"{reverse('order_tracking')}?type=cake&id={cake_order.id}",
-        'packages': reverse('packages'),
+        'packages': f"{reverse('packages')}?type={package.package_type}",
         'package_order': f"{reverse('order_package')}?package_id={package.id}",
         'package_tracking': f"{reverse('order_tracking')}?type=package&id={package_order.id}",
         'profile': reverse('profile'),
