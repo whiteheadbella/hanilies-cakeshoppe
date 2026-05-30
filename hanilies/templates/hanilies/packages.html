@@ -41,23 +41,42 @@
     <div class="row g-4">
         {% for package in packages %}
         <div class="col-md-6 col-xl-4">
-            <div class="card h-100 border-0 shadow-sm overflow-hidden">
-                {% if package.image %}
-                <div class="image-zoom-frame">
-                    <img src="{{ package.image.url }}" class="card-img-top" alt="{{ package.name }}" style="height: 240px; object-fit: cover;">
-                    <button type="button" class="image-zoom-trigger" data-zoom-src="{{ package.image.url }}" data-zoom-title="{{ package.name }}">
-                        <i class="fas fa-search-plus"></i> Zoom
-                    </button>
+            <div class="card package-catalog-card h-100 border-0 shadow-sm overflow-hidden">
+                {% with primary_image=package.primary_image thumbnails=package.ordered_thumbnails %}
+                {% if primary_image %}
+                <div class="package-gallery" data-package-gallery data-package-title="{{ package.name }}">
+                    <div class="package-gallery-panel">
+                        <div class="image-zoom-frame package-gallery-stage mb-0">
+                            <img src="{{ primary_image.url }}" class="card-img-top package-gallery-main" alt="{{ package.name }}">
+                            <button
+                                type="button"
+                                class="image-zoom-trigger package-gallery-zoom"
+                                data-zoom-src="{{ primary_image.url }}"
+                                data-zoom-title="{{ package.name }}"
+                                data-zoom-images="{{ primary_image.url }}{% for thumbnail in thumbnails %}|{{ thumbnail.image.url }}{% endfor %}"
+                                data-zoom-total="{{ thumbnails|length|add:1 }}"
+                                data-zoom-start-index="0"
+                            >
+                                <i class="fas fa-search-plus"></i> Zoom
+                            </button>
+                        </div>
+                    </div>
+                    {% if thumbnails %}
+                    <div class="package-gallery-meta">
+                        <span class="package-gallery-count">{{ thumbnails|length|add:1 }} images available in zoom</span>
+                    </div>
+                    {% endif %}
                 </div>
                 {% else %}
-                <div class="bg-light d-flex align-items-center justify-content-center" style="height: 240px;">
+                <div class="package-gallery-empty d-flex align-items-center justify-content-center">
                     <div class="text-center text-muted">
                         <i class="fas fa-gift fa-3x mb-3"></i>
                         <div>No package image uploaded</div>
                     </div>
                 </div>
                 {% endif %}
-                <div class="card-body d-flex flex-column">
+                {% endwith %}
+                <div class="card-body package-catalog-body d-flex flex-column">
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <h4 class="h5 mb-0">{{ package.name }}</h4>
                         <span class="badge text-bg-light text-capitalize">{{ package.get_package_type_display }}</span>
@@ -86,4 +105,19 @@
         {% endfor %}
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.querySelectorAll('[data-package-gallery]').forEach((gallery) => {
+        const packageTitle = gallery.dataset.packageTitle || 'Package image';
+        const zoomButton = gallery.querySelector('.package-gallery-zoom');
+        if (!zoomButton.dataset.zoomImages) {
+            zoomButton.dataset.zoomImages = zoomButton.dataset.zoomSrc || '';
+            zoomButton.dataset.zoomTotal = '1';
+            zoomButton.dataset.zoomStartIndex = '0';
+            zoomButton.dataset.zoomTitle = packageTitle;
+        }
+    });
+</script>
 {% endblock %}

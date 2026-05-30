@@ -185,6 +185,46 @@ class Package(models.Model):
     def __str__(self):
         return self.name
 
+    @property
+    def ordered_thumbnails(self):
+        prefetched_objects = getattr(self, '_prefetched_objects_cache', {})
+        thumbnails = prefetched_objects.get('thumbnails')
+        if thumbnails is not None:
+            return sorted(thumbnails, key=lambda thumbnail: thumbnail.sort_order)
+        return list(self.thumbnails.order_by('sort_order'))
+
+    @property
+    def primary_image(self):
+        if self.image:
+            return self.image
+
+        thumbnails = self.ordered_thumbnails
+        if thumbnails:
+            return thumbnails[0].image
+
+        return None
+
+
+class PackageThumbnail(models.Model):
+    package = models.ForeignKey(
+        Package, on_delete=models.CASCADE, related_name='thumbnails')
+    image = models.ImageField(upload_to='packages/thumbnails/')
+    sort_order = models.PositiveSmallIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['sort_order', 'id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['package', 'sort_order'],
+                name='unique_package_thumbnail_slot',
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.package.name} thumbnail #{self.sort_order}"
+
 
 class PackageOrder(models.Model):
     ORDER_STATUS = [

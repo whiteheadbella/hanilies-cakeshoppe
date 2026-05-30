@@ -15,7 +15,7 @@ from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import ActivityLog, Cake, CakeCustomization, CakeOrder, Notification, Package, PackageOrder, Payment, UserProfile
+from .models import ActivityLog, Cake, CakeCustomization, CakeOrder, Notification, Package, PackageOrder, PackageThumbnail, Payment, UserProfile
 from .payment_qr import build_gcash_checkout_details
 from .views import CAKE_DECORATION_OPTIONS, _get_selected_option_labels, _parse_delivery_datetime
 
@@ -724,6 +724,45 @@ class SecurityValidationTests(TestCase):
         self.assertContains(response, 'Audit Trail')
         self.assertContains(response, 'Created for access test.')
 
+    def test_admin_activity_logs_page_renders_delete_action(self):
+        log = ActivityLog.objects.create(
+            actor=self.admin_user,
+            actor_role='Admin - All Management',
+            action='test_action',
+            target_type='payment',
+            target_id=1,
+            description='Created for delete action test.',
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.get(reverse('admin_activity_logs'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Delete')
+        self.assertContains(
+            response,
+            reverse('admin_activity_log_delete', args=[log.id]),
+        )
+
+    def test_admin_can_delete_activity_log_via_post_route(self):
+        log = ActivityLog.objects.create(
+            actor=self.admin_user,
+            actor_role='Admin - All Management',
+            action='test_action',
+            target_type='payment',
+            target_id=1,
+            description='Created for delete route test.',
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.post(
+            reverse('admin_activity_log_delete', args=[log.id]))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.headers['Location'], reverse('admin_activity_logs'))
+        self.assertFalse(ActivityLog.objects.filter(id=log.id).exists())
+
     def test_admin_dashboard_shows_recent_audit_trail_entries(self):
         for index in range(6):
             ActivityLog.objects.create(
@@ -1308,6 +1347,26 @@ class AdminPackageImageUploadTests(TestCase):
             ),
             content_type='image/gif',
         )
+        thumbnail_one = SimpleUploadedFile(
+            'thumb1.jpg',
+            (
+                b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00'
+                b'\x00\x00\x00\xff\xff\xff\x21\xf9\x04\x01\x00\x00\x00\x00'
+                b'\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01'
+                b'\x00\x3b'
+            ),
+            content_type='image/gif',
+        )
+        thumbnail_two = SimpleUploadedFile(
+            'thumb2.jpg',
+            (
+                b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00'
+                b'\x00\x00\x00\xff\xff\xff\x21\xf9\x04\x01\x00\x00\x00\x00'
+                b'\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01'
+                b'\x00\x3b'
+            ),
+            content_type='image/gif',
+        )
 
         response = self.client.post(reverse('admin_package_add'), {
             'name': 'Image Package',
@@ -1317,12 +1376,19 @@ class AdminPackageImageUploadTests(TestCase):
             'status': 'active',
             'features': 'Backdrop\nCupcakes',
             'image': uploaded_image,
+            'thumbnail_1': thumbnail_one,
+            'thumbnail_2': thumbnail_two,
         })
 
         self.assertEqual(response.status_code, 302)
         package = Package.objects.get(name='Image Package')
         self.assertTrue(bool(package.image))
         self.assertIn('packages/', package.image.name)
+        self.assertEqual(package.thumbnails.count(), 2)
+        self.assertEqual(
+            list(package.thumbnails.order_by('sort_order').values_list('sort_order', flat=True)),
+            [1, 2],
+        )
 
     def test_admin_package_edit_replaces_image_when_new_file_uploaded(self):
         original_image = SimpleUploadedFile(
@@ -1344,10 +1410,35 @@ class AdminPackageImageUploadTests(TestCase):
             features='Stage lights',
             image=original_image,
         )
+        original_thumbnail = PackageThumbnail.objects.create(
+            package=package,
+            sort_order=1,
+            image=SimpleUploadedFile(
+                'original-thumb.jpg',
+                (
+                    b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00'
+                    b'\x00\x00\x00\xff\xff\xff\x21\xf9\x04\x01\x00\x00\x00\x00'
+                    b'\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01'
+                    b'\x00\x3b'
+                ),
+                content_type='image/gif',
+            ),
+        )
         original_name = package.image.name
+        original_thumbnail_name = original_thumbnail.image.name
 
         replacement_image = SimpleUploadedFile(
             'replacement.jpg',
+            (
+                b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00'
+                b'\x00\x00\x00\xff\xff\xff\x21\xf9\x04\x01\x00\x00\x00\x00'
+                b'\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01'
+                b'\x00\x3b'
+            ),
+            content_type='image/gif',
+        )
+        replacement_thumbnail = SimpleUploadedFile(
+            'replacement-thumb.jpg',
             (
                 b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00'
                 b'\x00\x00\x00\xff\xff\xff\x21\xf9\x04\x01\x00\x00\x00\x00'
@@ -1365,12 +1456,99 @@ class AdminPackageImageUploadTests(TestCase):
             'status': 'active',
             'features': 'Stage lights\nBalloons',
             'image': replacement_image,
+            'thumbnail_1': replacement_thumbnail,
         })
 
         self.assertEqual(response.status_code, 302)
         package.refresh_from_db()
         self.assertTrue(bool(package.image))
         self.assertNotEqual(package.image.name, original_name)
+        updated_thumbnail = package.thumbnails.get(sort_order=1)
+        self.assertNotEqual(updated_thumbnail.image.name, original_thumbnail_name)
+
+    def test_admin_package_edit_can_remove_thumbnail_slot(self):
+        package = Package.objects.create(
+            name='Package With Thumbnail',
+            package_type='christening',
+            description='Package before thumbnail removal.',
+            base_price=Decimal('5500.00'),
+            status='active',
+            features='Stage lights',
+        )
+        PackageThumbnail.objects.create(
+            package=package,
+            sort_order=1,
+            image=SimpleUploadedFile(
+                'remove-thumb.jpg',
+                (
+                    b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00'
+                    b'\x00\x00\x00\xff\xff\xff\x21\xf9\x04\x01\x00\x00\x00\x00'
+                    b'\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01'
+                    b'\x00\x3b'
+                ),
+                content_type='image/gif',
+            ),
+        )
+
+        response = self.client.post(reverse('admin_package_edit', args=[package.id]), {
+            'name': 'Package With Thumbnail',
+            'package_type': 'christening',
+            'description': 'Package after thumbnail removal.',
+            'base_price': '5500.00',
+            'status': 'active',
+            'features': 'Stage lights',
+            'remove_thumbnail_1': 'on',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(package.thumbnails.exists())
+
+
+class PackageThumbnailCatalogTests(TestCase):
+    def test_packages_page_renders_zoom_gallery_data_for_package(self):
+        package = Package.objects.create(
+            name='Gallery Package',
+            package_type='christening',
+            description='Package with thumbnail gallery.',
+            base_price=Decimal('5500.00'),
+            status='active',
+            features='Backdrop',
+            image=SimpleUploadedFile(
+                'main.jpg',
+                (
+                    b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00'
+                    b'\x00\x00\x00\xff\xff\xff\x21\xf9\x04\x01\x00\x00\x00\x00'
+                    b'\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01'
+                    b'\x00\x3b'
+                ),
+                content_type='image/gif',
+            ),
+        )
+        for slot_order in range(1, 5):
+            PackageThumbnail.objects.create(
+                package=package,
+                sort_order=slot_order,
+                image=SimpleUploadedFile(
+                    f'thumb-{slot_order}.jpg',
+                    (
+                        b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00'
+                        b'\x00\x00\x00\xff\xff\xff\x21\xf9\x04\x01\x00\x00\x00\x00'
+                        b'\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01'
+                        b'\x00\x3b'
+                    ),
+                    content_type='image/gif',
+                ),
+            )
+
+        response = self.client.get(reverse('packages'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-zoom-images=')
+        self.assertNotContains(response, 'data-thumbnail-src=')
+        self.assertContains(response, '5 images available in zoom')
+        self.assertContains(response, package.image.url)
+        for thumbnail in package.thumbnails.order_by('sort_order'):
+            self.assertContains(response, thumbnail.image.url)
 
 
 class HomeRecommendationTests(TestCase):

@@ -1252,6 +1252,74 @@ main { flex: 1 0 auto; width: 100%; }
     transform: scale(1.03);
 }
 
+.package-catalog-card {
+    border-radius: 1.6rem;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(253, 242, 248, 0.92));
+    box-shadow: 0 16px 34px rgba(52, 58, 64, 0.08);
+}
+
+.package-gallery {
+    padding: 1rem 1rem 0;
+}
+
+.package-gallery-panel {
+    padding: 0.65rem;
+    border: 1px solid rgba(52, 58, 64, 0.14);
+    border-bottom: none;
+    border-radius: 1.35rem 1.35rem 0 0;
+    background: rgba(255, 255, 255, 0.98);
+}
+
+.package-gallery-stage {
+    border: 1px solid rgba(52, 58, 64, 0.16);
+    border-radius: 1rem;
+    background: var(--white);
+    padding: 0.75rem;
+    min-height: 265px;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.78);
+}
+
+.package-gallery-main {
+    display: block;
+    width: 100%;
+    min-height: 230px;
+    max-height: 230px;
+    object-fit: contain;
+    border-radius: 0.8rem;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(248, 249, 250, 0.96));
+}
+
+.package-gallery-meta {
+    padding: 0.6rem 0.8rem 0.85rem;
+    border: 1px solid rgba(52, 58, 64, 0.14);
+    border-top: none;
+    border-radius: 0 0 1.35rem 1.35rem;
+    background: rgba(255, 255, 255, 0.98);
+}
+
+.package-gallery-count {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.7rem;
+    border-radius: 999px;
+    background: rgba(248, 240, 229, 0.9);
+    color: var(--gray-dark);
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.package-gallery-empty {
+    min-height: 340px;
+    margin: 1rem 1rem 0;
+    border: 2px dashed rgba(52, 58, 64, 0.18);
+    border-radius: 1.35rem;
+    background: rgba(255, 255, 255, 0.82);
+}
+
+.package-catalog-body {
+    padding: 1.35rem 1.35rem 1.5rem;
+}
+
 .image-zoom-trigger {
     position: absolute;
     right: 1rem;
@@ -1282,6 +1350,8 @@ main { flex: 1 0 auto; width: 100%; }
     -webkit-backdrop-filter: blur(12px);
     backdrop-filter: blur(12px);
     box-shadow: var(--shadow-lg);
+    border-radius: 1.6rem;
+    padding: 0.35rem 0.35rem 0.65rem;
 }
 
 .image-zoom-modal-content .modal-body {
@@ -1290,13 +1360,116 @@ main { flex: 1 0 auto; width: 100%; }
     justify-content: center;
 }
 
+.image-zoom-stage {
+    width: 100%;
+    min-height: 420px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    border: 1px solid rgba(52, 58, 64, 0.12);
+    border-radius: 1.35rem;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(248, 249, 250, 0.96));
+}
+
 .image-zoom-modal-content img {
     max-height: 80vh;
     object-fit: contain;
     box-shadow: var(--shadow-md);
 }
 
+.image-zoom-close {
+    width: 2.2rem;
+    height: 2.2rem;
+    border: 1px solid rgba(52, 58, 64, 0.14);
+    border-radius: 999px;
+    background: var(--white);
+    color: var(--gray-dark);
+    font-size: 1rem;
+    line-height: 1;
+    transition: var(--transition);
+}
+
+.image-zoom-close:hover {
+    background: var(--pink-soft);
+    border-color: rgba(219, 39, 119, 0.28);
+}
+
+.image-zoom-counter {
+    min-width: 4.5rem;
+    text-align: center;
+    font-weight: 600;
+    color: var(--gray-dark);
+}
+
+.image-zoom-nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.65rem 1rem;
+    border: 1px solid rgba(52, 58, 64, 0.14);
+    border-radius: 999px;
+    background: var(--white);
+    color: var(--gray-dark);
+    font-weight: 600;
+    transition: var(--transition);
+}
+
+.image-zoom-nav:hover:not(:disabled) {
+    background: linear-gradient(135deg, var(--pink-primary), var(--gold-primary));
+    color: var(--white);
+    border-color: transparent;
+}
+
+.image-zoom-nav:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
 @media (max-width: 767.98px) {
+    .package-gallery {
+        padding: 0.85rem 0.85rem 0;
+    }
+
+    .package-gallery-panel,
+    .package-gallery-meta,
+    .package-gallery-empty {
+        border-radius: 1rem;
+    }
+
+    .package-gallery-panel {
+        border-bottom: 1px solid rgba(52, 58, 64, 0.12);
+    }
+
+    .package-gallery-meta {
+        margin-top: 0.6rem;
+        border-top: 1px solid rgba(52, 58, 64, 0.12);
+    }
+
+    .package-gallery-stage {
+        min-height: 220px;
+        padding: 0.65rem;
+    }
+
+    .package-gallery-main {
+        min-height: 180px;
+        max-height: 180px;
+    }
+
+    .package-gallery-empty {
+        min-height: 250px;
+    }
+
+    .image-zoom-stage {
+        min-height: 280px;
+        padding: 0.75rem;
+    }
+
+    .image-zoom-nav {
+        padding: 0.55rem 0.85rem;
+        font-size: 0.9rem;
+    }
+
     .image-zoom-trigger {
         right: 0.75rem;
         bottom: 0.75rem;

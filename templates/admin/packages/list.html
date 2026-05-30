@@ -36,6 +36,13 @@
                         {% else %}
                             <span class="text-muted">No image</span>
                         {% endif %}
+                        {% if package.ordered_thumbnails %}
+                        <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px;">
+                            {% for thumbnail in package.ordered_thumbnails %}
+                            <img src="{{ thumbnail.image.url }}" alt="{{ package.name }} thumbnail {{ forloop.counter }}" style="width: 34px; height: 34px; object-fit: cover; border-radius: 8px; border: 1px solid #dee2e6;">
+                            {% endfor %}
+                        </div>
+                        {% endif %}
                     </td>
                     <td>
                         <strong>{{ package.name }}</strong><br>

@@ -39,6 +39,19 @@
                 <input type="file" name="image" class="form-control" accept="image/*">
                 <small class="text-muted">Upload one image for this package.</small>
             </div>
+
+            <div class="form-group">
+                <label>Additional Package Images</label>
+                <div class="row g-3">
+                    {% for slot in thumbnail_slots %}
+                    <div class="col-md-6">
+                        <label class="small text-muted mb-2 d-block">Image {{ slot.order|add:1 }}</label>
+                        <input type="file" name="thumbnail_{{ slot.order }}" class="form-control" accept="image/*">
+                    </div>
+                    {% endfor %}
+                </div>
+                <small class="text-muted">Upload up to four extra package images that customers can browse after opening zoom.</small>
+            </div>
             
             <div class="row">
                 <div class="col-md-6">

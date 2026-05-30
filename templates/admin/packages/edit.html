@@ -43,6 +43,30 @@
                 <input type="file" name="image" class="form-control" accept="image/*">
                 <small class="text-muted">Upload a new image only if you want to replace the current one.</small>
             </div>
+
+            <div class="form-group">
+                <label>Additional Package Images</label>
+                <div class="row g-3">
+                    {% for slot in thumbnail_slots %}
+                    <div class="col-md-6">
+                        <div class="border rounded p-3 h-100 bg-light-subtle">
+                            <div class="small text-muted mb-2">Image {{ slot.order|add:1 }}</div>
+                            {% if slot.thumbnail %}
+                            <div style="margin-bottom: 12px;">
+                                <img src="{{ slot.thumbnail.image.url }}" alt="{{ package.name }} image {{ slot.order|add:1 }}" style="width: 100%; height: 120px; object-fit: cover; border-radius: 12px; border: 1px solid #dee2e6;">
+                            </div>
+                            <label class="checkbox-inline mb-2">
+                                <input type="checkbox" name="remove_thumbnail_{{ slot.order }}"> Remove image {{ slot.order|add:1 }}
+                            </label>
+                            {% endif %}
+                            <input type="file" name="thumbnail_{{ slot.order }}" class="form-control" accept="image/*">
+                            <small class="text-muted d-block mt-2">Upload a new image to replace this slot.</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <small class="text-muted">Customers can browse these extra package images inside the zoom view.</small>
+            </div>
             
             <div class="row">
                 <div class="col-md-6">

@@ -21,7 +21,7 @@ from django.db.models import Sum, Count, Q
 from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_POST
-from .models import UserProfile, Notification, Cake, CakeOrder, CakeCustomization, Package, PackageOrder, Payment, ActivityLog
+from .models import UserProfile, Notification, Cake, CakeOrder, CakeCustomization, Package, PackageOrder, PackageThumbnail, Payment, ActivityLog
 from .payment_qr import build_gcash_checkout_details, get_gcash_profile
 
 
@@ -70,6 +70,7 @@ CAKE_THEME_OPTIONS = [
 ]
 
 CAKE_CATEGORY_VALUES = {value for value, _ in Cake.CAKE_CATEGORIES}
+MAX_PACKAGE_THUMBNAILS = 4
 
 PUBLIC_PACKAGE_TYPES = [
     choice for choice in Package.PACKAGE_TYPES if choice[0] != 'corporate'
@@ -211,6 +212,54 @@ def _get_selected_option_labels(selected_keys, options):
         labels.append(option['label'])
         total += option['price']
     return labels, total
+
+
+def _build_package_thumbnail_slots(package=None):
+    existing = {}
+    if package is not None:
+        existing = {
+            thumbnail.sort_order: thumbnail
+            for thumbnail in package.thumbnails.order_by('sort_order')
+        }
+
+    return [
+        {'order': slot_order, 'thumbnail': existing.get(slot_order)}
+        for slot_order in range(1, MAX_PACKAGE_THUMBNAILS + 1)
+    ]
+
+
+def _sync_package_thumbnails(package, files, removals=None):
+    removals = removals or set()
+    existing = {
+        thumbnail.sort_order: thumbnail
+        for thumbnail in package.thumbnails.all()
+    }
+
+    for slot_order in range(1, MAX_PACKAGE_THUMBNAILS + 1):
+        thumbnail = existing.get(slot_order)
+
+        if slot_order in removals and thumbnail is not None:
+            if thumbnail.image:
+                thumbnail.image.delete(save=False)
+            thumbnail.delete()
+            thumbnail = None
+
+        uploaded_image = files.get(f'thumbnail_{slot_order}')
+        if not uploaded_image:
+            continue
+
+        if thumbnail is None:
+            PackageThumbnail.objects.create(
+                package=package,
+                sort_order=slot_order,
+                image=uploaded_image,
+            )
+            continue
+
+        if thumbnail.image:
+            thumbnail.image.delete(save=False)
+        thumbnail.image = uploaded_image
+        thumbnail.save(update_fields=['image', 'updated_at'])
 
 
 def _get_package_draft(request):
@@ -1215,7 +1264,7 @@ def cakes(request):
 
 def packages(request):
     """Packages listing page"""
-    package_list = _get_public_package_queryset().order_by('name')
+    package_list = _get_public_package_queryset().prefetch_related('thumbnails').order_by('name')
     selected_type = request.GET.get('type', '').strip()
     search_term = request.GET.get('q', '').strip()
 
@@ -2116,7 +2165,7 @@ def admin_packages(request):
         messages.error(request, 'Permission denied')
         return redirect('admin_dashboard')
 
-    packages = Package.objects.all().order_by('-created_at')
+    packages = Package.objects.all().prefetch_related('thumbnails').order_by('-created_at')
     return render(request, 'admin/packages/list.html', {
         'packages': packages,
         'admin_menu': get_admin_menu(request)
@@ -2137,7 +2186,8 @@ def admin_package_add(request):
                 messages.error(
                     request, 'Selected package type is no longer available.')
                 return render(request, 'admin/packages/add.html', {
-                    'admin_menu': get_admin_menu(request)
+                    'admin_menu': get_admin_menu(request),
+                    'thumbnail_slots': _build_package_thumbnail_slots(),
                 })
 
             package = Package(
@@ -2150,6 +2200,7 @@ def admin_package_add(request):
                 image=request.FILES.get('image'),
             )
             package.save()
+            _sync_package_thumbnails(package, request.FILES)
             _log_staff_activity(
                 request.user,
                 'package_created',
@@ -2163,7 +2214,10 @@ def admin_package_add(request):
         except Exception as e:
             messages.error(request, f'Error adding package: {str(e)}')
 
-    return render(request, 'admin/packages/add.html', {'admin_menu': get_admin_menu(request)})
+    return render(request, 'admin/packages/add.html', {
+        'admin_menu': get_admin_menu(request),
+        'thumbnail_slots': _build_package_thumbnail_slots(),
+    })
 
 
 @login_required
@@ -2173,7 +2227,7 @@ def admin_package_edit(request, package_id):
         messages.error(request, 'Permission denied')
         return redirect('admin_dashboard')
 
-    package = get_object_or_404(Package, id=package_id)
+    package = get_object_or_404(Package.objects.prefetch_related('thumbnails'), id=package_id)
 
     if request.method == 'POST':
         try:
@@ -2183,7 +2237,8 @@ def admin_package_edit(request, package_id):
                     request, 'Selected package type is no longer available.')
                 return render(request, 'admin/packages/edit.html', {
                     'package': package,
-                    'admin_menu': get_admin_menu(request)
+                    'admin_menu': get_admin_menu(request),
+                    'thumbnail_slots': _build_package_thumbnail_slots(package),
                 })
 
             package.name = request.POST.get('name')
@@ -2198,6 +2253,12 @@ def admin_package_edit(request, package_id):
                 package.image = uploaded_image
 
             package.save()
+            thumbnail_removals = {
+                slot_order
+                for slot_order in range(1, MAX_PACKAGE_THUMBNAILS + 1)
+                if request.POST.get(f'remove_thumbnail_{slot_order}') == 'on'
+            }
+            _sync_package_thumbnails(package, request.FILES, thumbnail_removals)
             _log_staff_activity(
                 request.user,
                 'package_updated',
@@ -2213,7 +2274,8 @@ def admin_package_edit(request, package_id):
 
     return render(request, 'admin/packages/edit.html', {
         'package': package,
-        'admin_menu': get_admin_menu(request)
+        'admin_menu': get_admin_menu(request),
+        'thumbnail_slots': _build_package_thumbnail_slots(package),
     })
 
 
@@ -2434,6 +2496,20 @@ def admin_activity_logs(request):
         'activity_logs': activity_logs,
         'admin_menu': get_admin_menu(request),
     })
+
+
+@login_required
+@require_POST
+def admin_activity_log_delete(request, log_id):
+    """Delete an audit trail entry from the admin panel"""
+    if not is_admin_user(request.user):
+        messages.error(request, 'Permission denied')
+        return redirect('admin_dashboard')
+
+    activity_log = get_object_or_404(ActivityLog, id=log_id)
+    activity_log.delete()
+    messages.success(request, 'Audit trail entry deleted successfully!')
+    return redirect('admin_activity_logs')
 
 
 # ============================================
