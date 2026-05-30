@@ -1,569 +1,822 @@
-[
-  {
-    "model": "hanilies.cake",
-    "pk": 1,
-    "fields": {
-      "name": "Chocolate Fudge Cake",
-      "category": "birthday",
-      "description": "Rich chocolate sponge layered with silky fudge frosting.",
-      "price": "899.00",
-      "stock": 2,
-      "image": "cakes/chocolate_bFPKaSx.PNG",
-      "is_active": true,
-      "created_at": "2026-05-19T22:35:12.718Z",
-      "updated_at": "2026-05-27T19:29:53.172Z"
-    }
-  },
-  {
-    "model": "hanilies.cake",
-    "pk": 2,
-    "fields": {
-      "name": "Sans Rival ",
-      "category": "wedding",
-      "description": "topped with nuts ",
-      "price": "799.00",
-      "stock": 3,
-      "image": "cakes/sans_rival.PNG",
-      "is_active": true,
-      "created_at": "2026-05-19T22:35:12.737Z",
-      "updated_at": "2026-05-27T07:41:33.671Z"
-    }
-  },
-  {
-    "model": "hanilies.cake",
-    "pk": 3,
-    "fields": {
-      "name": "Rainbow Party Cake",
-      "category": "birthday",
-      "description": "Colorful layers for birthdays and kids parties.",
-      "price": "1299.00",
-      "stock": 3,
-      "image": "cakes/rainbow.PNG",
-      "is_active": true,
-      "created_at": "2026-05-19T22:35:12.742Z",
-      "updated_at": "2026-05-27T19:14:00.924Z"
-    }
-  },
-  {
-    "model": "hanilies.cake",
-    "pk": 4,
-    "fields": {
-      "name": "Elegant Wedding Cake",
-      "category": "wedding",
-      "description": "3-Tiered wedding cake with minimalist floral styling. \r\ntier_count = 3\r\nprimary_color = \"White cream\"\r\nflavor = \"Vanilla Cream\"\r\n",
-      "price": "4000.00",
-      "stock": 2,
-      "image": "cakes/wedding.PNG",
-      "is_active": true,
-      "created_at": "2026-05-19T22:35:12.747Z",
-      "updated_at": "2026-05-27T17:54:44.090Z"
-    }
-  },
-  {
-    "model": "hanilies.cake",
-    "pk": 5,
-    "fields": {
-      "name": "Elegant Floral Wedding Cake",
-      "category": "wedding",
-      "description": "Theme: Romantic Garden\r\nFlavor: Vanilla / Chocolate / Red Velvet\r\nColor Motif: Pink, White, Purple\r\nTier Count: 3\r\nSize: 6-8-10 inches",
-      "price": "10000.00",
-      "stock": 2,
-      "image": "cakes/3layer_cake_.jpg",
-      "is_active": true,
-      "created_at": "2026-05-27T17:41:47.494Z",
-      "updated_at": "2026-05-27T17:52:31.786Z"
-    }
-  },
-  {
-    "model": "hanilies.cake",
-    "pk": 6,
-    "fields": {
-      "name": "Emerald Floral Wedding Cake",
-      "category": "wedding",
-      "description": "theme = \"Elegant Garden\"\r\ntier_count = 2\r\nprimary_color = \"Emerald Green\"\r\nflavor = \"Vanilla\"\r\n",
-      "price": "5000.00",
-      "stock": 2,
-      "image": "cakes/2.png",
-      "is_active": true,
-      "created_at": "2026-05-27T17:52:22.094Z",
-      "updated_at": "2026-05-27T17:52:22.094Z"
-    }
-  },
-  {
-    "model": "hanilies.cake",
-    "pk": 7,
-    "fields": {
-      "name": "Luxury Whiskey Ombre Cake",
-      "category": "birthday",
-      "description": "theme = \"Luxury Gentleman\"\r\nprimary_color = \"Royal Blue\"\r\nflavor = \"Chocolate Moist\"\r\nsize = \"10 inches\"",
-      "price": "2500.00",
-      "stock": 2,
-      "image": "cakes/cake_2.png",
-      "is_active": true,
-      "created_at": "2026-05-27T18:07:19.023Z",
-      "updated_at": "2026-05-27T18:08:54.779Z"
-    }
-  },
-  {
-    "model": "hanilies.cake",
-    "pk": 8,
-    "fields": {
-      "name": "Pink Butterfly Floral Cake",
-      "category": "birthday",
-      "description": "theme = \"Butterfly Garden\"\r\nprimary_color = \"Pink\"\r\nflavor = \"Strawberry Vanilla\"\r\nsize = \"8 inches\"\r\n",
-      "price": "2500.00",
-      "stock": 2,
-      "image": "cakes/cake.png",
-      "is_active": true,
-      "created_at": "2026-05-27T18:08:46.431Z",
-      "updated_at": "2026-05-27T18:08:46.431Z"
-    }
-  },
-  {
-    "model": "hanilies.cake",
-    "pk": 9,
-    "fields": {
-      "name": "Baby Shark Ocean Theme Cake",
-      "category": "christening",
-      "description": "theme = \"Under the Sea\"\r\nprimary_color = \"Sky Blue\"\r\nflavor = \"Chocolate Moist\"\r\ntier_count = 2\r\n",
-      "price": "3000.00",
-      "stock": 2,
-      "image": "cakes/kids_cake_bday_2layer.png",
-      "is_active": true,
-      "created_at": "2026-05-27T19:14:57.365Z",
-      "updated_at": "2026-05-27T19:14:57.365Z"
-    }
-  },
-  {
-    "model": "hanilies.cake",
-    "pk": 10,
-    "fields": {
-      "name": "3-Tier Mermaid Themed Cake",
-      "category": "birthday",
-      "description": "Customized Kids Celebration Cake\r\ntheme = \"Mermaid Under the Sea\"\r\nprimary_color = \"Aqua Blue\"\r\nflavor = \"Vanilla Moist\"\r\ntier_count = 3",
-      "price": "4000.00",
-      "stock": 1,
-      "image": "cakes/3layer_kids_bday_cake.png",
-      "is_active": true,
-      "created_at": "2026-05-27T19:19:22.227Z",
-      "updated_at": "2026-05-27T19:19:22.227Z"
-    }
-  },
-  {
-    "model": "hanilies.cake",
-    "pk": 11,
-    "fields": {
-      "name": "3-Tier Luxury Black & White Milestone Adult Birthday Cake",
-      "category": "birthday",
-      "description": "theme = \"Elegant Glam\"  Adult Birthday Cake\r\nprimary_color = \"Black and White\"\r\nflavor = \"Chocolate Moist\"\r\ntier_count = 3",
-      "price": "3500.00",
-      "stock": 2,
-      "image": "cakes/adult.png",
-      "is_active": true,
-      "created_at": "2026-05-27T19:23:33.323Z",
-      "updated_at": "2026-05-27T19:23:33.323Z"
-    }
-  },
-  {
-    "model": "hanilies.cake",
-    "pk": 12,
-    "fields": {
-      "name": "2-Tier Candyland Christening Cake",
-      "category": "christening",
-      "description": "2-Tier Candyland Christening Cake\r\ntheme = \"Candyland\"\r\nprimary_color = \"Pink\"\r\nflavor = \"Funfetti\"\r\ntier_count = 2",
-      "price": "3500.00",
-      "stock": 2,
-      "image": "cakes/2layer__christening_.png",
-      "is_active": true,
-      "created_at": "2026-05-27T19:27:16.721Z",
-      "updated_at": "2026-05-27T19:27:16.721Z"
-    }
-  },
-  {
-    "model": "hanilies.cake",
-    "pk": 13,
-    "fields": {
-      "name": "2-Tier Sweet Candy Drip Cake",
-      "category": "christening",
-      "description": "2-Tier Sweet Candyland Christening Cake\r\nprimary_color = \"Turquoise Blue\"\r\nflavor = \"Cookies and Cream\"\r\nsize = \"10 inches\"",
-      "price": "2500.00",
-      "stock": 2,
-      "image": "cakes/christ.png",
-      "is_active": true,
-      "created_at": "2026-05-27T19:33:38.860Z",
-      "updated_at": "2026-05-27T19:33:38.860Z"
-    }
-  },
-  {
-    "model": "hanilies.cake",
-    "pk": 14,
-    "fields": {
-      "name": "2-Tier Elegant Floral Adult Birthday Cake",
-      "category": "birthday",
-      "description": "2-Tier Elegant Floral Adult Birthday Cake\r\ntheme = \"Floral Glam\"\r\nprimary_color = \"Red\"\r\nflavor = \"Red Velvet\"\r\ntier_count = 2",
-      "price": "3600.00",
-      "stock": 2,
-      "image": "cakes/2_ad.png",
-      "is_active": true,
-      "created_at": "2026-05-27T19:41:36.005Z",
-      "updated_at": "2026-05-27T19:41:36.005Z"
-    }
-  },
-  {
-    "model": "hanilies.cake",
-    "pk": 15,
-    "fields": {
-      "name": "1 Tier - Pink Butterfly Christening Cake",
-      "category": "christening",
-      "description": "1 Tier - Pink Butterfly Christening Cake\r\nprimary_color = \"Pink\"\r\nflavor = \"Vanilla Moist\"\r\nsize = \"10 inches\"",
-      "price": "2000.00",
-      "stock": 2,
-      "image": "cakes/theme_cake_1_layer_christening_cake.jpg",
-      "is_active": true,
-      "created_at": "2026-05-27T19:45:01.401Z",
-      "updated_at": "2026-05-27T19:45:01.401Z"
-    }
-  },
-  {
-    "model": "hanilies.cake",
-    "pk": 16,
-    "fields": {
-      "name": "1 Tier-Pastel Floral Congratulations Cake",
-      "category": "anniversary",
-      "description": "1 Tier-Pastel Floral Anniversary Cake\r\nprimary_color = \"Mint Green\"\r\nflavor = \"Vanilla Moist\"\r\nsize = \"8 inches\"",
-      "price": "1800.00",
-      "stock": 1,
-      "image": "cakes/bday_cake_1_layer.jpg",
-      "is_active": true,
-      "created_at": "2026-05-27T19:48:30.859Z",
-      "updated_at": "2026-05-27T19:48:30.859Z"
-    }
-  },
-  {
-    "model": "hanilies.cake",
-    "pk": 17,
-    "fields": {
-      "name": "Valentine's Day Cake",
-      "category": "custom",
-      "description": "Romantic cake design for Valentine's Day celebrations.",
-      "price": "1200.00",
-      "stock": 3,
-      "image": "",
-      "is_active": true,
-      "created_at": "2026-05-29T00:00:00.000Z",
-      "updated_at": "2026-05-29T00:00:00.000Z"
-    }
-  },
-  {
-    "model": "hanilies.cake",
-    "pk": 18,
-    "fields": {
-      "name": "Mother's Day Cake",
-      "category": "custom",
-      "description": "Floral celebration cake crafted for Mother's Day.",
-      "price": "850.00",
-      "stock": 3,
-      "image": "",
-      "is_active": true,
-      "created_at": "2026-05-29T00:00:00.000Z",
-      "updated_at": "2026-05-29T00:00:00.000Z"
-    }
-  },
-  {
-    "model": "hanilies.cake",
-    "pk": 19,
-    "fields": {
-      "name": "Father's Day Cake",
-      "category": "custom",
-      "description": "Bold celebration cake made for Father's Day gatherings.",
-      "price": "900.00",
-      "stock": 3,
-      "image": "",
-      "is_active": true,
-      "created_at": "2026-05-29T00:00:00.000Z",
-      "updated_at": "2026-05-29T00:00:00.000Z"
-    }
-  },
-  {
-    "model": "hanilies.cake",
-    "pk": 20,
-    "fields": {
-      "name": "Graduation Cake",
-      "category": "custom",
-      "description": "Milestone cake designed for graduation celebrations.",
-      "price": "1300.00",
-      "stock": 3,
-      "image": "",
-      "is_active": true,
-      "created_at": "2026-05-29T00:00:00.000Z",
-      "updated_at": "2026-05-29T00:00:00.000Z"
-    }
-  },
-  {
-    "model": "hanilies.cake",
-    "pk": 21,
-    "fields": {
-      "name": "Debut Cake",
-      "category": "custom",
-      "description": "Elegant debut cake for 18th birthday and formal milestone events.",
-      "price": "1400.00",
-      "stock": 3,
-      "image": "",
-      "is_active": true,
-      "created_at": "2026-05-29T00:00:00.000Z",
-      "updated_at": "2026-05-29T00:00:00.000Z"
-    }
-  },
-  {
-    "model": "hanilies.cake",
-    "pk": 22,
-    "fields": {
-      "name": "Gender Reveal Cake",
-      "category": "custom",
-      "description": "Celebration cake for surprise gender reveal moments.",
-      "price": "1250.00",
-      "stock": 3,
-      "image": "",
-      "is_active": true,
-      "created_at": "2026-05-29T00:00:00.000Z",
-      "updated_at": "2026-05-29T00:00:00.000Z"
-    }
-  },
-  {
-    "model": "hanilies.cake",
-    "pk": 23,
-    "fields": {
-      "name": "Teachers' Day Cake",
-      "category": "custom",
-      "description": "Appreciation cake prepared for Teachers' Day events.",
-      "price": "950.00",
-      "stock": 3,
-      "image": "",
-      "is_active": true,
-      "created_at": "2026-05-29T00:00:00.000Z",
-      "updated_at": "2026-05-29T00:00:00.000Z"
-    }
-  },
-  {
-    "model": "hanilies.cake",
-    "pk": 24,
-    "fields": {
-      "name": "Christmas Cake",
-      "category": "custom",
-      "description": "Festive cake styled for Christmas gatherings and gift tables.",
-      "price": "1000.00",
-      "stock": 3,
-      "image": "",
-      "is_active": true,
-      "created_at": "2026-05-29T00:00:00.000Z",
-      "updated_at": "2026-05-29T00:00:00.000Z"
-    }
-  },
-  {
-    "model": "hanilies.cake",
-    "pk": 25,
-    "fields": {
-      "name": "New Year Cake",
-      "category": "custom",
-      "description": "Sparkling celebration cake for New Year parties.",
-      "price": "950.00",
-      "stock": 3,
-      "image": "",
-      "is_active": true,
-      "created_at": "2026-05-29T00:00:00.000Z",
-      "updated_at": "2026-05-29T00:00:00.000Z"
-    }
-  },
-  {
-    "model": "hanilies.package",
-    "pk": 1,
-    "fields": {
-      "name": "Christening Package A",
-      "package_type": "christening",
-      "description": "With 1 Tier Round Cake 8\" ",
-      "base_price": "6999.00",
-      "features": "18 pcs. Cupcake with icing & topper\r\n18 pcs. Lolli Balloon with print\r\n2 Pillar Balloon\r\n18 pcs. Souvenir Baby Bottle with celebrant’s picture\r\nTable Set Up & Backdrop Decor\r\nChoice: 2x3 tarp or Name of the Celebrant\r\nFree use of Stage Lights & Accessories\r\n\r\nEvent duration: 3–4 hours only\r\n\r\n",
-      "included_items": "1 tier round cake\n18 cupcakes\n18 lolli balloons\n20 invitations",
-      "image": "packages/christenig.jpg",
-      "status": "active",
-      "created_at": "2026-05-19T22:35:12.752Z",
-      "updated_at": "2026-05-27T17:07:20.583Z"
-    }
-  },
-  {
-    "model": "hanilies.package",
-    "pk": 2,
-    "fields": {
-      "name": "Christening Package C",
-      "package_type": "christening",
-      "description": "Expanded christening setup with sweet corner and chocolate fountain.",
-      "base_price": "12999.00",
-      "features": "3 tier Round Cake 9” / 7” / 4”\r\n30 pcs. Cupcake with icing & topper\r\n6 themed cupcakes\r\n36 pcs. Lolli Balloon with print\r\nStage Garland Balloon\r\n36 pcs. Souvenir Baby Bottle with Celebrant’s picture\r\n20 pcs. Invitations\r\nWith Sweet Corner:\r\n1 Chocolate fountain\r\n30 mini brownies\r\n30 mini cookies\r\n10 cake pops\r\n10 custom cookies\r\n1 bottle wafer stick\r\n20 marshmallow on stick\r\n5 kinds of gummies\r\nALSO:\r\nTable set & Backdrop Decor\r\nChoice: 3x4 tarp or Name of the celebrant\r\nStage decoration, lights & accessories\r\nEvent duration: 3–4 hours only\r\n\r\n",
-      "included_items": "2 tier round cake\n24 cupcakes\nSweet corner\nChocolate fountain",
-      "image": "packages/christening_.jpg",
-      "status": "active",
-      "created_at": "2026-05-19T22:35:12.757Z",
-      "updated_at": "2026-05-27T17:25:52.032Z"
-    }
-  },
-  {
-    "model": "hanilies.package",
-    "pk": 3,
-    "fields": {
-      "name": "Kids Birthday  Party Package 1",
-      "package_type": "kids_birthday",
-      "description": "Birthday package with 1 Layer Theme Cake",
-      "base_price": "5900.00",
-      "features": "12 Theme Cupcakes\r\n12 Balloons with print\r\n1 Table Arch Balloon\r\n1 mascot\r\nTable set up\r\nCenterpiece balloon\r\n3 kiddie table\r\n12 chairs\r\nLights & Sounds\r\nEvent duration: 3–4 hours only\r\n",
-      "included_items": "Themed cake\n30 cupcakes\nMarshmallow sticks\nCookies",
-      "image": "packages/1.bmp",
-      "status": "active",
-      "created_at": "2026-05-19T22:35:12.761Z",
-      "updated_at": "2026-05-27T07:29:06.521Z"
-    }
-  },
-  {
-    "model": "hanilies.package",
-    "pk": 4,
-    "fields": {
-      "name": "Christening Package B",
-      "package_type": "christening",
-      "description": "With 2 tier Round Cake 9” & 6”",
-      "base_price": "9999.00",
-      "features": "24 pcs. Cupcake with icing & topper\r\n24 pcs. Lolli Balloon with print\r\n2 Pillar & 8 Centerpiece Balloon\r\n24 pcs. Souvenir Baby Bottle with Celebrant’s picture\r\nTable Set Up & Backdrop Decor\r\nChoice: 3x4 tarp or Name of the celebrant\r\nFree use of Stage Lights & Accessories\r\nEvent duration: 3–4 hours only\r\n",
-      "included_items": "",
-      "image": "packages/c-1.jpg",
-      "status": "active",
-      "created_at": "2026-05-27T06:25:17.380Z",
-      "updated_at": "2026-05-27T17:25:29.342Z"
-    }
-  },
-  {
-    "model": "hanilies.package",
-    "pk": 5,
-    "fields": {
-      "name": "Wedding Package A",
-      "package_type": "wedding",
-      "description": "2 tier Cake with wine",
-      "base_price": "10000.00",
-      "features": "Venue stage decor,\r\nlights & accessories, \r\ngroom & bride table, \r\ncake table, \r\nparent table, \r\ngift table\r\n\r\nOptional:\r\nPhotographer \r\nPhotobooth \r\nLights & Sound Systems \r\nSouvenir\r\n",
-      "included_items": "",
-      "image": "packages/wedding_package.jpg",
-      "status": "active",
-      "created_at": "2026-05-27T06:29:16.776Z",
-      "updated_at": "2026-05-27T17:28:11.448Z"
-    }
-  },
-  {
-    "model": "hanilies.package",
-    "pk": 6,
-    "fields": {
-      "name": "Wedding Package B",
-      "package_type": "wedding",
-      "description": "2 tier Cake with wine",
-      "base_price": "15000.00",
-      "features": "Stage decor with red carpet & lights, \r\n2 VIP tables, \r\ngroom & bride table, \r\ngift table\r\ncake table\r\nOptional:\r\nPhotographer \r\nPhotobooth \r\nLights & Sound Systems \r\nSouvenir",
-      "included_items": "",
-      "image": "packages/ba.jpg",
-      "status": "active",
-      "created_at": "2026-05-27T06:31:16.672Z",
-      "updated_at": "2026-05-27T17:35:51.532Z"
-    }
-  },
-  {
-    "model": "hanilies.package",
-    "pk": 7,
-    "fields": {
-      "name": "Wedding Package C",
-      "package_type": "wedding",
-      "description": "Expanded with sweet corner, 3 tier Cake with wine",
-      "base_price": "85000.00",
-      "features": "Church and Whole Venue Décor,  Red Carpet with Welcome Signage,  \r\nCeiling decor and Lights,\r\nEntourage Dresses with Accessories, \r\nBridal Car ,50 invitation , \r\nBouquet and Corsage , \r\nOn the day wedding Coordination and Make-up,  \r\n2 VIP table ,\r\nGroom and Bride table, \r\nCake table,\r\nParents table,\r\nGift table\r\nSweet Corner:  \r\n80 Brownies \r\n80 slice cake (flavor of your choice) \r\n80 cookies \r\n80 cupcakes (flavor of your choice)\r\nOptional:\r\nPhotographer \r\nPhotobooth \r\nLights & Sound Systems \r\nSouvenir\r\n",
-      "included_items": "",
-      "image": "packages/b.jpg",
-      "status": "active",
-      "created_at": "2026-05-27T06:35:04.049Z",
-      "updated_at": "2026-05-27T17:35:12.364Z"
-    }
-  },
-  {
-    "model": "hanilies.package",
-    "pk": 8,
-    "fields": {
-      "name": "Kid's Birthday Party Package 2",
-      "package_type": "kids_birthday",
-      "description": "Kids Party package expanded with dessert corner, 2 tier Theme Cake 9” & 6”",
-      "base_price": "10900.00",
-      "features": "24 colored balloons\r\n24 loot bags with goodies\r\n24 party hats\r\n1 host\r\n1 mascot\r\n5 games with prizes\r\n1 Piñata\r\n1 Pabitin\r\nStage Decoration\r\nCenterpiece balloon\r\nTable set up\r\nDessert Corner:\r\n1 Choco fountain\r\n30 brownies\r\n30 cookies\r\n4 gummies\r\n1 jar wafer stick\r\n20 marshmallows\r\n5 tables\r\n20 chairs\r\nLights & sounds\r\nEvent duration: 3–4 hours only\r\n",
-      "included_items": "",
-      "image": "packages/kids_bday_3.jpg",
-      "status": "active",
-      "created_at": "2026-05-27T06:39:24.339Z",
-      "updated_at": "2026-05-27T17:11:56.239Z"
-    }
-  },
-  {
-    "model": "hanilies.package",
-    "pk": 9,
-    "fields": {
-      "name": "Kid's Birthday Party Package 3",
-      "package_type": "kids_birthday",
-      "description": "Kids birthday party expanded with 2 mascots , 1 host, 3 tier Theme Cake 12” / 10” / 8”",
-      "base_price": "25000.00",
-      "features": "50 theme cupcakes\r\n50 balloons with print\r\n50 loot bags\r\n50 party hats\r\n50 invitations\r\n50 giveaways\r\n1 host\r\nDessert Corner:\r\n1 Choco fountain\r\n20 cake pops\r\n30mallow pop\r\n4 brownies\r\n60 macarons\r\n40 cookies\r\n4 gummies\r\n1 jar wafer stick\r\nBubble Machine\r\n2 mascots\r\n1 host\r\nStage & Whole Venue Decoration\r\n15 centerpiece balloons\r\n2ft Letter Standee Name of Celebrant\r\nTable set-up\r\nPhotography (Pre Birthday Photo shoot)\r\nVirtual Photo Booth\r\nFree use of:\r\n4 kiddie chairs\r\n12 tables\r\nLights & Sounds\r\nEvent duration: 3–4 hours only\r\n",
-      "included_items": "",
-      "image": "packages/kids_bday-2.jpg",
-      "status": "active",
-      "created_at": "2026-05-27T06:41:58.382Z",
-      "updated_at": "2026-05-27T17:12:31.738Z"
-    }
-  },
-  {
-    "model": "hanilies.package",
-    "pk": 10,
-    "fields": {
-      "name": "Adult Birthday Party Package A",
-      "package_type": "adults_party",
-      "description": "Adult birthday package with 1 tier Cake and 16 cupcakes",
-      "base_price": "7999.00",
-      "features": "Cake table set-up, \r\nStage Decoration and Accessories\r\nName & Age of Celebrant\r\nGarland Balloon\r\n5 Centerpiece Balloon for guest table\r\nFree use of 2 stage lights\r\n\r\nEvent duration: 3–4 hours only\r\n",
-      "included_items": "",
-      "image": "packages/adult_package_3.jpg",
-      "status": "active",
-      "created_at": "2026-05-27T06:45:12.945Z",
-      "updated_at": "2026-05-27T17:03:02.891Z"
-    }
-  },
-  {
-    "model": "hanilies.package",
-    "pk": 11,
-    "fields": {
-      "name": "Adult Birthday Party Package B",
-      "package_type": "adults_party",
-      "description": "Adult birthday package with 2 tier Cake and 24 cupcakes",
-      "base_price": "10999.00",
-      "features": "Cake table set up\r\nStage Decoration\r\nName & Age of Celebrant\r\n1 Garland balloon\r\n8 Center Piece balloon for guest table\r\nFree use of 2 stage lights\r\n\r\nEvent duration: 3–4 hours only\r\n",
-      "included_items": "",
-      "image": "packages/adult_bday_package.jpg",
-      "status": "active",
-      "created_at": "2026-05-27T06:46:36.257Z",
-      "updated_at": "2026-05-27T17:08:13.488Z"
-    }
-  },
-  {
-    "model": "hanilies.package",
-    "pk": 12,
-    "fields": {
-      "name": "Adult Birthday Party Package C",
-      "package_type": "adults_party",
-      "description": "Adult birthday package expanded with sweet corner , 3 tier Cake and 30 cupcakes",
-      "base_price": "14999.00",
-      "features": "Table set-up\r\nStage Decoration and Accessories with 4 Lights\r\nName & Age of Celebrant\r\n1 Garland balloon\r\n10 centerpiece balloons for guest table\r\nSweet Corner:\r\n30 pcs brownie\r\n30 pcs cake slices\r\n40 pcs Coco macaroons\r\n30 choco chip cookies\r\n30 mini donuts\r\n1 Chocolate fountain with 2 kinds of fruits\r\nMarshmallow\r\n1 jar wafer stick\r\n\r\nEvent duration: 3–4 hours only\r\n",
-      "included_items": "",
-      "image": "packages/adult_c.jpg",
-      "status": "active",
-      "created_at": "2026-05-27T06:49:40.448Z",
-      "updated_at": "2026-05-27T17:23:52.160Z"
-    }
+﻿[
+{
+  "model": "hanilies.cake",
+  "pk": 1,
+  "fields": {
+    "name": "Chocolate Fudge Cake",
+    "category": "birthday",
+    "description": "Rich chocolate sponge layered with silky fudge frosting.",
+    "price": "899.00",
+    "stock": 2,
+    "image": "cakes/chocolate_bFPKaSx.PNG",
+    "is_active": true,
+    "created_at": "2026-05-19T22:35:12.718Z",
+    "updated_at": "2026-05-27T19:29:53.172Z"
   }
+},
+{
+  "model": "hanilies.cake",
+  "pk": 2,
+  "fields": {
+    "name": "Sans Rival ",
+    "category": "wedding",
+    "description": "topped with nuts ",
+    "price": "799.00",
+    "stock": 3,
+    "image": "cakes/sans_rival.PNG",
+    "is_active": true,
+    "created_at": "2026-05-19T22:35:12.737Z",
+    "updated_at": "2026-05-27T07:41:33.671Z"
+  }
+},
+{
+  "model": "hanilies.cake",
+  "pk": 3,
+  "fields": {
+    "name": "Rainbow Party Cake",
+    "category": "birthday",
+    "description": "Colorful layers for birthdays and kids parties.",
+    "price": "1299.00",
+    "stock": 3,
+    "image": "cakes/rainbow.PNG",
+    "is_active": true,
+    "created_at": "2026-05-19T22:35:12.742Z",
+    "updated_at": "2026-05-27T19:14:00.924Z"
+  }
+},
+{
+  "model": "hanilies.cake",
+  "pk": 4,
+  "fields": {
+    "name": "Elegant Wedding Cake",
+    "category": "wedding",
+    "description": "3-Tiered wedding cake with minimalist floral styling. \r\ntier_count = 3\r\nprimary_color = \"White cream\"\r\nflavor = \"Vanilla Cream\"\r\n",
+    "price": "4000.00",
+    "stock": 2,
+    "image": "cakes/wedding.PNG",
+    "is_active": true,
+    "created_at": "2026-05-19T22:35:12.747Z",
+    "updated_at": "2026-05-27T17:54:44.090Z"
+  }
+},
+{
+  "model": "hanilies.cake",
+  "pk": 5,
+  "fields": {
+    "name": "Elegant Floral Wedding Cake",
+    "category": "wedding",
+    "description": "Theme: Romantic Garden\r\nFlavor: Vanilla / Chocolate / Red Velvet\r\nColor Motif: Pink, White, Purple\r\nTier Count: 3\r\nSize: 6-8-10 inches",
+    "price": "10000.00",
+    "stock": 2,
+    "image": "cakes/3layer_cake_.jpg",
+    "is_active": true,
+    "created_at": "2026-05-27T17:41:47.494Z",
+    "updated_at": "2026-05-27T17:52:31.786Z"
+  }
+},
+{
+  "model": "hanilies.cake",
+  "pk": 6,
+  "fields": {
+    "name": "Emerald Floral Wedding Cake",
+    "category": "wedding",
+    "description": "theme = \"Elegant Garden\"\r\ntier_count = 2\r\nprimary_color = \"Emerald Green\"\r\nflavor = \"Vanilla\"\r\n",
+    "price": "5000.00",
+    "stock": 2,
+    "image": "cakes/2.png",
+    "is_active": true,
+    "created_at": "2026-05-27T17:52:22.094Z",
+    "updated_at": "2026-05-27T17:52:22.094Z"
+  }
+},
+{
+  "model": "hanilies.cake",
+  "pk": 7,
+  "fields": {
+    "name": "Luxury Whiskey Ombre Cake",
+    "category": "birthday",
+    "description": "theme = \"Luxury Gentleman\"\r\nprimary_color = \"Royal Blue\"\r\nflavor = \"Chocolate Moist\"\r\nsize = \"10 inches\"",
+    "price": "2500.00",
+    "stock": 2,
+    "image": "cakes/cake_2.png",
+    "is_active": true,
+    "created_at": "2026-05-27T18:07:19.023Z",
+    "updated_at": "2026-05-27T18:08:54.779Z"
+  }
+},
+{
+  "model": "hanilies.cake",
+  "pk": 8,
+  "fields": {
+    "name": "Pink Butterfly Floral Cake",
+    "category": "birthday",
+    "description": "theme = \"Butterfly Garden\"\r\nprimary_color = \"Pink\"\r\nflavor = \"Strawberry Vanilla\"\r\nsize = \"8 inches\"\r\n",
+    "price": "2500.00",
+    "stock": 2,
+    "image": "cakes/cake.png",
+    "is_active": true,
+    "created_at": "2026-05-27T18:08:46.431Z",
+    "updated_at": "2026-05-27T18:08:46.431Z"
+  }
+},
+{
+  "model": "hanilies.cake",
+  "pk": 9,
+  "fields": {
+    "name": "Baby Shark Ocean Theme Cake",
+    "category": "christening",
+    "description": "theme = \"Under the Sea\"\r\nprimary_color = \"Sky Blue\"\r\nflavor = \"Chocolate Moist\"\r\ntier_count = 2\r\n",
+    "price": "3000.00",
+    "stock": 2,
+    "image": "cakes/kids_cake_bday_2layer.png",
+    "is_active": true,
+    "created_at": "2026-05-27T19:14:57.365Z",
+    "updated_at": "2026-05-27T19:14:57.365Z"
+  }
+},
+{
+  "model": "hanilies.cake",
+  "pk": 10,
+  "fields": {
+    "name": "3-Tier Mermaid Themed Cake",
+    "category": "birthday",
+    "description": "Customized Kids Celebration Cake\r\ntheme = \"Mermaid Under the Sea\"\r\nprimary_color = \"Aqua Blue\"\r\nflavor = \"Vanilla Moist\"\r\ntier_count = 3",
+    "price": "4000.00",
+    "stock": 1,
+    "image": "cakes/3layer_kids_bday_cake.png",
+    "is_active": true,
+    "created_at": "2026-05-27T19:19:22.227Z",
+    "updated_at": "2026-05-27T19:19:22.227Z"
+  }
+},
+{
+  "model": "hanilies.cake",
+  "pk": 11,
+  "fields": {
+    "name": "3-Tier Luxury Black & White Milestone Adult Birthday Cake",
+    "category": "birthday",
+    "description": "theme = \"Elegant Glam\"  Adult Birthday Cake\r\nprimary_color = \"Black and White\"\r\nflavor = \"Chocolate Moist\"\r\ntier_count = 3",
+    "price": "3500.00",
+    "stock": 2,
+    "image": "cakes/adult.png",
+    "is_active": true,
+    "created_at": "2026-05-27T19:23:33.323Z",
+    "updated_at": "2026-05-27T19:23:33.323Z"
+  }
+},
+{
+  "model": "hanilies.cake",
+  "pk": 12,
+  "fields": {
+    "name": "2-Tier Candyland Christening Cake",
+    "category": "christening",
+    "description": "2-Tier Candyland Christening Cake\r\ntheme = \"Candyland\"\r\nprimary_color = \"Pink\"\r\nflavor = \"Funfetti\"\r\ntier_count = 2",
+    "price": "3500.00",
+    "stock": 2,
+    "image": "cakes/2layer__christening_.png",
+    "is_active": true,
+    "created_at": "2026-05-27T19:27:16.721Z",
+    "updated_at": "2026-05-27T19:27:16.721Z"
+  }
+},
+{
+  "model": "hanilies.cake",
+  "pk": 13,
+  "fields": {
+    "name": "2-Tier Sweet Candy Drip Cake",
+    "category": "christening",
+    "description": "2-Tier Sweet Candyland Christening Cake\r\nprimary_color = \"Turquoise Blue\"\r\nflavor = \"Cookies and Cream\"\r\nsize = \"10 inches\"",
+    "price": "2500.00",
+    "stock": 2,
+    "image": "cakes/christ.png",
+    "is_active": true,
+    "created_at": "2026-05-27T19:33:38.860Z",
+    "updated_at": "2026-05-27T19:33:38.860Z"
+  }
+},
+{
+  "model": "hanilies.cake",
+  "pk": 14,
+  "fields": {
+    "name": "2-Tier Elegant Floral Adult Birthday Cake",
+    "category": "birthday",
+    "description": "2-Tier Elegant Floral Adult Birthday Cake\r\ntheme = \"Floral Glam\"\r\nprimary_color = \"Red\"\r\nflavor = \"Red Velvet\"\r\ntier_count = 2",
+    "price": "3600.00",
+    "stock": 2,
+    "image": "cakes/2_ad.png",
+    "is_active": true,
+    "created_at": "2026-05-27T19:41:36.005Z",
+    "updated_at": "2026-05-27T19:41:36.005Z"
+  }
+},
+{
+  "model": "hanilies.cake",
+  "pk": 15,
+  "fields": {
+    "name": "1 Tier - Pink Butterfly Christening Cake",
+    "category": "christening",
+    "description": "1 Tier - Pink Butterfly Christening Cake\r\nprimary_color = \"Pink\"\r\nflavor = \"Vanilla Moist\"\r\nsize = \"10 inches\"",
+    "price": "2000.00",
+    "stock": 2,
+    "image": "cakes/theme_cake_1_layer_christening_cake.jpg",
+    "is_active": true,
+    "created_at": "2026-05-27T19:45:01.401Z",
+    "updated_at": "2026-05-27T19:45:01.401Z"
+  }
+},
+{
+  "model": "hanilies.cake",
+  "pk": 16,
+  "fields": {
+    "name": "1 Tier-Pastel Floral Congratulations Cake",
+    "category": "anniversary",
+    "description": "1 Tier-Pastel Floral Anniversary Cake\r\nprimary_color = \"Mint Green\"\r\nflavor = \"Vanilla Moist\"\r\nsize = \"8 inches\"",
+    "price": "1800.00",
+    "stock": 1,
+    "image": "cakes/bday_cake_1_layer.jpg",
+    "is_active": true,
+    "created_at": "2026-05-27T19:48:30.859Z",
+    "updated_at": "2026-05-27T19:48:30.859Z"
+  }
+},
+{
+  "model": "hanilies.cake",
+  "pk": 17,
+  "fields": {
+    "name": "Valentine's Day Cake",
+    "category": "custom",
+    "description": "Heart-Shaped Butterscotch Cake ",
+    "price": "800.00",
+    "stock": 2,
+    "image": "cakes/valent_4.jpg",
+    "is_active": true,
+    "created_at": "2026-05-29T20:33:17.729Z",
+    "updated_at": "2026-05-29T23:56:03.176Z"
+  }
+},
+{
+  "model": "hanilies.cake",
+  "pk": 18,
+  "fields": {
+    "name": "Mother's Day Cake",
+    "category": "custom",
+    "description": "Round Tier -Fresh Cream Frosting -MangoToppings Cake",
+    "price": "950.00",
+    "stock": 2,
+    "image": "cakes/mothers_day_cake_2.jpg",
+    "is_active": true,
+    "created_at": "2026-05-29T20:33:17.732Z",
+    "updated_at": "2026-05-29T23:54:27.653Z"
+  }
+},
+{
+  "model": "hanilies.cake",
+  "pk": 19,
+  "fields": {
+    "name": "Father's Day Cake",
+    "category": "custom",
+    "description": "Round Vanilla -Blue Coated Cake ",
+    "price": "850.00",
+    "stock": 2,
+    "image": "cakes/happy_fathers_day_cake.jpg",
+    "is_active": true,
+    "created_at": "2026-05-29T20:33:17.733Z",
+    "updated_at": "2026-05-29T23:52:22.271Z"
+  }
+},
+{
+  "model": "hanilies.cake",
+  "pk": 20,
+  "fields": {
+    "name": "Graduation Cake",
+    "category": "custom",
+    "description": "Round Tier -Ube Lavender Frosting Cake ",
+    "price": "1100.00",
+    "stock": 2,
+    "image": "cakes/grad_cake_2.jpg",
+    "is_active": true,
+    "created_at": "2026-05-29T20:33:17.734Z",
+    "updated_at": "2026-05-29T23:50:12.583Z"
+  }
+},
+{
+  "model": "hanilies.cake",
+  "pk": 21,
+  "fields": {
+    "name": "Elegant Debut Cake",
+    "category": "custom",
+    "description": "2-Tier Debut Red Velvet Cake",
+    "price": "1500.00",
+    "stock": 2,
+    "image": "cakes/debut_cake_2.jpg",
+    "is_active": true,
+    "created_at": "2026-05-29T20:33:17.734Z",
+    "updated_at": "2026-05-29T23:48:10.958Z"
+  }
+},
+{
+  "model": "hanilies.cake",
+  "pk": 22,
+  "fields": {
+    "name": "Gender Reveal Cake",
+    "category": "custom",
+    "description": "Round Tier - Vanilla Coated White Frosting Cake",
+    "price": "1000.00",
+    "stock": 2,
+    "image": "cakes/shower_baby_1cake.jpg",
+    "is_active": true,
+    "created_at": "2026-05-29T20:33:17.735Z",
+    "updated_at": "2026-05-29T23:45:36.361Z"
+  }
+},
+{
+  "model": "hanilies.cake",
+  "pk": 23,
+  "fields": {
+    "name": "Teachers' Day Cake",
+    "category": "custom",
+    "description": "Single Tier Round Yellow Coated  Buttercream Cake ",
+    "price": "900.00",
+    "stock": 2,
+    "image": "cakes/teqachers_2.jpg",
+    "is_active": true,
+    "created_at": "2026-05-29T20:33:17.736Z",
+    "updated_at": "2026-05-29T23:43:45.446Z"
+  }
+},
+{
+  "model": "hanilies.cake",
+  "pk": 24,
+  "fields": {
+    "name": "Christmas Cake",
+    "category": "custom",
+    "description": "Merry Christmas Wreath  Round Buttercream Cake",
+    "price": "900.00",
+    "stock": 2,
+    "image": "cakes/christmas_cake_3.jpg",
+    "is_active": true,
+    "created_at": "2026-05-29T20:33:17.736Z",
+    "updated_at": "2026-05-29T23:39:23.707Z"
+  }
+},
+{
+  "model": "hanilies.cake",
+  "pk": 25,
+  "fields": {
+    "name": "New Year Cake",
+    "category": "custom",
+    "description": "1 Round -Elegant teal buttercream cake decorated with gold coins and gold pearl",
+    "price": "850.00",
+    "stock": 2,
+    "image": "cakes/new_year_cake_3.jpg",
+    "is_active": true,
+    "created_at": "2026-05-29T20:33:17.737Z",
+    "updated_at": "2026-05-29T23:37:05.925Z"
+  }
+},
+{
+  "model": "hanilies.package",
+  "pk": 1,
+  "fields": {
+    "name": "Christening Package A",
+    "package_type": "christening",
+    "description": "With 1 Tier Round Cake 8\" ",
+    "base_price": "6999.00",
+    "features": "18 pcs. Cupcake with icing & topper\r\n18 pcs. Lolli Balloon with print\r\n2 Pillar Balloon\r\n18 pcs. Souvenir Baby Bottle with celebrantÆs picture\r\nTable Set Up & Backdrop Decor\r\nChoice: 2x3 tarp or Name of the Celebrant\r\nFree use of Stage Lights & Accessories\r\n\r\nEvent duration: 3û4 hours only\r\n\r\n",
+    "included_items": "1 tier round cake\n18 cupcakes\n18 lolli balloons\n20 invitations",
+    "image": "packages/christenig.jpg",
+    "status": "active",
+    "created_at": "2026-05-19T22:35:12.752Z",
+    "updated_at": "2026-05-29T22:53:45.825Z"
+  }
+},
+{
+  "model": "hanilies.package",
+  "pk": 2,
+  "fields": {
+    "name": "Christening Package C",
+    "package_type": "christening",
+    "description": "Expanded christening setup with sweet corner and chocolate fountain.",
+    "base_price": "12999.00",
+    "features": "3 tier Round Cake 9ö / 7ö / 4ö\r\n30 pcs. Cupcake with icing & topper\r\n6 themed cupcakes\r\n36 pcs. Lolli Balloon with print\r\nStage Garland Balloon\r\n36 pcs. Souvenir Baby Bottle with CelebrantÆs picture\r\n20 pcs. Invitations\r\nWith Sweet Corner:\r\n1 Chocolate fountain\r\n30 mini brownies\r\n30 mini cookies\r\n10 cake pops\r\n10 custom cookies\r\n1 bottle wafer stick\r\n20 marshmallow on stick\r\n5 kinds of gummies\r\nALSO:\r\nTable set & Backdrop Decor\r\nChoice: 3x4 tarp or Name of the celebrant\r\nStage decoration, lights & accessories\r\nEvent duration: 3û4 hours only\r\n\r\n",
+    "included_items": "2 tier round cake\n24 cupcakes\nSweet corner\nChocolate fountain",
+    "image": "packages/christening_.jpg",
+    "status": "active",
+    "created_at": "2026-05-19T22:35:12.757Z",
+    "updated_at": "2026-05-29T22:52:02.806Z"
+  }
+},
+{
+  "model": "hanilies.package",
+  "pk": 3,
+  "fields": {
+    "name": "Kids Birthday  Party Package 1",
+    "package_type": "kids_birthday",
+    "description": "Birthday package with 1 Layer Theme Cake",
+    "base_price": "5900.00",
+    "features": "12 Theme Cupcakes\r\n12 Balloons with print\r\n1 Table Arch Balloon\r\n1 mascot\r\nTable set up\r\nCenterpiece balloon\r\n3 kiddie table\r\n12 chairs\r\nLights & Sounds\r\nEvent duration: 3û4 hours only\r\n",
+    "included_items": "Themed cake\n30 cupcakes\nMarshmallow sticks\nCookies",
+    "image": "packages/1.bmp",
+    "status": "active",
+    "created_at": "2026-05-19T22:35:12.761Z",
+    "updated_at": "2026-05-29T23:31:59.020Z"
+  }
+},
+{
+  "model": "hanilies.package",
+  "pk": 4,
+  "fields": {
+    "name": "Christening Package B",
+    "package_type": "christening",
+    "description": "With 2 tier Round Cake 9ö & 6ö",
+    "base_price": "9999.00",
+    "features": "24 pcs. Cupcake with icing & topper\r\n24 pcs. Lolli Balloon with print\r\n2 Pillar & 8 Centerpiece Balloon\r\n24 pcs. Souvenir Baby Bottle with CelebrantÆs picture\r\nTable Set Up & Backdrop Decor\r\nChoice: 3x4 tarp or Name of the celebrant\r\nFree use of Stage Lights & Accessories\r\nEvent duration: 3û4 hours only\r\n",
+    "included_items": "",
+    "image": "packages/c-1.jpg",
+    "status": "active",
+    "created_at": "2026-05-27T06:25:17.380Z",
+    "updated_at": "2026-05-29T22:57:57.287Z"
+  }
+},
+{
+  "model": "hanilies.package",
+  "pk": 5,
+  "fields": {
+    "name": "Wedding Package A",
+    "package_type": "wedding",
+    "description": "2 tier Cake with wine",
+    "base_price": "10000.00",
+    "features": "Venue stage decor,\r\nlights & accessories, \r\ngroom & bride table, \r\ncake table, \r\nparent table, \r\ngift table\r\n\r\nOptional:\r\nPhotographer \r\nPhotobooth \r\nLights & Sound Systems \r\nSouvenir\r\n",
+    "included_items": "",
+    "image": "packages/wedding_3.jpg",
+    "status": "active",
+    "created_at": "2026-05-27T06:29:16.776Z",
+    "updated_at": "2026-05-29T23:14:47.161Z"
+  }
+},
+{
+  "model": "hanilies.package",
+  "pk": 6,
+  "fields": {
+    "name": "Wedding Package B",
+    "package_type": "wedding",
+    "description": "2 tier Cake with wine",
+    "base_price": "15000.00",
+    "features": "Stage decor with red carpet & lights, \r\n2 VIP tables, \r\ngroom & bride table, \r\ngift table\r\ncake table\r\nOptional:\r\nPhotographer \r\nPhotobooth \r\nLights & Sound Systems \r\nSouvenir",
+    "included_items": "",
+    "image": "packages/ba.jpg",
+    "status": "active",
+    "created_at": "2026-05-27T06:31:16.672Z",
+    "updated_at": "2026-05-29T23:02:21.319Z"
+  }
+},
+{
+  "model": "hanilies.package",
+  "pk": 7,
+  "fields": {
+    "name": "Wedding Package C",
+    "package_type": "wedding",
+    "description": "Expanded with sweet corner, 3 tier Cake with wine",
+    "base_price": "85000.00",
+    "features": "Church and Whole Venue DΘcor,  Red Carpet with Welcome Signage,  \r\nCeiling decor and Lights,\r\nEntourage Dresses with Accessories, \r\nBridal Car ,50 invitation , \r\nBouquet and Corsage , \r\nOn the day wedding Coordination and Make-up,  \r\n2 VIP table ,\r\nGroom and Bride table, \r\nCake table,\r\nParents table,\r\nGift table\r\nSweet Corner:  \r\n80 Brownies \r\n80 slice cake (flavor of your choice) \r\n80 cookies \r\n80 cupcakes (flavor of your choice)\r\nOptional:\r\nPhotographer \r\nPhotobooth \r\nLights & Sound Systems \r\nSouvenir\r\n",
+    "included_items": "",
+    "image": "packages/b.jpg",
+    "status": "active",
+    "created_at": "2026-05-27T06:35:04.049Z",
+    "updated_at": "2026-05-29T22:59:17.458Z"
+  }
+},
+{
+  "model": "hanilies.package",
+  "pk": 8,
+  "fields": {
+    "name": "Kid's Birthday Party Package 2",
+    "package_type": "kids_birthday",
+    "description": "Kids Party package expanded with dessert corner, 2 tier Theme Cake 9ö & 6ö",
+    "base_price": "10900.00",
+    "features": "24 colored balloons\r\n24 loot bags with goodies\r\n24 party hats\r\n1 host\r\n1 mascot\r\n5 games with prizes\r\n1 Pi±ata\r\n1 Pabitin\r\nStage Decoration\r\nCenterpiece balloon\r\nTable set up\r\nDessert Corner:\r\n1 Choco fountain\r\n30 brownies\r\n30 cookies\r\n4 gummies\r\n1 jar wafer stick\r\n20 marshmallows\r\n5 tables\r\n20 chairs\r\nLights & sounds\r\nEvent duration: 3û4 hours only\r\n",
+    "included_items": "",
+    "image": "packages/kids_bday_3.jpg",
+    "status": "active",
+    "created_at": "2026-05-27T06:39:24.339Z",
+    "updated_at": "2026-05-29T23:29:07.757Z"
+  }
+},
+{
+  "model": "hanilies.package",
+  "pk": 9,
+  "fields": {
+    "name": "Kid's Birthday Party Package 3",
+    "package_type": "kids_birthday",
+    "description": "Kids birthday party expanded with 2 mascots , 1 host, 3 tier Theme Cake 12ö / 10ö / 8ö",
+    "base_price": "25000.00",
+    "features": "50 theme cupcakes\r\n50 balloons with print\r\n50 loot bags\r\n50 party hats\r\n50 invitations\r\n50 giveaways\r\n1 host\r\nDessert Corner:\r\n1 Choco fountain\r\n20 cake pops\r\n30mallow pop\r\n4 brownies\r\n60 macarons\r\n40 cookies\r\n4 gummies\r\n1 jar wafer stick\r\nBubble Machine\r\n2 mascots\r\n1 host\r\nStage & Whole Venue Decoration\r\n15 centerpiece balloons\r\n2ft Letter Standee Name of Celebrant\r\nTable set-up\r\nPhotography (Pre Birthday Photo shoot)\r\nVirtual Photo Booth\r\nFree use of:\r\n4 kiddie chairs\r\n12 tables\r\nLights & Sounds\r\nEvent duration: 3û4 hours only\r\n",
+    "included_items": "",
+    "image": "packages/kids_bday-2.jpg",
+    "status": "active",
+    "created_at": "2026-05-27T06:41:58.382Z",
+    "updated_at": "2026-05-29T23:24:08.088Z"
+  }
+},
+{
+  "model": "hanilies.package",
+  "pk": 10,
+  "fields": {
+    "name": "Adult Birthday Party Package A",
+    "package_type": "adults_party",
+    "description": "Adult birthday package with 1 tier Cake and 16 cupcakes",
+    "base_price": "7999.00",
+    "features": "Cake table set-up, \r\nStage Decoration and Accessories\r\nName & Age of Celebrant\r\nGarland Balloon\r\n5 Centerpiece Balloon for guest table\r\nFree use of 2 stage lights\r\n\r\nEvent duration: 3û4 hours only\r\n",
+    "included_items": "",
+    "image": "packages/adult_package_3.jpg",
+    "status": "active",
+    "created_at": "2026-05-27T06:45:12.945Z",
+    "updated_at": "2026-05-29T22:01:58.821Z"
+  }
+},
+{
+  "model": "hanilies.package",
+  "pk": 11,
+  "fields": {
+    "name": "Adult Birthday Party Package B",
+    "package_type": "adults_party",
+    "description": "Adult birthday package with 2 tier Cake and 24 cupcakes",
+    "base_price": "10999.00",
+    "features": "Cake table set up\r\nStage Decoration\r\nName & Age of Celebrant\r\n1 Garland balloon\r\n8 Center Piece balloon for guest table\r\nFree use of 2 stage lights\r\n\r\nEvent duration: 3û4 hours only\r\n",
+    "included_items": "",
+    "image": "packages/adult.jpg",
+    "status": "active",
+    "created_at": "2026-05-27T06:46:36.257Z",
+    "updated_at": "2026-05-29T22:44:50.983Z"
+  }
+},
+{
+  "model": "hanilies.package",
+  "pk": 12,
+  "fields": {
+    "name": "Adult Birthday Party Package C",
+    "package_type": "adults_party",
+    "description": "Adult birthday package expanded with sweet corner , 3 tier Cake and 30 cupcakes",
+    "base_price": "14999.00",
+    "features": "Table set-up\r\nStage Decoration and Accessories with 4 Lights\r\nName & Age of Celebrant\r\n1 Garland balloon\r\n10 centerpiece balloons for guest table\r\nSweet Corner:\r\n30 pcs brownie\r\n30 pcs cake slices\r\n40 pcs Coco macaroons\r\n30 choco chip cookies\r\n30 mini donuts\r\n1 Chocolate fountain with 2 kinds of fruits\r\nMarshmallow\r\n1 jar wafer stick\r\n\r\nEvent duration: 3û4 hours only\r\n",
+    "included_items": "",
+    "image": "packages/adult_c.jpg",
+    "status": "active",
+    "created_at": "2026-05-27T06:49:40.448Z",
+    "updated_at": "2026-05-29T22:48:18.154Z"
+  }
+},
+{
+  "model": "hanilies.packagethumbnail",
+  "pk": 10,
+  "fields": {
+    "package": 10,
+    "image": "packages/thumbnails/1.png",
+    "sort_order": 1,
+    "created_at": "2026-05-29T21:59:21.239Z",
+    "updated_at": "2026-05-29T21:59:21.239Z"
+  }
+},
+{
+  "model": "hanilies.packagethumbnail",
+  "pk": 11,
+  "fields": {
+    "package": 10,
+    "image": "packages/thumbnails/2.png",
+    "sort_order": 2,
+    "created_at": "2026-05-29T22:01:58.830Z",
+    "updated_at": "2026-05-29T22:01:58.830Z"
+  }
+},
+{
+  "model": "hanilies.packagethumbnail",
+  "pk": 16,
+  "fields": {
+    "package": 11,
+    "image": "packages/thumbnails/2_ln5gzVB.png",
+    "sort_order": 1,
+    "created_at": "2026-05-29T22:44:51.016Z",
+    "updated_at": "2026-05-29T22:44:51.016Z"
+  }
+},
+{
+  "model": "hanilies.packagethumbnail",
+  "pk": 17,
+  "fields": {
+    "package": 11,
+    "image": "packages/thumbnails/1.jpg",
+    "sort_order": 3,
+    "created_at": "2026-05-29T22:44:51.028Z",
+    "updated_at": "2026-05-29T22:44:51.028Z"
+  }
+},
+{
+  "model": "hanilies.packagethumbnail",
+  "pk": 18,
+  "fields": {
+    "package": 12,
+    "image": "packages/thumbnails/add.jpg",
+    "sort_order": 1,
+    "created_at": "2026-05-29T22:48:18.164Z",
+    "updated_at": "2026-05-29T22:48:18.164Z"
+  }
+},
+{
+  "model": "hanilies.packagethumbnail",
+  "pk": 19,
+  "fields": {
+    "package": 12,
+    "image": "packages/thumbnails/balloon_adult__bday_9.jpg",
+    "sort_order": 2,
+    "created_at": "2026-05-29T22:48:18.171Z",
+    "updated_at": "2026-05-29T22:48:18.171Z"
+  }
+},
+{
+  "model": "hanilies.packagethumbnail",
+  "pk": 20,
+  "fields": {
+    "package": 2,
+    "image": "packages/thumbnails/sweet_corner_kids_crhistening.jpg",
+    "sort_order": 1,
+    "created_at": "2026-05-29T22:52:02.815Z",
+    "updated_at": "2026-05-29T22:52:02.815Z"
+  }
+},
+{
+  "model": "hanilies.packagethumbnail",
+  "pk": 21,
+  "fields": {
+    "package": 2,
+    "image": "packages/thumbnails/souviner_corner_bday.jpg",
+    "sort_order": 2,
+    "created_at": "2026-05-29T22:52:02.822Z",
+    "updated_at": "2026-05-29T22:52:02.823Z"
+  }
+},
+{
+  "model": "hanilies.packagethumbnail",
+  "pk": 22,
+  "fields": {
+    "package": 1,
+    "image": "packages/thumbnails/kids_cupcake_crhistening.jpg",
+    "sort_order": 1,
+    "created_at": "2026-05-29T22:53:45.833Z",
+    "updated_at": "2026-05-29T22:53:45.833Z"
+  }
+},
+{
+  "model": "hanilies.packagethumbnail",
+  "pk": 23,
+  "fields": {
+    "package": 1,
+    "image": "packages/thumbnails/baloon_christening.jpg",
+    "sort_order": 2,
+    "created_at": "2026-05-29T22:53:45.842Z",
+    "updated_at": "2026-05-29T22:53:45.842Z"
+  }
+},
+{
+  "model": "hanilies.packagethumbnail",
+  "pk": 24,
+  "fields": {
+    "package": 4,
+    "image": "packages/thumbnails/10a.jpg",
+    "sort_order": 1,
+    "created_at": "2026-05-29T22:57:57.291Z",
+    "updated_at": "2026-05-29T22:57:57.291Z"
+  }
+},
+{
+  "model": "hanilies.packagethumbnail",
+  "pk": 25,
+  "fields": {
+    "package": 4,
+    "image": "packages/thumbnails/cupcake_kids.jpg",
+    "sort_order": 2,
+    "created_at": "2026-05-29T22:57:57.298Z",
+    "updated_at": "2026-05-29T22:57:57.298Z"
+  }
+},
+{
+  "model": "hanilies.packagethumbnail",
+  "pk": 26,
+  "fields": {
+    "package": 7,
+    "image": "packages/thumbnails/wedding_1.jpg",
+    "sort_order": 1,
+    "created_at": "2026-05-29T22:59:17.475Z",
+    "updated_at": "2026-05-29T22:59:17.475Z"
+  }
+},
+{
+  "model": "hanilies.packagethumbnail",
+  "pk": 27,
+  "fields": {
+    "package": 7,
+    "image": "packages/thumbnails/wedding_6a.jpg",
+    "sort_order": 2,
+    "created_at": "2026-05-29T22:59:17.489Z",
+    "updated_at": "2026-05-29T22:59:17.489Z"
+  }
+},
+{
+  "model": "hanilies.packagethumbnail",
+  "pk": 28,
+  "fields": {
+    "package": 7,
+    "image": "packages/thumbnails/table_set__up_wedding.jpg",
+    "sort_order": 3,
+    "created_at": "2026-05-29T22:59:17.498Z",
+    "updated_at": "2026-05-29T22:59:17.498Z"
+  }
+},
+{
+  "model": "hanilies.packagethumbnail",
+  "pk": 29,
+  "fields": {
+    "package": 6,
+    "image": "packages/thumbnails/wedding_2.jpg",
+    "sort_order": 1,
+    "created_at": "2026-05-29T23:02:21.332Z",
+    "updated_at": "2026-05-29T23:02:21.332Z"
+  }
+},
+{
+  "model": "hanilies.packagethumbnail",
+  "pk": 30,
+  "fields": {
+    "package": 6,
+    "image": "packages/thumbnails/sweet_corner_3.jpg",
+    "sort_order": 2,
+    "created_at": "2026-05-29T23:02:21.344Z",
+    "updated_at": "2026-05-29T23:02:21.344Z"
+  }
+},
+{
+  "model": "hanilies.packagethumbnail",
+  "pk": 31,
+  "fields": {
+    "package": 5,
+    "image": "packages/thumbnails/cake_wedding.jpg",
+    "sort_order": 1,
+    "created_at": "2026-05-29T23:14:47.171Z",
+    "updated_at": "2026-05-29T23:14:47.171Z"
+  }
+},
+{
+  "model": "hanilies.packagethumbnail",
+  "pk": 32,
+  "fields": {
+    "package": 5,
+    "image": "packages/thumbnails/wedding_6.jpg",
+    "sort_order": 2,
+    "created_at": "2026-05-29T23:14:47.193Z",
+    "updated_at": "2026-05-29T23:14:47.193Z"
+  }
+},
+{
+  "model": "hanilies.packagethumbnail",
+  "pk": 34,
+  "fields": {
+    "package": 8,
+    "image": "packages/thumbnails/backdrop_baloon_kids.jpg",
+    "sort_order": 2,
+    "created_at": "2026-05-29T23:20:36.215Z",
+    "updated_at": "2026-05-29T23:20:36.215Z"
+  }
+},
+{
+  "model": "hanilies.packagethumbnail",
+  "pk": 35,
+  "fields": {
+    "package": 9,
+    "image": "packages/thumbnails/99.jpg",
+    "sort_order": 1,
+    "created_at": "2026-05-29T23:24:08.102Z",
+    "updated_at": "2026-05-29T23:24:08.102Z"
+  }
+},
+{
+  "model": "hanilies.packagethumbnail",
+  "pk": 38,
+  "fields": {
+    "package": 8,
+    "image": "packages/thumbnails/50.jpg",
+    "sort_order": 1,
+    "created_at": "2026-05-29T23:29:07.764Z",
+    "updated_at": "2026-05-29T23:29:07.764Z"
+  }
+},
+{
+  "model": "hanilies.packagethumbnail",
+  "pk": 39,
+  "fields": {
+    "package": 3,
+    "image": "packages/thumbnails/1000036937.jpg",
+    "sort_order": 1,
+    "created_at": "2026-05-29T23:31:59.027Z",
+    "updated_at": "2026-05-29T23:31:59.027Z"
+  }
+}
 ]
