@@ -1072,6 +1072,14 @@ class SecurityValidationTests(TestCase):
         self.assertEqual(refund_request.status, 'requested')
         self.assertEqual(refund_request.refundable_amount, Decimal('600.00'))
 
+        tracking_response = self.client.get(
+            f'{reverse("order_tracking")}?type=cake&id={order.id}')
+        self.assertEqual(tracking_response.status_code, 200)
+        self.assertContains(tracking_response, 'View Cancellation Details')
+        self.assertContains(tracking_response, 'id="open-cancellation-details-button"', html=False)
+        self.assertContains(tracking_response, 'id="cancellation-request-card"', html=False)
+        self.assertContains(tracking_response, 'd-none', html=False)
+
         self.client.login(username='admin-user', password='TestPass123!')
         approve_response = self.client.post(
             reverse('admin_refund_update', args=[refund_request.id]),
