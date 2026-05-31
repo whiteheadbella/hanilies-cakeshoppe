@@ -1936,6 +1936,11 @@ class RemoteBrowserDemoBotTests(TestCase):
         demo_user = User.objects.get(username='paneldemo')
         self.assertTrue(demo_user.cake_orders.exists())
         self.assertTrue(demo_user.package_orders.exists())
+        demo_cake_order = demo_user.cake_orders.order_by('-id').first()
+        self.assertEqual(
+            payload['browser_demo']['step_urls']['order_tracking'],
+            f"{reverse('order_tracking')}?type=cake&id={demo_cake_order.id}",
+        )
 
     def test_remote_demo_bot_status_and_stop_work_for_browser_mode(self):
         self.client.post(

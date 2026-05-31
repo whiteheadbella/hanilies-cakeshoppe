@@ -1053,7 +1053,7 @@ def _build_browser_demo_payload(request, scenario, script_steps, payment_mode):
         'package_order': f"{reverse('order_package')}?package_id={package.id}",
         'package_tracking': f"{reverse('order_tracking')}?type=package&id={package_order.id}",
         'profile': reverse('profile'),
-        'order_tracking': reverse('order_tracking'),
+        'order_tracking': f"{reverse('order_tracking')}?type=cake&id={cake_order.id}",
         'about': reverse('about'),
         'contact': reverse('contact'),
     }

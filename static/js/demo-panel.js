@@ -36,8 +36,8 @@
         packages: 'Showing the live package catalog...',
         package_order: 'Opening the package order flow...',
         package_tracking: 'Showing the demo package tracking page...',
-        profile: 'Showing the demo customer profile...',
-        order_tracking: 'Opening the full tracking dashboard...',
+        profile: 'Opening the demo customer profile editor...',
+        order_tracking: 'Opening the tracking dashboard with cancellation details...',
         about: 'Opening the about page...',
         contact: 'Opening the contact page...'
     };
@@ -413,6 +413,103 @@
         return true;
     }
 
+    function handleProfileStep(plan) {
+        const targetUrl = plan.step_urls ? plan.step_urls.profile : null;
+        if (!locationMatchesTarget(targetUrl)) {
+            window.location.assign(targetUrl);
+            return true;
+        }
+
+        if (plan.profileUpdated) {
+            scheduleBrowserDemoAction(() => {
+                advanceBrowserDemo(plan);
+            }, holdDurationForPlan(plan, 2200));
+            return true;
+        }
+
+        const form = document.querySelector('#profile-edit-card form[action$="/profile/"]') || document.querySelector('form[action="/profile/"]');
+        if (!form) {
+            setStatus('Unable to find the profile edit form for the browser demo.', 'error');
+            return true;
+        }
+
+        setFieldValue('input[name="first_name"]', 'Panel');
+        setFieldValue('input[name="last_name"]', 'Demo');
+        setFieldValue('input[name="email"]', 'paneldemo@example.com');
+        setFieldValue('input[name="phone"]', '09171234567');
+        setFieldValue('textarea[name="address"]', '123 Demo Street, Lucena City');
+
+        plan.profileUpdated = true;
+        saveBrowserDemoPlan(plan);
+        scheduleFormSubmission(() => {
+            form.requestSubmit ? form.requestSubmit() : form.submit();
+        }, holdDurationForPlan(plan, 1200));
+        return true;
+    }
+
+    function handleOrderTrackingStep(plan) {
+        const targetUrl = plan.step_urls ? plan.step_urls.order_tracking : null;
+        if (!locationMatchesTarget(targetUrl)) {
+            window.location.assign(targetUrl);
+            return true;
+        }
+
+        if (plan.cancellationDetailsShown) {
+            scheduleBrowserDemoAction(() => {
+                advanceBrowserDemo(plan);
+            }, holdDurationForPlan(plan, 2200));
+            return true;
+        }
+
+        const detailsButton = document.getElementById('open-cancellation-details-button');
+        if (detailsButton) {
+            scheduleBrowserDemoAction(() => {
+                detailsButton.click();
+                plan.cancellationDetailsShown = true;
+                saveBrowserDemoPlan(plan);
+                scheduleBrowserDemoAction(() => {
+                    advanceBrowserDemo(plan);
+                }, holdDurationForPlan(plan, 2200));
+            }, holdDurationForPlan(plan, 900));
+            return true;
+        }
+
+        const formButton = document.getElementById('open-cancellation-form-button');
+        const inlineForm = document.getElementById('inline-cancellation-form');
+
+        if (formButton && inlineForm && inlineForm.classList.contains('d-none')) {
+            scheduleBrowserDemoAction(() => {
+                formButton.click();
+            }, holdDurationForPlan(plan, 900));
+            return true;
+        }
+
+        if (inlineForm && !inlineForm.classList.contains('d-none')) {
+            const reasonField = inlineForm.querySelector('textarea[name="reason"]');
+            const form = inlineForm.querySelector('form');
+            if (!reasonField || !form) {
+                setStatus('Unable to find the cancellation form for the browser demo.', 'error');
+                return true;
+            }
+
+            reasonField.value = 'Panel defense walkthrough: showing the updated cancellation and refund flow.';
+            reasonField.dispatchEvent(new Event('input', { bubbles: true }));
+            reasonField.dispatchEvent(new Event('change', { bubbles: true }));
+
+            plan.cancellationRequested = true;
+            saveBrowserDemoPlan(plan);
+            scheduleFormSubmission(() => {
+                form.requestSubmit ? form.requestSubmit() : form.submit();
+            }, holdDurationForPlan(plan, 1200));
+            return true;
+        }
+
+        scheduleBrowserDemoAction(() => {
+            advanceBrowserDemo(plan);
+        }, holdDurationForPlan(plan, 1800));
+        return true;
+    }
+
     function maybeRunBrowserDemo() {
         const plan = loadBrowserDemoPlan();
         if (!plan || plan.mode !== 'browser') {
@@ -441,6 +538,16 @@
 
         if (currentStep === 'package_order') {
             handlePackageOrderStep(plan);
+            return;
+        }
+
+        if (currentStep === 'profile') {
+            handleProfileStep(plan);
+            return;
+        }
+
+        if (currentStep === 'order_tracking') {
+            handleOrderTrackingStep(plan);
             return;
         }
 
