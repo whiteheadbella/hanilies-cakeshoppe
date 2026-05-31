@@ -169,14 +169,14 @@
                             </div>
                         </div>
 
-                        <h6 class="fw-bold mb-3">Payment Method</h6>
+                        <h6 class="fw-bold mb-3">Payment Plan</h6>
                         <div class="row g-3 mb-4">
                             <div class="col-md-6">
                                 <label class="form-check border rounded p-3 h-100 payment-option">
                                     <input class="form-check-input payment-radio" type="radio" name="payment_method" value="cod" checked>
                                     <span class="form-check-label ms-2">
-                                        <strong>Cash on Delivery</strong><br>
-                                        <span class="text-muted">Payment will be collected during pickup or delivery.</span>
+                                        <strong>{{ payment_plan_labels.cod }}</strong><br>
+                                        <span class="text-muted">Pay a 50% GCash deposit now. The remaining balance will be collected during pickup or delivery.</span>
                                     </span>
                                 </label>
                             </div>
@@ -184,14 +184,14 @@
                                 <label class="form-check border rounded p-3 h-100 payment-option">
                                     <input class="form-check-input payment-radio" type="radio" name="payment_method" value="gcash">
                                     <span class="form-check-label ms-2">
-                                        <strong>GCash</strong><br>
-                                        <span class="text-muted">Upload your reference number and proof of payment.</span>
+                                        <strong>{{ payment_plan_labels.gcash }}</strong><br>
+                                        <span class="text-muted">Settle the whole order amount through GCash during checkout.</span>
                                     </span>
                                 </label>
                             </div>
                         </div>
 
-                        <div id="gcash-fields" class="border rounded p-3 mb-4 d-none">
+                        <div id="gcash-fields" class="border rounded p-3 mb-4">
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <label class="form-label fw-semibold">GCash Reference Number</label>
@@ -214,9 +214,10 @@
                                             </div>
                                             <div class="col-md-8">
                                                 <h6 class="fw-bold mb-2">GCash Payment Instructions</h6>
+                                                <div class="small text-muted mb-2">Use this for the required deposit or full payment shown below.</div>
                                                 <div class="small mb-1"><strong>Account Name:</strong> {{ gcash_account.account_name }}</div>
                                                 <div class="small mb-1"><strong>GCash Number:</strong> {{ gcash_account.account_number }}</div>
-                                                <div class="small mb-1"><strong>Amount:</strong> <span id="cake-gcash-amount">{{ gcash_preview.amount_label }}</span></div>
+                                                <div class="small mb-1"><strong>Amount Due Now:</strong> <span id="cake-gcash-amount">{{ gcash_preview.amount_label }}</span></div>
                                                 <div class="small text-muted" id="cake-gcash-note">{{ gcash_account.payment_note }}</div>
                                             </div>
                                         </div>
@@ -292,8 +293,16 @@
                                         <div id="review-cake-date">Not selected</div>
                                     </div>
                                     <div class="col-md-6">
-                                        <div class="fw-semibold text-muted">Payment Method</div>
-                                        <div id="review-cake-payment">Cash on Delivery</div>
+                                        <div class="fw-semibold text-muted">Payment Plan</div>
+                                        <div id="review-cake-payment">{{ payment_plan_labels.cod }}</div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="fw-semibold text-muted">Pay Now</div>
+                                        <div id="review-cake-deposit">P{{ default_deposit_amount }}</div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="fw-semibold text-muted">Balance Due</div>
+                                        <div id="review-cake-balance">P{{ default_deposit_amount }}</div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="fw-semibold text-muted">GCash Reference</div>
@@ -323,6 +332,9 @@
                                         <div class="fw-semibold text-muted">Special Instructions</div>
                                         <div id="review-cake-instructions">None</div>
                                     </div>
+                                </div>
+                                <div class="alert alert-warning small mt-3 mb-0">
+                                    Cancellation policy: cake orders cancelled at least 48 hours before delivery have no fee, within 24 to 48 hours incur a 20% fee on the paid GCash amount, and once preparing starts the fee is 50%.
                                 </div>
                             </div>
                         </div>
@@ -369,18 +381,26 @@
                     </div>
                     <hr>
                     <div class="d-flex justify-content-between mb-2">
-                        <span>Base Price</span>
+                        <span>Total Order</span>
                         <span id="summary-base">P{{ cake.price }}</span>
                     </div>
                     <div class="d-flex justify-content-between mb-2">
                         <span>Decoration Add-ons</span>
                         <span id="summary-addons">P0.00</span>
                     </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Amount Due Now</span>
+                        <span id="summary-deposit">P{{ default_deposit_amount }}</span>
+                    </div>
                     <div class="d-flex justify-content-between mb-3">
-                        <span>Total</span>
+                        <span>Balance Due Later</span>
+                        <strong id="summary-balance">P{{ default_deposit_amount }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3">
+                        <span>Order Total</span>
                         <strong class="text-gold-pink" id="summary-total">P{{ cake.price }}</strong>
                     </div>
-                    <div class="small text-muted">GCash orders will stay under verification until approved by the admin panel.</div>
+                    <div class="small text-muted">The order stays pending until the GCash deposit or full payment is approved by the admin panel.</div>
                 </div>
             </div>
         </div>
@@ -413,6 +433,10 @@
     const cakeDesignReferenceInput = cakeOrderForm.querySelector('input[name="design_reference"]');
     const paymentQrPreviewUrl = '{{ payment_qr_preview_url }}';
     const cakeOrderLabel = '{{ cake.name|escapejs }} cake order';
+    const paymentPlanLabels = {
+        cod: '{{ payment_plan_labels.cod|escapejs }}',
+        gcash: '{{ payment_plan_labels.gcash|escapejs }}',
+    };
     let cakeQrRefreshTimer;
     let cakeReviewReady = false;
 
@@ -433,24 +457,32 @@
         };
     }
 
+    function getCakePaymentBreakdown() {
+        const { total } = getCakeTotals();
+        const selectedPlan = document.querySelector('.payment-radio:checked').value;
+        const dueNow = selectedPlan === 'gcash' ? total : total / 2;
+        return {
+            selectedPlan,
+            dueNow,
+            balanceDue: Math.max(total - dueNow, 0),
+        };
+    }
+
     function updateCakeSummary() {
         const { quantity, addonTotal, total } = getCakeTotals();
+        const { dueNow, balanceDue } = getCakePaymentBreakdown();
         document.getElementById('summary-theme').textContent = themeSelect.value || 'Not selected';
         document.getElementById('summary-size').textContent = sizeSelect.value || 'Not selected';
         document.getElementById('summary-quantity').textContent = quantity;
         document.getElementById('summary-addons').textContent = `P${addonTotal.toFixed(2)}`;
+        document.getElementById('summary-base').textContent = `P${total.toFixed(2)}`;
+        document.getElementById('summary-deposit').textContent = `P${dueNow.toFixed(2)}`;
+        document.getElementById('summary-balance').textContent = `P${balanceDue.toFixed(2)}`;
         document.getElementById('summary-total').textContent = `P${total.toFixed(2)}`;
-
-        if (document.querySelector('.payment-radio:checked').value === 'gcash') {
-            scheduleCakeQrRefresh(total);
-        }
+        scheduleCakeQrRefresh(dueNow);
     }
 
     async function refreshCakeGcashQr(total) {
-        if (document.querySelector('.payment-radio:checked').value !== 'gcash') {
-            return;
-        }
-
         cakeGcashAmount.textContent = `P${total.toFixed(2)}`;
 
         try {
@@ -481,15 +513,12 @@
     }
 
     function updatePaymentSummary() {
-        const selectedPayment = document.querySelector('.payment-radio:checked').value;
-        document.getElementById('summary-payment').textContent = selectedPayment === 'gcash' ? 'GCash' : 'Cash on Delivery';
-        gcashFields.classList.toggle('d-none', selectedPayment !== 'gcash');
-        cakeReferenceInput.required = selectedPayment === 'gcash';
-        cakeProofInput.required = selectedPayment === 'gcash';
-
-        if (selectedPayment === 'gcash') {
-            scheduleCakeQrRefresh(getCakeTotals().total);
-        }
+        const { selectedPlan, dueNow } = getCakePaymentBreakdown();
+        document.getElementById('summary-payment').textContent = paymentPlanLabels[selectedPlan];
+        gcashFields.classList.remove('d-none');
+        cakeReferenceInput.required = true;
+        cakeProofInput.required = true;
+        scheduleCakeQrRefresh(dueNow);
     }
 
     function resetCakeReviewState() {
@@ -500,7 +529,7 @@
     }
 
     function populateCakeReview() {
-        const selectedPayment = document.querySelector('.payment-radio:checked').value;
+        const { selectedPlan, dueNow, balanceDue } = getCakePaymentBreakdown();
         const selectedDecorations = Array.from(addonCheckboxes)
             .filter((checkbox) => checkbox.checked)
             .map((checkbox) => checkbox.closest('label').querySelector('strong').textContent.trim());
@@ -518,13 +547,11 @@
         document.getElementById('review-cake-message').textContent = cakeOrderForm.querySelector('input[name="message_on_cake"]').value.trim() || 'None';
         document.getElementById('review-cake-design').textContent = cakeDesignReferenceInput.files[0]?.name || 'No file selected';
         document.getElementById('review-cake-date').textContent = cakeOrderForm.querySelector('input[name="delivery_date"]').value || 'Not selected';
-        document.getElementById('review-cake-payment').textContent = selectedPayment === 'gcash' ? 'GCash' : 'Cash on Delivery';
-        document.getElementById('review-cake-reference').textContent = selectedPayment === 'gcash'
-            ? (cakeReferenceInput.value.trim() || 'Missing reference number')
-            : 'Not required';
-        document.getElementById('review-cake-proof').textContent = selectedPayment === 'gcash'
-            ? (cakeProofInput.files[0]?.name || 'Missing proof of payment')
-            : 'Not required';
+        document.getElementById('review-cake-payment').textContent = paymentPlanLabels[selectedPlan];
+        document.getElementById('review-cake-deposit').textContent = `P${dueNow.toFixed(2)}`;
+        document.getElementById('review-cake-balance').textContent = `P${balanceDue.toFixed(2)}`;
+        document.getElementById('review-cake-reference').textContent = cakeReferenceInput.value.trim() || 'Missing reference number';
+        document.getElementById('review-cake-proof').textContent = cakeProofInput.files[0]?.name || 'Missing proof of payment';
         document.getElementById('review-cake-address').textContent = cakeOrderForm.querySelector('textarea[name="delivery_address"]').value.trim() || 'Not provided';
         document.getElementById('review-cake-contact-name').textContent = cakeOrderForm.querySelector('input[name="contact_name"]').value.trim() || 'Not provided';
         document.getElementById('review-cake-contact-phone').textContent = cakeOrderForm.querySelector('input[name="contact_phone"]').value.trim() || 'Not provided';

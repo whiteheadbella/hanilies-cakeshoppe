@@ -31,6 +31,7 @@ class Notification(models.Model):
     NOTIFICATION_TYPES = [
         ('order_status', 'Order Status'),
         ('payment_status', 'Payment Status'),
+        ('refund_status', 'Refund Status'),
     ]
 
     user = models.ForeignKey(
@@ -87,6 +88,11 @@ class Cake(models.Model):
 
 
 class CakeOrder(models.Model):
+    PAYMENT_PLANS = [
+        ('cod', '50% GCash Deposit + COD Balance'),
+        ('gcash', 'Full GCash Payment'),
+    ]
+
     ORDER_STATUS = [
         ('pending', 'Pending'),
         ('confirmed', 'Confirmed'),
@@ -102,6 +108,12 @@ class CakeOrder(models.Model):
         Cake, on_delete=models.CASCADE, related_name='orders', null=True, blank=True)
     quantity = models.IntegerField(default=1)
     total_price = models.DecimalField(max_digits=10, decimal_places=2)
+    payment_plan = models.CharField(
+        max_length=20, choices=PAYMENT_PLANS, default='cod')
+    deposit_amount = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0)
+    balance_due = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0)
     order_status = models.CharField(
         max_length=20, choices=ORDER_STATUS, default='pending')
 
@@ -227,6 +239,11 @@ class PackageThumbnail(models.Model):
 
 
 class PackageOrder(models.Model):
+    PAYMENT_PLANS = [
+        ('cod', '50% GCash Deposit + COD Balance'),
+        ('gcash', 'Full GCash Payment'),
+    ]
+
     ORDER_STATUS = [
         ('pending', 'Pending'),
         ('confirmed', 'Confirmed'),
@@ -248,6 +265,12 @@ class PackageOrder(models.Model):
     package = models.ForeignKey(
         Package, on_delete=models.CASCADE, related_name='orders', null=True, blank=True)
     total_price = models.DecimalField(max_digits=10, decimal_places=2)
+    payment_plan = models.CharField(
+        max_length=20, choices=PAYMENT_PLANS, default='cod')
+    deposit_amount = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0)
+    balance_due = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0)
     order_status = models.CharField(
         max_length=20, choices=ORDER_STATUS, default='pending')
 
@@ -307,8 +330,17 @@ class Payment(models.Model):
         ('cancelled', 'Cancelled'),
     ]
 
+    PAYMENT_PURPOSES = [
+        ('deposit', 'Deposit'),
+        ('balance', 'Remaining Balance'),
+        ('full', 'Full Payment'),
+        ('refund', 'Refund'),
+    ]
+
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     payment_method = models.CharField(max_length=20, choices=PAYMENT_METHODS)
+    payment_purpose = models.CharField(
+        max_length=20, choices=PAYMENT_PURPOSES, default='full')
     payment_status = models.CharField(
         max_length=20, choices=PAYMENT_STATUS, default='pending')
 
@@ -319,6 +351,7 @@ class Payment(models.Model):
 
     reference_number = models.CharField(max_length=100, blank=True)
     proof_image = models.ImageField(upload_to='proofs/', blank=True, null=True)
+    notes = models.TextField(blank=True)
     paid_at = models.DateTimeField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -326,6 +359,78 @@ class Payment(models.Model):
 
     def __str__(self):
         return f"Payment #{self.id} - {self.amount}"
+
+
+class RefundRequest(models.Model):
+    REFUND_STATUS = [
+        ('requested', 'Requested'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('processing', 'Processing'),
+        ('processed', 'Processed'),
+    ]
+
+    cake_order = models.OneToOneField(
+        CakeOrder,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='refund_request',
+    )
+    package_order = models.OneToOneField(
+        PackageOrder,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='refund_request',
+    )
+    payment = models.ForeignKey(
+        Payment,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='refund_requests',
+    )
+    requested_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='requested_refunds',
+    )
+    approved_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='approved_refunds',
+    )
+    processed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='processed_refunds',
+    )
+    reason = models.TextField()
+    internal_note = models.TextField(blank=True)
+    penalty_fee = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0)
+    refundable_amount = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0)
+    status = models.CharField(
+        max_length=20, choices=REFUND_STATUS, default='requested')
+    refund_reference_number = models.CharField(max_length=100, blank=True)
+    requested_at = models.DateTimeField(auto_now_add=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-requested_at']
+
+    def __str__(self):
+        if self.cake_order_id:
+            return f"Refund for Cake Order #{self.cake_order_id}"
+        return f"Refund for Package Order #{self.package_order_id}"
 
 
 class ActivityLog(models.Model):

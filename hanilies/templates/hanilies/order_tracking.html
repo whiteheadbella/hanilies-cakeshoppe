@@ -86,6 +86,8 @@
                         <div class="col-md-6">
                             <div class="small text-muted">Placed on</div>
                             <div class="fw-semibold">{{ selected_order.created_at|date:'F d, Y h:i A' }}</div>
+                            <div class="small text-muted mt-2">Payment Plan</div>
+                            <div class="fw-semibold">{{ selected_order.get_payment_plan_display }}</div>
                             <div class="small text-muted mt-2">Total Amount</div>
                             <div class="h5 text-gold-pink mb-0">P{{ selected_order.total_price }}</div>
                         </div>
@@ -123,20 +125,40 @@
                     </div>
                     {% endif %}
 
-                    {% if selected_payment %}
+                    {% if selected_payments %}
                     <div class="alert alert-light border mb-0">
-                        <div class="row g-2 align-items-center">
+                        <div class="row g-3">
                             <div class="col-md-4">
-                                <div class="small text-muted">Payment Method</div>
-                                <div class="fw-semibold">{{ selected_payment.get_payment_method_display }}</div>
+                                <div class="small text-muted">Deposit Paid</div>
+                                <div class="fw-semibold">P{{ selected_order.deposit_amount }}</div>
                             </div>
                             <div class="col-md-4">
-                                <div class="small text-muted">Payment Status</div>
-                                <div class="fw-semibold">{{ selected_payment.get_payment_status_display }}</div>
+                                <div class="small text-muted">Balance Due</div>
+                                <div class="fw-semibold">P{{ selected_order.balance_due }}</div>
                             </div>
                             <div class="col-md-4">
-                                <div class="small text-muted">Reference Number</div>
-                                <div class="fw-semibold">{{ selected_payment.reference_number|default:'Not required' }}</div>
+                                <div class="small text-muted">Latest Refund Status</div>
+                                <div class="fw-semibold">{{ selected_refund_request.get_status_display|default:'No refund request' }}</div>
+                            </div>
+                            <div class="col-12 mt-2">
+                                <div class="small text-muted mb-2">Payment Schedule</div>
+                                <div class="d-flex flex-column gap-2">
+                                    {% for payment in selected_payments %}
+                                    <div class="border rounded-3 p-3 bg-white">
+                                        <div class="d-flex flex-column flex-md-row justify-content-between gap-2">
+                                            <div>
+                                                <div class="fw-semibold">{{ payment.get_payment_purpose_display }} - {{ payment.get_payment_method_display }}</div>
+                                                <div class="small text-muted">Status: {{ payment.get_payment_status_display }}</div>
+                                                <div class="small text-muted">Reference: {{ payment.reference_number|default:'Not required' }}</div>
+                                            </div>
+                                            <div class="text-md-end">
+                                                <div class="fw-semibold">P{{ payment.amount }}</div>
+                                                <div class="small text-muted">{{ payment.created_at|date:'F d, Y h:i A' }}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -179,6 +201,71 @@
                     {% endif %}
                 </div>
             </div>
+
+            {% if selected_refund_request %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-light py-3">
+                    <h5 class="mb-0"><i class="fas fa-rotate-left me-2"></i>Cancellation and Refund Request</h5>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <div class="small text-muted">Status</div>
+                            <div class="fw-semibold">{{ selected_refund_request.get_status_display }}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="small text-muted">Penalty Fee</div>
+                            <div class="fw-semibold">P{{ selected_refund_request.penalty_fee }}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="small text-muted">Refundable Amount</div>
+                            <div class="fw-semibold text-gold-pink">P{{ selected_refund_request.refundable_amount }}</div>
+                        </div>
+                        <div class="col-12">
+                            <div class="small text-muted">Customer Reason</div>
+                            <div>{{ selected_refund_request.reason }}</div>
+                        </div>
+                        <div class="col-12">
+                            <div class="small text-muted">Admin Note</div>
+                            <div>{{ selected_refund_request.internal_note|default:'No note yet.' }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="small text-muted">Requested At</div>
+                            <div>{{ selected_refund_request.requested_at|date:'F d, Y h:i A' }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="small text-muted">Refund Reference</div>
+                            <div>{{ selected_refund_request.refund_reference_number|default:'Not yet provided' }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% elif cancellation_quote %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-light py-3">
+                    <h5 class="mb-0"><i class="fas fa-ban me-2"></i>Request Cancellation</h5>
+                </div>
+                <div class="card-body p-4">
+                    {% if cancellation_quote.allowed %}
+                    <div class="alert alert-warning">
+                        <div><strong>Current Penalty Fee:</strong> P{{ cancellation_quote.penalty_fee }}</div>
+                        <div><strong>Refundable Amount:</strong> P{{ cancellation_quote.refundable_amount }}</div>
+                        <div class="small mt-2">{{ cancellation_quote.reason }}</div>
+                    </div>
+                    <form method="post" action="{% url 'request_order_cancellation' selected_order_type selected_order.id %}">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Reason for Cancellation</label>
+                            <textarea class="form-control" name="reason" rows="3" placeholder="Tell the shop why you need to cancel this order." required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-outline-danger">Submit Cancellation Request</button>
+                    </form>
+                    {% else %}
+                    <div class="alert alert-secondary mb-0">{{ cancellation_quote.reason }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
 
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-light py-3">

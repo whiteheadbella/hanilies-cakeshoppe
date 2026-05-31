@@ -1,0 +1,176 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Refunds{% endblock %}
+{% block page_title %}Cancellation and Refunds{% endblock %}
+{% block page_icon %}rotate-left{% endblock %}
+
+{% block content %}
+<div class="module-card">
+    <div class="module-header">
+        <h2><i class="fas fa-hourglass-half"></i> Pending Cancellation Requests <span class="badge" style="background: #fef3c7; color: #d97706; margin-left: 10px;">{{ requested_refunds.count }}</span></h2>
+    </div>
+    <div class="table-responsive">
+        <table class="module-table">
+            <thead>
+                <tr>
+                    <th>Request</th>
+                    <th>Order</th>
+                    <th>Customer</th>
+                    <th>Penalty</th>
+                    <th>Refundable</th>
+                    <th>Reason</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for refund in requested_refunds %}
+                <tr>
+                    <td>#{{ refund.id }}</td>
+                    <td>
+                        {% if refund.cake_order %}
+                            Cake Order #{{ refund.cake_order.id }}
+                        {% else %}
+                            Package Order #{{ refund.package_order.id }}
+                        {% endif %}
+                    </td>
+                    <td>{{ refund.requested_by.username }}</td>
+                    <td>₱{{ refund.penalty_fee }}</td>
+                    <td><strong>₱{{ refund.refundable_amount }}</strong></td>
+                    <td>{{ refund.reason|truncatechars:80 }}</td>
+                    <td>
+                        {% if request.user.is_superuser or request.user.profile.role == 'owner' or request.user.profile.role == 'admin' or request.user.profile.role == 'manager' %}
+                        <form method="post" action="{% url 'admin_refund_update' refund.id %}" style="display: flex; flex-direction: column; gap: 8px; min-width: 220px;">
+                            {% csrf_token %}
+                            <input type="text" name="penalty_fee" class="form-control" placeholder="Penalty fee override">
+                            <textarea name="internal_note" class="form-control" rows="2" placeholder="Internal note"></textarea>
+                            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                <button type="submit" name="action" value="approve" class="btn-approve">Approve</button>
+                                <button type="submit" name="action" value="reject" class="btn-reject">Reject</button>
+                            </div>
+                        </form>
+                        {% else %}
+                        <span class="text-muted small">Manager/Admin approval required</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-center">No pending cancellation requests</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="module-card">
+    <div class="module-header">
+        <h2><i class="fas fa-wallet"></i> Approved Refunds Waiting for Cashier <span class="badge" style="background: #dbeafe; color: #1d4ed8; margin-left: 10px;">{{ approved_refunds.count }}</span></h2>
+    </div>
+    <div class="table-responsive">
+        <table class="module-table">
+            <thead>
+                <tr>
+                    <th>Request</th>
+                    <th>Order</th>
+                    <th>Approved By</th>
+                    <th>Refundable</th>
+                    <th>Note</th>
+                    <th>Process</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for refund in approved_refunds %}
+                <tr>
+                    <td>#{{ refund.id }}</td>
+                    <td>
+                        {% if refund.cake_order %}
+                            Cake Order #{{ refund.cake_order.id }}
+                        {% else %}
+                            Package Order #{{ refund.package_order.id }}
+                        {% endif %}
+                    </td>
+                    <td>{{ refund.approved_by.username|default:'-' }}</td>
+                    <td><strong>₱{{ refund.refundable_amount }}</strong></td>
+                    <td>{{ refund.internal_note|default:'-' }}</td>
+                    <td>
+                        {% if request.user.is_superuser or request.user.profile.role == 'owner' or request.user.profile.role == 'admin' or request.user.profile.role == 'cashier' %}
+                        <form method="post" action="{% url 'admin_refund_update' refund.id %}" style="display: flex; flex-direction: column; gap: 8px; min-width: 220px;">
+                            {% csrf_token %}
+                            <input type="text" name="refund_reference_number" class="form-control" placeholder="Refund reference number">
+                            <textarea name="internal_note" class="form-control" rows="2" placeholder="Cashier note"></textarea>
+                            <button type="submit" name="action" value="process" class="btn-approve">Mark as Processed</button>
+                        </form>
+                        {% else %}
+                        <span class="text-muted small">Cashier/Admin processing required</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center">No approved refunds awaiting processing</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="module-card">
+    <div class="module-header">
+        <h2><i class="fas fa-clipboard-check"></i> Closed Refund Requests <span class="badge" style="background: #e5e7eb; color: #374151; margin-left: 10px;">{{ closed_refunds.count }}</span></h2>
+    </div>
+    <div class="table-responsive">
+        <table class="module-table">
+            <thead>
+                <tr>
+                    <th>Request</th>
+                    <th>Status</th>
+                    <th>Order</th>
+                    <th>Refundable</th>
+                    <th>Reference</th>
+                    <th>Processed By</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for refund in closed_refunds %}
+                <tr>
+                    <td>#{{ refund.id }}</td>
+                    <td>{{ refund.get_status_display }}</td>
+                    <td>
+                        {% if refund.cake_order %}
+                            Cake Order #{{ refund.cake_order.id }}
+                        {% else %}
+                            Package Order #{{ refund.package_order.id }}
+                        {% endif %}
+                    </td>
+                    <td>₱{{ refund.refundable_amount }}</td>
+                    <td>{{ refund.refund_reference_number|default:'-' }}</td>
+                    <td>{{ refund.processed_by.username|default:refund.approved_by.username|default:'-' }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center">No closed refund requests yet</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+    .table-responsive {
+        overflow-x: auto;
+    }
+    .btn-approve {
+        background: #10b981;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 20px;
+        cursor: pointer;
+    }
+    .btn-reject {
+        background: #dc2626;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 20px;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}

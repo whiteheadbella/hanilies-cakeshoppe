@@ -23,6 +23,8 @@ urlpatterns = [
     path('update-preferences/', views.update_preferences,
          name='update_preferences'),
     path('order-tracking/', views.order_tracking, name='order_tracking'),
+    path('order-cancel/<str:order_type>/<int:order_id>/',
+         views.request_order_cancellation, name='request_order_cancellation'),
 
     # Order pages
     path('cake-customize/', views.cake_customize, name='cake_customize'),
@@ -66,6 +68,9 @@ urlpatterns = [
          views.admin_payment_verify, name='admin_payment_verify'),
     path('admin-panel/payments/delete/<int:payment_id>/',
          views.admin_payment_delete, name='admin_payment_delete'),
+    path('admin-panel/refunds/', views.admin_refunds, name='admin_refunds'),
+    path('admin-panel/refunds/update/<int:refund_id>/',
+         views.admin_refund_update, name='admin_refund_update'),
     path('admin-panel/activity-logs/', views.admin_activity_logs,
          name='admin_activity_logs'),
     path('admin-panel/activity-logs/delete/<int:log_id>/',

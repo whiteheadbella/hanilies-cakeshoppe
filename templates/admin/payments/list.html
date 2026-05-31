@@ -16,6 +16,7 @@
                 <tr>
                     <th>ID</th>
                     <th>Amount</th>
+                    <th>Purpose</th>
                     <th>Method</th>
                     <th>Status</th>
                     <th>Reference</th>
@@ -29,6 +30,7 @@
                 <tr>
                     <td>#{{ payment.id }}</td>
                     <td><strong>₱{{ payment.amount }}</strong></td>
+                    <td>{{ payment.get_payment_purpose_display }}</td>
                     <td>
                         {% if payment.payment_method == 'gcash' %}
                             <span style="color: #00B4D8;">📱 GCash</span>
@@ -56,7 +58,7 @@
                         <form method="post" action="{% url 'admin_payment_verify' payment.id %}" style="display: inline;">
                             {% csrf_token %}
                             <button type="submit" name="action" value="approve" class="btn-approve">
-                                <i class="fas fa-check"></i> Approve
+                                <i class="fas fa-check"></i> Approve {{ payment.get_payment_purpose_display }}
                             </button>
                             <button type="submit" name="action" value="reject" class="btn-reject">
                                 <i class="fas fa-times"></i> Reject
@@ -71,12 +73,61 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="8" class="text-center">
+                    <td colspan="9" class="text-center">
                         <div style="padding: 40px;">
                             <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
                             <p>No payments awaiting review.</p>
                         </div>
                     </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="module-card">
+    <div class="module-header">
+        <h2><i class="fas fa-money-bill-wave"></i> Outstanding COD Balances <span class="badge" style="background: #e0f2fe; color: #0369a1; margin-left: 10px;">{{ balance_payments.count }}</span></h2>
+    </div>
+    <div class="table-responsive">
+        <table class="module-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Amount</th>
+                    <th>Order Type</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for payment in balance_payments %}
+                <tr>
+                    <td>#{{ payment.id }}</td>
+                    <td><strong>₱{{ payment.amount }}</strong></td>
+                    <td>
+                        {% if payment.cake_order %}
+                            Cake Order #{{ payment.cake_order.id }}
+                        {% else %}
+                            Package Order #{{ payment.package_order.id }}
+                        {% endif %}
+                    </td>
+                    <td><span class="badge" style="background: #fef3c7; color: #d97706;">Pending Collection</span></td>
+                    <td>{{ payment.created_at|date:"Y-m-d H:i" }}</td>
+                    <td>
+                        <form method="post" action="{% url 'admin_payment_verify' payment.id %}" style="display: inline;">
+                            {% csrf_token %}
+                            <button type="submit" name="action" value="collect_balance" class="btn-approve">
+                                <i class="fas fa-cash-register"></i> Mark as Collected
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center">No outstanding COD balances</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -95,6 +146,7 @@
                 <tr>
                     <th>ID</th>
                     <th>Amount</th>
+                    <th>Purpose</th>
                     <th>Method</th>
                     <th>Reference</th>
                     <th>Order Type</th>
@@ -107,6 +159,7 @@
                 <tr>
                     <td>#{{ payment.id }}</td>
                     <td>₱{{ payment.amount }}</td>
+                    <td>{{ payment.get_payment_purpose_display }}</td>
                     <td>
                         {% if payment.payment_method == 'gcash' %}
                             <span style="color: #00B4D8;">📱 GCash</span>
@@ -124,17 +177,21 @@
                     </td>
                     <td>{{ payment.paid_at|date:"Y-m-d H:i"|default:payment.created_at|date:"Y-m-d H:i" }}</td>
                     <td>
+                        {% if request.user.is_superuser or request.user.profile.role == 'owner' or request.user.profile.role == 'admin' %}
                         <form method="post" action="{% url 'admin_payment_delete' payment.id %}" style="display: inline;">
                             {% csrf_token %}
                             <button type="submit" onclick="return confirm('Delete payment #{{ payment.id }}?');" class="btn-delete">
                                 <i class="fas fa-trash"></i> Delete
                             </button>
                         </form>
+                        {% else %}
+                        <span class="text-muted small">Owner/Admin only</span>
+                        {% endif %}
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="7" class="text-center">No verified payments yet</td>
+                    <td colspan="8" class="text-center">No verified payments yet</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -153,6 +210,7 @@
                 <tr>
                     <th>ID</th>
                     <th>Amount</th>
+                    <th>Purpose</th>
                     <th>Method</th>
                     <th>Reference</th>
                     <th>Order Type</th>
@@ -165,6 +223,7 @@
                 <tr>
                     <td>#{{ payment.id }}</td>
                     <td>₱{{ payment.amount }}</td>
+                    <td>{{ payment.get_payment_purpose_display }}</td>
                     <td>
                         {% if payment.payment_method == 'gcash' %}
                             <span style="color: #00B4D8;">📱 GCash</span>
@@ -182,17 +241,21 @@
                     </td>
                     <td>{{ payment.created_at|date:"Y-m-d H:i" }}</td>
                     <td>
+                        {% if request.user.is_superuser or request.user.profile.role == 'owner' or request.user.profile.role == 'admin' %}
                         <form method="post" action="{% url 'admin_payment_delete' payment.id %}" style="display: inline;">
                             {% csrf_token %}
                             <button type="submit" onclick="return confirm('Delete payment #{{ payment.id }}?');" class="btn-delete">
                                 <i class="fas fa-trash"></i> Delete
                             </button>
                         </form>
+                        {% else %}
+                        <span class="text-muted small">Owner/Admin only</span>
+                        {% endif %}
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="7" class="text-center">No rejected payments</td>
+                    <td colspan="8" class="text-center">No rejected payments</td>
                 </tr>
                 {% endfor %}
             </tbody>

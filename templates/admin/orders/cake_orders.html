@@ -44,7 +44,9 @@
                                 <option value="out_for_delivery" {% if order.order_status == 'out_for_delivery' %}selected{% endif %}>Out for Delivery</option>
                                 <option value="delivered" {% if order.order_status == 'delivered' %}selected{% endif %}>Delivered</option>
                                 <option value="cancelled" {% if order.order_status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                                {% if request.user.is_superuser or request.user.profile.role == 'owner' or request.user.profile.role == 'admin' or request.user.profile.role == 'manager' %}
                                 <option value="delete">Delete Order</option>
+                                {% endif %}
                             </select>
                             <button type="submit" style="border: none; border-radius: 20px; padding: 4px 10px; background: linear-gradient(135deg, #FF69B4, #D4AF37); color: white; font-size: 0.8rem; font-weight: 600; cursor: pointer;">
                                 Apply

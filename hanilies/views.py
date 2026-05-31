@@ -21,7 +21,7 @@ from django.db.models import Sum, Count, Q
 from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_POST
-from .models import UserProfile, Notification, Cake, CakeOrder, CakeCustomization, Package, PackageOrder, PackageThumbnail, Payment, ActivityLog
+from .models import UserProfile, Notification, Cake, CakeOrder, CakeCustomization, Package, PackageOrder, PackageThumbnail, Payment, RefundRequest, ActivityLog
 from .payment_qr import build_gcash_checkout_details, get_gcash_profile
 
 
@@ -165,12 +165,323 @@ PAYMENT_STATUS_NOTIFICATION_CONFIG = {
     },
 }
 
+REFUND_STATUS_NOTIFICATION_CONFIG = {
+    'requested': {
+        'title': 'Cancellation request received',
+        'message': 'Your cancellation request has been received and is now waiting for admin review.',
+    },
+    'approved': {
+        'title': 'Cancellation approved',
+        'message': 'Your order cancellation was approved. The refundable amount will be processed by the cashier.',
+    },
+    'rejected': {
+        'title': 'Cancellation request rejected',
+        'message': 'Your cancellation request was rejected. Please contact Hanilies Cakeshoppe for more details.',
+    },
+    'processed': {
+        'title': 'Refund processed',
+        'message': 'Your refund has been marked as processed. Please review the reference number in your tracking page.',
+    },
+}
+
+DEPOSIT_RATE = Decimal('0.50')
+STAFF_ROLE_VALUES = {'owner', 'admin', 'manager', 'baker', 'packager', 'cashier'}
+PAYMENT_PLAN_LABELS = {
+    'cod': '50% GCash Deposit + COD Balance',
+    'gcash': 'Full GCash Payment',
+}
+ADMIN_MENU_ITEMS = [
+    {'name': 'Dashboard', 'url': 'admin_dashboard', 'icon': 'tachometer-alt', 'roles': STAFF_ROLE_VALUES},
+    {'name': 'Cakes', 'url': 'admin_cakes', 'icon': 'birthday-cake', 'roles': {'owner', 'admin', 'baker'}},
+    {'name': 'Cake Orders', 'url': 'admin_cake_orders', 'icon': 'shopping-cart', 'roles': {'owner', 'admin', 'manager', 'baker'}},
+    {'name': 'Packages', 'url': 'admin_packages', 'icon': 'gift', 'roles': {'owner', 'admin', 'packager'}},
+    {'name': 'Package Orders', 'url': 'admin_package_orders', 'icon': 'calendar-check', 'roles': {'owner', 'admin', 'manager', 'packager'}},
+    {'name': 'Payments', 'url': 'admin_payments', 'icon': 'credit-card', 'roles': {'owner', 'admin', 'cashier'}},
+    {'name': 'Refunds', 'url': 'admin_refunds', 'icon': 'rotate-left', 'roles': {'owner', 'admin', 'manager', 'cashier'}},
+    {'name': 'Users', 'url': 'admin_users', 'icon': 'users', 'roles': {'owner', 'admin'}},
+    {'name': 'Audit Trail', 'url': 'admin_activity_logs', 'icon': 'clipboard-list', 'roles': {'owner', 'admin'}},
+]
+
 
 def _parse_decimal(value, default='0.00'):
     try:
         return Decimal(str(value))
     except (InvalidOperation, TypeError, ValueError):
         return Decimal(default)
+
+
+def _quantize_amount(value):
+    return _parse_decimal(value).quantize(Decimal('0.01'))
+
+
+def _get_user_role_value(user):
+    if not getattr(user, 'is_authenticated', False):
+        return None
+    if user.is_superuser:
+        return 'owner'
+    if hasattr(user, 'profile'):
+        return user.profile.role
+    return None
+
+
+def _user_has_any_role(user, allowed_roles):
+    role_value = _get_user_role_value(user)
+    return role_value in allowed_roles
+
+
+def _require_admin_roles(request, allowed_roles, redirect_name='admin_dashboard'):
+    if _user_has_any_role(request.user, allowed_roles):
+        return None
+    messages.error(request, 'Permission denied')
+    return redirect(redirect_name)
+
+
+def _get_payment_plan_label(payment_plan):
+    return PAYMENT_PLAN_LABELS.get(payment_plan, PAYMENT_PLAN_LABELS['cod'])
+
+
+def _calculate_deposit_breakdown(total_amount):
+    total_amount = _quantize_amount(total_amount)
+    deposit_amount = _quantize_amount(total_amount * DEPOSIT_RATE)
+    balance_due = _quantize_amount(total_amount - deposit_amount)
+    return deposit_amount, balance_due
+
+
+def _get_order_kind(order):
+    return 'cake' if isinstance(order, CakeOrder) else 'package'
+
+
+def _get_order_label(order):
+    order_kind = _get_order_kind(order)
+    return 'Cake Order' if order_kind == 'cake' else 'Package Order'
+
+
+def _get_order_payments_queryset(order):
+    return order.payments.order_by('created_at', 'id')
+
+
+def _get_order_primary_payment(order):
+    return _get_order_payments_queryset(order).filter(
+        payment_purpose__in=['deposit', 'full'],
+    ).order_by('-created_at', '-id').first()
+
+
+def _get_order_schedule_datetime(order_type, order):
+    if order_type == 'cake':
+        return order.delivery_date
+
+    event_time = order.event_time or datetime.min.time().replace(hour=10, minute=0)
+    event_datetime = datetime.combine(order.event_date, event_time)
+    if timezone.is_naive(event_datetime):
+        return timezone.make_aware(event_datetime)
+    return event_datetime
+
+
+def _get_paid_or_pending_gcash_total(order):
+    total_amount = Decimal('0.00')
+    for payment in _get_order_payments_queryset(order).filter(
+        payment_method='gcash',
+        payment_purpose__in=['deposit', 'full'],
+        payment_status__in=['paid', 'verifying'],
+    ):
+        total_amount += payment.amount
+    return _quantize_amount(total_amount)
+
+
+def _build_cancellation_quote(order_type, order):
+    if order.order_status == 'cancelled':
+        return {
+            'allowed': False,
+            'reason': 'This order is already cancelled.',
+            'penalty_rate': Decimal('0.00'),
+            'penalty_fee': Decimal('0.00'),
+            'refundable_amount': Decimal('0.00'),
+        }
+
+    schedule_datetime = _get_order_schedule_datetime(order_type, order)
+    now = timezone.now()
+    hours_until = None
+    if schedule_datetime is not None:
+        hours_until = (schedule_datetime - now).total_seconds() / 3600
+
+    refundable_base = _get_paid_or_pending_gcash_total(order)
+    if refundable_base <= Decimal('0.00'):
+        return {
+            'allowed': False,
+            'reason': 'There is no verified or pending GCash payment available for refund.',
+            'penalty_rate': Decimal('0.00'),
+            'penalty_fee': Decimal('0.00'),
+            'refundable_amount': Decimal('0.00'),
+        }
+
+    if order_type == 'cake':
+        if order.order_status in ['out_for_delivery', 'delivered']:
+            return {
+                'allowed': False,
+                'reason': 'Cake orders can no longer be cancelled once they are out for delivery or delivered.',
+                'penalty_rate': Decimal('1.00'),
+                'penalty_fee': refundable_base,
+                'refundable_amount': Decimal('0.00'),
+            }
+        if order.order_status == 'preparing' or (hours_until is not None and hours_until < 24):
+            penalty_rate = Decimal('0.50')
+            policy_note = '50% of the paid GCash amount is charged because production has started or the delivery date is less than 24 hours away.'
+        elif hours_until is not None and hours_until < 48:
+            penalty_rate = Decimal('0.20')
+            policy_note = '20% of the paid GCash amount is charged because the delivery date is within 48 hours.'
+        else:
+            penalty_rate = Decimal('0.00')
+            policy_note = 'No cancellation fee applies because the request was submitted at least 48 hours before delivery.'
+    else:
+        if order.order_status in ['ready_for_pickup', 'completed']:
+            return {
+                'allowed': False,
+                'reason': 'Package orders can no longer be cancelled once they are ready for pickup or completed.',
+                'penalty_rate': Decimal('1.00'),
+                'penalty_fee': refundable_base,
+                'refundable_amount': Decimal('0.00'),
+            }
+        if order.order_status == 'preparing' or (hours_until is not None and hours_until < 72):
+            penalty_rate = Decimal('0.50')
+            policy_note = '50% of the paid GCash amount is charged because event preparation has started or the booking is less than 72 hours away.'
+        elif hours_until is not None and hours_until < (7 * 24):
+            penalty_rate = Decimal('0.25')
+            policy_note = '25% of the paid GCash amount is charged because the booking is within 7 days.'
+        else:
+            penalty_rate = Decimal('0.10')
+            policy_note = '10% of the paid GCash amount is charged for early package cancellations.'
+
+    penalty_fee = _quantize_amount(refundable_base * penalty_rate)
+    refundable_amount = _quantize_amount(max(refundable_base - penalty_fee, Decimal('0.00')))
+    return {
+        'allowed': True,
+        'reason': policy_note,
+        'penalty_rate': penalty_rate,
+        'penalty_fee': penalty_fee,
+        'refundable_amount': refundable_amount,
+        'refundable_base': refundable_base,
+    }
+
+
+def _create_refund_status_notification(refund_request):
+    order = refund_request.cake_order or refund_request.package_order
+    if order is None:
+        return None
+
+    notification = REFUND_STATUS_NOTIFICATION_CONFIG.get(refund_request.status)
+    if not notification:
+        return None
+
+    return _create_customer_notification(
+        order.user,
+        'refund_status',
+        notification['title'],
+        (
+            f'{notification["message"]} '
+            f'Penalty fee: P{refund_request.penalty_fee}. '
+            f'Refundable amount: P{refund_request.refundable_amount}.'
+        ),
+        status_value=refund_request.status,
+        cake_order=refund_request.cake_order,
+        package_order=refund_request.package_order,
+        payment=refund_request.payment,
+    )
+
+
+def _create_order_payment(order, amount, payment_method, payment_purpose, payment_status='pending', reference_number='', proof_image=None, notes=''):
+    payment_kwargs = {
+        'amount': _quantize_amount(amount),
+        'payment_method': payment_method,
+        'payment_purpose': payment_purpose,
+        'payment_status': payment_status,
+        'reference_number': reference_number,
+        'proof_image': proof_image,
+        'notes': notes,
+    }
+    if isinstance(order, CakeOrder):
+        payment_kwargs['cake_order'] = order
+    else:
+        payment_kwargs['package_order'] = order
+    return Payment.objects.create(**payment_kwargs)
+
+
+def _cancel_outstanding_balance_payments(order):
+    _get_order_payments_queryset(order).filter(
+        payment_purpose='balance',
+        payment_status='pending',
+    ).update(payment_status='cancelled')
+
+
+def _sync_order_confirmation_from_payment(payment, actor=None):
+    if payment.payment_status != 'paid' or payment.payment_purpose not in ['deposit', 'full']:
+        return
+
+    if payment.cake_order_id:
+        order = payment.cake_order
+        order_type = 'cake'
+    elif payment.package_order_id:
+        order = payment.package_order
+        order_type = 'package'
+    else:
+        return
+
+    if order.order_status != 'pending':
+        return
+
+    previous_status = order.order_status
+    order.order_status = 'confirmed'
+    order.save(update_fields=['order_status', 'updated_at'])
+    _create_order_status_notification(order, order_type, previous_status)
+
+    if actor is not None:
+        _log_staff_activity(
+            actor,
+            'order_confirmed_from_payment',
+            f'Confirmed {_get_order_label(order)} #{order.id} after approving {payment.payment_purpose} payment #{payment.id}.',
+            f'{order_type}_order',
+            order.id,
+        )
+
+
+def _create_checkout_payments(order, selected_plan, reference_number, proof_image):
+    if selected_plan == 'gcash':
+        return [
+            _create_order_payment(
+                order,
+                order.total_price,
+                'gcash',
+                'full',
+                payment_status='verifying',
+                reference_number=reference_number,
+                proof_image=proof_image,
+                notes='Full GCash payment submitted during checkout.',
+            )
+        ]
+
+    deposit_amount, balance_due = _calculate_deposit_breakdown(order.total_price)
+    order.deposit_amount = deposit_amount
+    order.balance_due = balance_due
+    order.save(update_fields=['deposit_amount', 'balance_due', 'updated_at'])
+    return [
+        _create_order_payment(
+            order,
+            deposit_amount,
+            'gcash',
+            'deposit',
+            payment_status='verifying',
+            reference_number=reference_number,
+            proof_image=proof_image,
+            notes='50% GCash deposit submitted during checkout.',
+        ),
+        _create_order_payment(
+            order,
+            balance_due,
+            'cod',
+            'balance',
+            payment_status='pending',
+            notes='Remaining balance due on pickup or delivery.',
+        ),
+    ]
 
 
 def _get_public_package_queryset():
@@ -1520,14 +1831,21 @@ def order_tracking(request):
             selected_order = package_orders[0]
 
     selected_payment = None
+    selected_payments = []
     selected_customization = None
+    selected_refund_request = None
+    cancellation_quote = None
     tracking_steps = []
     selected_notifications = []
     if selected_order is not None:
-        selected_payment = selected_order.payments.order_by(
-            '-created_at').first()
+        selected_payments = list(_get_order_payments_queryset(selected_order))
+        selected_payment = _get_order_primary_payment(selected_order)
         if selected_type == 'cake':
             selected_customization = getattr(selected_order, 'customization', None)
+        selected_refund_request = getattr(selected_order, 'refund_request', None)
+        if selected_refund_request is None:
+            cancellation_quote = _build_cancellation_quote(
+                selected_type, selected_order)
         tracking_steps = _build_tracking_steps(
             selected_type, selected_order.order_status)
 
@@ -1550,11 +1868,55 @@ def order_tracking(request):
         'selected_order': selected_order,
         'selected_order_type': selected_type,
         'selected_payment': selected_payment,
+        'selected_payments': selected_payments,
         'selected_customization': selected_customization,
+        'selected_refund_request': selected_refund_request,
+        'cancellation_quote': cancellation_quote,
         'tracking_steps': tracking_steps,
         'selected_notifications': selected_notifications,
     }
     return render(request, 'hanilies/order_tracking.html', context)
+
+
+@login_required
+@require_POST
+def request_order_cancellation(request, order_type, order_id):
+    if order_type == 'cake':
+        order = get_object_or_404(CakeOrder, id=order_id, user=request.user)
+    elif order_type == 'package':
+        order = get_object_or_404(PackageOrder, id=order_id, user=request.user)
+    else:
+        raise PermissionDenied('Invalid order type.')
+
+    if getattr(order, 'refund_request', None) is not None:
+        messages.info(request, 'A cancellation request for this order is already on file.')
+        return redirect(f"{reverse('order_tracking')}?type={order_type}&id={order.id}")
+
+    cancellation_quote = _build_cancellation_quote(order_type, order)
+    if not cancellation_quote.get('allowed'):
+        messages.error(request, cancellation_quote.get('reason', 'This order cannot be cancelled at the moment.'))
+        return redirect(f"{reverse('order_tracking')}?type={order_type}&id={order.id}")
+
+    reason = request.POST.get('reason', '').strip()
+    if not reason:
+        messages.error(request, 'Please provide a reason for the cancellation request.')
+        return redirect(f"{reverse('order_tracking')}?type={order_type}&id={order.id}")
+
+    refund_payment = _get_order_primary_payment(order)
+    refund_request = RefundRequest.objects.create(
+        cake_order=order if order_type == 'cake' else None,
+        package_order=order if order_type == 'package' else None,
+        payment=refund_payment,
+        requested_by=request.user,
+        reason=reason,
+        internal_note=cancellation_quote['reason'],
+        penalty_fee=cancellation_quote['penalty_fee'],
+        refundable_amount=cancellation_quote['refundable_amount'],
+        status='requested',
+    )
+    _create_refund_status_notification(refund_request)
+    messages.success(request, 'Your cancellation request has been submitted for admin review.')
+    return redirect(f"{reverse('order_tracking')}?type={order_type}&id={order.id}")
 
 
 @login_required
@@ -1579,18 +1941,25 @@ def cake_customize(request):
             selected_decorations, CAKE_DECORATION_OPTIONS)
         total_price = (selected_cake.price * quantity) + decoration_total
         payment_method = request.POST.get('payment_method', 'cod')
+        deposit_amount, balance_due = _calculate_deposit_breakdown(total_price)
         reference_number = request.POST.get('reference_number', '').strip()
         proof_image = request.FILES.get('proof_image')
 
-        if payment_method == 'gcash' and (not reference_number or proof_image is None):
+        if payment_method not in PAYMENT_PLAN_LABELS:
+            payment_method = 'cod'
+
+        if not reference_number or proof_image is None:
             messages.error(
-                request, 'GCash orders require a reference number and proof of payment.')
+                request, 'A GCash reference number and proof of payment are required to place the order.')
         else:
             cake_order = CakeOrder.objects.create(
                 user=request.user,
                 cake=selected_cake,
                 quantity=quantity,
                 total_price=total_price,
+                payment_plan=payment_method,
+                deposit_amount=total_price if payment_method == 'gcash' else deposit_amount,
+                balance_due=Decimal('0.00') if payment_method == 'gcash' else balance_due,
                 theme=request.POST.get('theme', '').strip(),
                 size=request.POST.get('size', '').strip(),
                 shape=request.POST.get('shape', '').strip() or 'Round',
@@ -1620,28 +1989,34 @@ def cake_customize(request):
                 additional_decorations='\n'.join(decoration_labels),
             )
 
-            payment = Payment.objects.create(
-                amount=total_price,
-                payment_method=payment_method,
-                payment_status='verifying' if payment_method == 'gcash' else 'pending',
-                cake_order=cake_order,
-                reference_number=reference_number,
-                proof_image=proof_image,
+            _create_checkout_payments(
+                cake_order,
+                payment_method,
+                reference_number,
+                proof_image,
             )
             messages.success(
-                request, f'Cake order #{cake_order.id} was placed successfully.')
+                request,
+                (
+                    f'Cake order #{cake_order.id} was placed successfully. '
+                    f'Your {_get_payment_plan_label(payment_method).lower()} is now waiting for payment review.'
+                ),
+            )
             return redirect(f"{reverse('order_tracking')}?type=cake&id={cake_order.id}")
 
     cake_order_label = f'{selected_cake.name} cake order'
+    base_deposit_amount, _ = _calculate_deposit_breakdown(selected_cake.price)
     context = {
         'cake': selected_cake,
         'cakes': cake_queryset.order_by('name'),
         'decoration_options': CAKE_DECORATION_OPTIONS,
         'theme_options': CAKE_THEME_OPTIONS,
+        'payment_plan_labels': PAYMENT_PLAN_LABELS,
+        'default_deposit_amount': base_deposit_amount,
         'defaults': defaults,
         'gcash_account': get_gcash_profile(),
         'gcash_preview': build_gcash_checkout_details(
-            selected_cake.price,
+            base_deposit_amount,
             cake_order_label,
         ),
         'payment_qr_preview_url': reverse('payment_qr_preview'),
@@ -1768,6 +2143,7 @@ def package_payment(request):
         draft.get('base_total', selected_package.base_price))
     custom_total = _parse_decimal(draft.get('cake_custom_total', '0.00'))
     grand_total = subtotal + custom_total
+    deposit_amount, balance_due = _calculate_deposit_breakdown(grand_total)
 
     if request.method == 'POST':
         event_type = request.POST.get(
@@ -1776,17 +2152,23 @@ def package_payment(request):
         reference_number = request.POST.get('reference_number', '').strip()
         proof_image = request.FILES.get('proof_image')
 
+        if payment_method not in PAYMENT_PLAN_LABELS:
+            payment_method = 'cod'
+
         if event_type not in PUBLIC_EVENT_TYPE_VALUES:
             messages.error(
                 request, 'Selected event type is no longer available for package bookings.')
-        elif payment_method == 'gcash' and (not reference_number or proof_image is None):
+        elif not reference_number or proof_image is None:
             messages.error(
-                request, 'GCash package orders require a reference number and proof of payment.')
+                request, 'A GCash reference number and proof of payment are required to place the package order.')
         else:
             package_order = PackageOrder.objects.create(
                 user=request.user,
                 package=selected_package,
                 total_price=grand_total,
+                payment_plan=payment_method,
+                deposit_amount=grand_total if payment_method == 'gcash' else deposit_amount,
+                balance_due=Decimal('0.00') if payment_method == 'gcash' else balance_due,
                 event_type=event_type,
                 event_date=request.POST.get('event_date'),
                 event_time=request.POST.get('event_time') or None,
@@ -1802,31 +2184,37 @@ def package_payment(request):
                 cake_message=draft.get('cake_message', ''),
             )
 
-            payment = Payment.objects.create(
-                amount=grand_total,
-                payment_method=payment_method,
-                payment_status='verifying' if payment_method == 'gcash' else 'pending',
-                package_order=package_order,
-                reference_number=reference_number,
-                proof_image=proof_image,
+            _create_checkout_payments(
+                package_order,
+                payment_method,
+                reference_number,
+                proof_image,
             )
 
             _clear_package_draft(request)
             messages.success(
-                request, f'Package order #{package_order.id} was placed successfully.')
+                request,
+                (
+                    f'Package order #{package_order.id} was placed successfully. '
+                    f'Your {_get_payment_plan_label(payment_method).lower()} is now waiting for payment review.'
+                ),
+            )
             return redirect(f"{reverse('order_tracking')}?type=package&id={package_order.id}")
 
     package_order_label = f'{selected_package.name} package booking'
     context = {
         'package': selected_package,
         'draft': draft,
+        'payment_plan_labels': PAYMENT_PLAN_LABELS,
         'defaults': defaults,
         'subtotal': subtotal,
         'custom_total': custom_total,
         'grand_total': grand_total,
+        'deposit_amount': deposit_amount,
+        'balance_due': balance_due,
         'gcash_account': get_gcash_profile(),
         'gcash_preview': build_gcash_checkout_details(
-            grand_total,
+            deposit_amount,
             package_order_label,
         ),
         'payment_qr_preview_url': reverse('payment_qr_preview'),
@@ -1839,30 +2227,21 @@ def package_payment(request):
 # ============================================
 
 def get_admin_menu(request):
-    """Generate admin sidebar menu - all items shown to admin users"""
-    menu = [
-        {'name': 'Dashboard', 'url': 'admin_dashboard', 'icon': 'tachometer-alt'},
-        {'name': 'Cakes', 'url': 'admin_cakes', 'icon': 'birthday-cake'},
-        {'name': 'Cake Orders', 'url': 'admin_cake_orders', 'icon': 'shopping-cart'},
-        {'name': 'Packages', 'url': 'admin_packages', 'icon': 'gift'},
-        {'name': 'Package Orders', 'url': 'admin_package_orders',
-            'icon': 'calendar-check'},
-        {'name': 'Payments', 'url': 'admin_payments', 'icon': 'credit-card'},
-        {'name': 'Users', 'url': 'admin_users', 'icon': 'users'},
-        {'name': 'Audit Trail', 'url': 'admin_activity_logs', 'icon': 'clipboard-list'},
+    """Generate an admin sidebar filtered by the current user's role."""
+    return [
+        {
+            'name': item['name'],
+            'url': item['url'],
+            'icon': item['icon'],
+        }
+        for item in ADMIN_MENU_ITEMS
+        if _user_has_any_role(request.user, item['roles'])
     ]
-    return menu
 
 
 def is_admin_user(user):
     """Check if user has admin access"""
-    if not user.is_authenticated:
-        return False
-    if user.is_superuser:
-        return True
-    if hasattr(user, 'profile'):
-        return user.profile.role in ['owner', 'admin', 'manager', 'baker', 'packager', 'cashier']
-    return False
+    return _user_has_any_role(user, STAFF_ROLE_VALUES)
 
 
 # ============================================
@@ -1872,10 +2251,9 @@ def is_admin_user(user):
 @login_required
 def admin_dashboard(request):
     """Admin dashboard with statistics"""
-    if not is_admin_user(request.user):
-        messages.error(
-            request, 'You do not have permission to access the admin panel.')
-        return redirect('home')
+    access_denied = _require_admin_roles(request, STAFF_ROLE_VALUES, 'home')
+    if access_denied:
+        return access_denied
 
     if not hasattr(request.user, 'profile'):
         if request.user.is_superuser:
@@ -1914,6 +2292,7 @@ def admin_dashboard(request):
         'total_users': User.objects.filter(is_active=True).count(),
         'pending_payments': Payment.objects.filter(
             payment_status__in=['pending', 'verifying']).count(),
+        'pending_refunds': RefundRequest.objects.filter(status='requested').count(),
         'total_sales_today': total_sales_today,
         'total_sales_week': total_sales_week,
         'total_sales_month': total_sales_month,
@@ -1933,9 +2312,9 @@ def admin_dashboard(request):
 @login_required
 def admin_cakes(request):
     """List all cakes"""
-    if not is_admin_user(request.user):
-        messages.error(request, 'Permission denied')
-        return redirect('admin_dashboard')
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'baker'})
+    if access_denied:
+        return access_denied
 
     cakes = Cake.objects.all().order_by('-created_at')
     return render(request, 'admin/cakes/list.html', {
@@ -1947,9 +2326,9 @@ def admin_cakes(request):
 @login_required
 def admin_cake_add(request):
     """Add a new cake with image upload"""
-    if not is_admin_user(request.user):
-        messages.error(request, 'Permission denied')
-        return redirect('admin_dashboard')
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'baker'})
+    if access_denied:
+        return access_denied
 
     if request.method == 'POST':
         try:
@@ -2007,9 +2386,9 @@ def admin_cake_add(request):
 @login_required
 def admin_cake_edit(request, cake_id):
     """Edit a cake with image upload"""
-    if not is_admin_user(request.user):
-        messages.error(request, 'Permission denied')
-        return redirect('admin_dashboard')
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'baker'})
+    if access_denied:
+        return access_denied
 
     cake = get_object_or_404(Cake, id=cake_id)
 
@@ -2071,9 +2450,9 @@ def admin_cake_edit(request, cake_id):
 @login_required
 def admin_cake_delete(request, cake_id):
     """Delete a cake"""
-    if not is_admin_user(request.user):
-        messages.error(request, 'Permission denied')
-        return redirect('admin_dashboard')
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'baker'})
+    if access_denied:
+        return access_denied
 
     cake = get_object_or_404(Cake, id=cake_id)
     cake_name = cake.name
@@ -2096,9 +2475,9 @@ def admin_cake_delete(request, cake_id):
 @login_required
 def admin_cake_orders(request):
     """List all cake orders"""
-    if not is_admin_user(request.user):
-        messages.error(request, 'Permission denied')
-        return redirect('admin_dashboard')
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'baker'})
+    if access_denied:
+        return access_denied
 
     orders = CakeOrder.objects.all().order_by('-created_at')
     return render(request, 'admin/orders/cake_orders.html', {
@@ -2110,9 +2489,9 @@ def admin_cake_orders(request):
 @login_required
 def admin_cake_order_view(request, order_id):
     """View order details"""
-    if not is_admin_user(request.user):
-        messages.error(request, 'Permission denied')
-        return redirect('admin_dashboard')
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'baker'})
+    if access_denied:
+        return access_denied
 
     order = get_object_or_404(CakeOrder, id=order_id)
     return render(request, 'admin/orders/cake_order_view.html', {
@@ -2124,9 +2503,9 @@ def admin_cake_order_view(request, order_id):
 @login_required
 def admin_cake_order_update(request, order_id):
     """Update order status"""
-    if not is_admin_user(request.user):
-        messages.error(request, 'Permission denied')
-        return redirect('admin_dashboard')
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'baker'})
+    if access_denied:
+        return access_denied
 
     if request.method == 'POST':
         order = get_object_or_404(CakeOrder, id=order_id)
@@ -2136,6 +2515,8 @@ def admin_cake_order_update(request, order_id):
         if new_status and new_status != previous_status:
             order.order_status = new_status
             order.save()
+            if new_status == 'cancelled':
+                _cancel_outstanding_balance_payments(order)
             _create_order_status_notification(order, 'cake', previous_status)
             _log_staff_activity(
                 request.user,
@@ -2153,9 +2534,9 @@ def admin_cake_order_update(request, order_id):
 @require_POST
 def admin_cake_order_delete(request, order_id):
     """Delete a cake order"""
-    if not is_admin_user(request.user):
-        messages.error(request, 'Permission denied')
-        return redirect('admin_dashboard')
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager'})
+    if access_denied:
+        return access_denied
 
     order = get_object_or_404(CakeOrder, id=order_id)
     order_id_value = order.id
@@ -2178,9 +2559,9 @@ def admin_cake_order_delete(request, order_id):
 @login_required
 def admin_packages(request):
     """List all packages"""
-    if not is_admin_user(request.user):
-        messages.error(request, 'Permission denied')
-        return redirect('admin_dashboard')
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'packager'})
+    if access_denied:
+        return access_denied
 
     packages = Package.objects.all().prefetch_related('thumbnails').order_by('-created_at')
     return render(request, 'admin/packages/list.html', {
@@ -2192,9 +2573,9 @@ def admin_packages(request):
 @login_required
 def admin_package_add(request):
     """Add a new package"""
-    if not is_admin_user(request.user):
-        messages.error(request, 'Permission denied')
-        return redirect('admin_dashboard')
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'packager'})
+    if access_denied:
+        return access_denied
 
     if request.method == 'POST':
         try:
@@ -2240,9 +2621,9 @@ def admin_package_add(request):
 @login_required
 def admin_package_edit(request, package_id):
     """Edit a package"""
-    if not is_admin_user(request.user):
-        messages.error(request, 'Permission denied')
-        return redirect('admin_dashboard')
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'packager'})
+    if access_denied:
+        return access_denied
 
     package = get_object_or_404(Package.objects.prefetch_related('thumbnails'), id=package_id)
 
@@ -2299,9 +2680,9 @@ def admin_package_edit(request, package_id):
 @login_required
 def admin_package_delete(request, package_id):
     """Delete a package"""
-    if not is_admin_user(request.user):
-        messages.error(request, 'Permission denied')
-        return redirect('admin_dashboard')
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'packager'})
+    if access_denied:
+        return access_denied
 
     package = get_object_or_404(Package, id=package_id)
     package_name = package.name
@@ -2325,9 +2706,9 @@ def admin_package_delete(request, package_id):
 @login_required
 def admin_package_orders(request):
     """List all package orders"""
-    if not is_admin_user(request.user):
-        messages.error(request, 'Permission denied')
-        return redirect('admin_dashboard')
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'packager'})
+    if access_denied:
+        return access_denied
 
     orders = PackageOrder.objects.all().order_by('-created_at')
     return render(request, 'admin/orders/package_orders.html', {
@@ -2339,9 +2720,9 @@ def admin_package_orders(request):
 @login_required
 def admin_package_order_view(request, order_id):
     """View package order details"""
-    if not is_admin_user(request.user):
-        messages.error(request, 'Permission denied')
-        return redirect('admin_dashboard')
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'packager'})
+    if access_denied:
+        return access_denied
 
     order = get_object_or_404(PackageOrder, id=order_id)
     return render(request, 'admin/orders/package_order_view.html', {
@@ -2353,9 +2734,9 @@ def admin_package_order_view(request, order_id):
 @login_required
 def admin_package_order_update(request, order_id):
     """Update package order status"""
-    if not is_admin_user(request.user):
-        messages.error(request, 'Permission denied')
-        return redirect('admin_dashboard')
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'packager'})
+    if access_denied:
+        return access_denied
 
     if request.method == 'POST':
         order = get_object_or_404(PackageOrder, id=order_id)
@@ -2365,6 +2746,8 @@ def admin_package_order_update(request, order_id):
         if new_status and new_status != previous_status:
             order.order_status = new_status
             order.save()
+            if new_status == 'cancelled':
+                _cancel_outstanding_balance_payments(order)
             _create_order_status_notification(order, 'package', previous_status)
             _log_staff_activity(
                 request.user,
@@ -2382,9 +2765,9 @@ def admin_package_order_update(request, order_id):
 @require_POST
 def admin_package_order_delete(request, order_id):
     """Delete a package order"""
-    if not is_admin_user(request.user):
-        messages.error(request, 'Permission denied')
-        return redirect('admin_dashboard')
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager'})
+    if access_denied:
+        return access_denied
 
     order = get_object_or_404(PackageOrder, id=order_id)
     order_id_value = order.id
@@ -2408,22 +2791,30 @@ def admin_package_order_delete(request, order_id):
 @login_required
 def admin_payments(request):
     """List all payments"""
-    if not is_admin_user(request.user):
-        messages.error(request, 'Permission denied')
-        return redirect('admin_dashboard')
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'cashier'})
+    if access_denied:
+        return access_denied
 
     # Get all payments
-    payments = Payment.objects.all().order_by('-created_at')
+    payments = Payment.objects.select_related('cake_order', 'package_order').all().order_by('-created_at')
 
     # Categorize payments
     pending_payments = payments.filter(
-        payment_status__in=['pending', 'verifying'])
+        payment_method='gcash',
+        payment_purpose__in=['deposit', 'full'],
+        payment_status__in=['pending', 'verifying'],
+    )
+    balance_payments = payments.filter(
+        payment_purpose='balance',
+        payment_status='pending',
+    )
     verified_payments = payments.filter(payment_status='paid')
-    rejected_payments = payments.filter(payment_status='failed')
+    rejected_payments = payments.filter(payment_status__in=['failed', 'cancelled'])
 
     return render(request, 'admin/payments/list.html', {
         'payments': payments,
         'pending_payments': pending_payments,
+        'balance_payments': balance_payments,
         'verified_payments': verified_payments,
         'rejected_payments': rejected_payments,
         'admin_menu': get_admin_menu(request)
@@ -2433,9 +2824,9 @@ def admin_payments(request):
 @login_required
 def admin_payment_verify(request, payment_id):
     """Verify/Approve/Reject a payment"""
-    if not is_admin_user(request.user):
-        messages.error(request, 'Permission denied')
-        return redirect('admin_dashboard')
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'cashier'})
+    if access_denied:
+        return access_denied
 
     payment = get_object_or_404(Payment, id=payment_id)
 
@@ -2453,6 +2844,11 @@ def admin_payment_verify(request, payment_id):
             payment.paid_at = None
             messages.warning(
                 request, f'Payment #{payment.id} has been rejected.')
+        elif action == 'collect_balance' and payment.payment_purpose == 'balance':
+            payment.payment_status = 'paid'
+            payment.paid_at = timezone.now()
+            messages.success(
+                request, f'Balance payment #{payment.id} has been marked as collected.')
         else:
             payment.payment_status = 'verifying'
             payment.paid_at = None
@@ -2462,6 +2858,7 @@ def admin_payment_verify(request, payment_id):
         payment.save()
         if previous_status != payment.payment_status:
             _create_payment_status_notification(payment, previous_status)
+            _sync_order_confirmation_from_payment(payment, request.user)
             _log_staff_activity(
                 request.user,
                 'payment_status_updated',
@@ -2477,13 +2874,13 @@ def admin_payment_verify(request, payment_id):
 @require_POST
 def admin_payment_delete(request, payment_id):
     """Delete a completed payment from the admin panel"""
-    if not is_admin_user(request.user):
-        messages.error(request, 'Permission denied')
-        return redirect('admin_dashboard')
+    access_denied = _require_admin_roles(request, {'owner', 'admin'})
+    if access_denied:
+        return access_denied
 
     payment = get_object_or_404(Payment, id=payment_id)
 
-    if payment.payment_status not in ['paid', 'failed']:
+    if payment.payment_status not in ['paid', 'failed', 'cancelled']:
         messages.error(
             request, 'Only verified or rejected payments can be deleted.')
         return redirect('admin_payments')
@@ -2502,11 +2899,116 @@ def admin_payment_delete(request, payment_id):
 
 
 @login_required
+def admin_refunds(request):
+    """List customer cancellation and refund requests."""
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'cashier'})
+    if access_denied:
+        return access_denied
+
+    refunds = RefundRequest.objects.select_related(
+        'cake_order__user',
+        'package_order__user',
+        'payment',
+        'requested_by',
+        'approved_by',
+        'processed_by',
+    ).all()
+    return render(request, 'admin/refunds/list.html', {
+        'requested_refunds': refunds.filter(status='requested'),
+        'approved_refunds': refunds.filter(status__in=['approved', 'processing']),
+        'closed_refunds': refunds.filter(status__in=['rejected', 'processed']),
+        'admin_menu': get_admin_menu(request),
+    })
+
+
+@login_required
+@require_POST
+def admin_refund_update(request, refund_id):
+    """Approve, reject, or process a refund request."""
+    refund_request = get_object_or_404(RefundRequest, id=refund_id)
+    action = request.POST.get('action')
+
+    if action in ['approve', 'reject']:
+        access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager'})
+    else:
+        access_denied = _require_admin_roles(request, {'owner', 'admin', 'cashier'})
+    if access_denied:
+        return access_denied
+
+    order = refund_request.cake_order or refund_request.package_order
+    order_type = 'cake' if refund_request.cake_order_id else 'package'
+
+    if action == 'approve':
+        if _user_has_any_role(request.user, {'owner', 'admin'}) and request.POST.get('penalty_fee'):
+            custom_penalty = _quantize_amount(request.POST.get('penalty_fee'))
+            refundable_base = _get_paid_or_pending_gcash_total(order)
+            refund_request.penalty_fee = min(refundable_base, custom_penalty)
+            refund_request.refundable_amount = _quantize_amount(refundable_base - refund_request.penalty_fee)
+        refund_request.status = 'approved'
+        refund_request.approved_by = request.user
+        refund_request.reviewed_at = timezone.now()
+        refund_request.internal_note = request.POST.get('internal_note', refund_request.internal_note).strip()
+        refund_request.save()
+
+        previous_status = order.order_status
+        order.order_status = 'cancelled'
+        order.save(update_fields=['order_status', 'updated_at'])
+        _cancel_outstanding_balance_payments(order)
+        _create_order_status_notification(order, order_type, previous_status)
+        _create_refund_status_notification(refund_request)
+        _log_staff_activity(
+            request.user,
+            'refund_approved',
+            f'Approved refund request #{refund_request.id} for {_get_order_label(order)} #{order.id}.',
+            'refund_request',
+            refund_request.id,
+        )
+        messages.success(request, f'Refund request #{refund_request.id} approved successfully.')
+    elif action == 'reject':
+        refund_request.status = 'rejected'
+        refund_request.approved_by = request.user
+        refund_request.reviewed_at = timezone.now()
+        refund_request.internal_note = request.POST.get('internal_note', refund_request.internal_note).strip()
+        refund_request.save()
+        _create_refund_status_notification(refund_request)
+        _log_staff_activity(
+            request.user,
+            'refund_rejected',
+            f'Rejected refund request #{refund_request.id}.',
+            'refund_request',
+            refund_request.id,
+        )
+        messages.success(request, f'Refund request #{refund_request.id} rejected successfully.')
+    elif action == 'process':
+        if refund_request.status not in ['approved', 'processing']:
+            messages.error(request, 'Only approved refunds can be processed.')
+            return redirect('admin_refunds')
+
+        refund_request.status = 'processed'
+        refund_request.processed_by = request.user
+        refund_request.processed_at = timezone.now()
+        refund_request.refund_reference_number = request.POST.get('refund_reference_number', '').strip()
+        refund_request.internal_note = request.POST.get('internal_note', refund_request.internal_note).strip()
+        refund_request.save()
+        _create_refund_status_notification(refund_request)
+        _log_staff_activity(
+            request.user,
+            'refund_processed',
+            f'Processed refund request #{refund_request.id}.',
+            'refund_request',
+            refund_request.id,
+        )
+        messages.success(request, f'Refund request #{refund_request.id} processed successfully.')
+
+    return redirect('admin_refunds')
+
+
+@login_required
 def admin_activity_logs(request):
     """List recorded staff audit trail entries"""
-    if not is_admin_user(request.user):
-        messages.error(request, 'Permission denied')
-        return redirect('admin_dashboard')
+    access_denied = _require_admin_roles(request, {'owner', 'admin'})
+    if access_denied:
+        return access_denied
 
     activity_logs = ActivityLog.objects.select_related('actor').all()[:100]
     return render(request, 'admin/activity_logs.html', {
@@ -2519,9 +3021,9 @@ def admin_activity_logs(request):
 @require_POST
 def admin_activity_log_delete(request, log_id):
     """Delete an audit trail entry from the admin panel"""
-    if not is_admin_user(request.user):
-        messages.error(request, 'Permission denied')
-        return redirect('admin_dashboard')
+    access_denied = _require_admin_roles(request, {'owner', 'admin'})
+    if access_denied:
+        return access_denied
 
     activity_log = get_object_or_404(ActivityLog, id=log_id)
     activity_log.delete()
@@ -2536,9 +3038,9 @@ def admin_activity_log_delete(request, log_id):
 @login_required
 def admin_users(request):
     """List all users"""
-    if not is_admin_user(request.user):
-        messages.error(request, 'Permission denied')
-        return redirect('admin_dashboard')
+    access_denied = _require_admin_roles(request, {'owner', 'admin'})
+    if access_denied:
+        return access_denied
 
     users = User.objects.all().order_by('-date_joined')
     return render(request, 'admin/users/list.html', {
@@ -2550,9 +3052,9 @@ def admin_users(request):
 @login_required
 def admin_user_edit(request, user_id):
     """Edit user profile"""
-    if not is_admin_user(request.user):
-        messages.error(request, 'Permission denied')
-        return redirect('admin_dashboard')
+    access_denied = _require_admin_roles(request, {'owner', 'admin'})
+    if access_denied:
+        return access_denied
 
     edit_user = get_object_or_404(User, id=user_id)
 
@@ -2589,9 +3091,9 @@ def admin_user_edit(request, user_id):
 @require_POST
 def admin_user_delete(request, user_id):
     """Delete a user from the admin panel"""
-    if not is_admin_user(request.user):
-        messages.error(request, 'Permission denied')
-        return redirect('admin_dashboard')
+    access_denied = _require_admin_roles(request, {'owner', 'admin'})
+    if access_denied:
+        return access_denied
 
     delete_user = get_object_or_404(User, id=user_id)
 
@@ -2615,9 +3117,9 @@ def admin_user_delete(request, user_id):
 @login_required
 def admin_user_role(request, user_id):
     """Change user role"""
-    if not is_admin_user(request.user):
-        messages.error(request, 'Permission denied')
-        return redirect('admin_dashboard')
+    access_denied = _require_admin_roles(request, {'owner', 'admin'})
+    if access_denied:
+        return access_denied
 
     edit_user = get_object_or_404(User, id=user_id)
 
@@ -2654,9 +3156,9 @@ def admin_user_role(request, user_id):
 @login_required
 def admin_order_detail(request, order_id, order_type):
     """View single order details (works for both cake and package orders)"""
-    if not is_admin_user(request.user):
-        messages.error(request, 'Permission denied')
-        return redirect('admin_dashboard')
+    access_denied = _require_admin_roles(request, STAFF_ROLE_VALUES)
+    if access_denied:
+        return access_denied
 
     if order_type == 'cake':
         order = get_object_or_404(CakeOrder, id=order_id)

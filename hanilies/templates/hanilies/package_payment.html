@@ -77,14 +77,14 @@
                             </div>
                         </div>
 
-                        <h6 class="fw-bold mb-3">Payment Method</h6>
+                        <h6 class="fw-bold mb-3">Payment Plan</h6>
                         <div class="row g-3 mb-4">
                             <div class="col-md-6">
                                 <label class="form-check border rounded p-3 h-100 payment-option">
                                     <input class="form-check-input package-payment-radio" type="radio" name="payment_method" value="cod" checked>
                                     <span class="form-check-label ms-2">
-                                        <strong>Cash on Delivery</strong><br>
-                                        <span class="text-muted">Collect payment upon delivery or pickup.</span>
+                                        <strong>{{ payment_plan_labels.cod }}</strong><br>
+                                        <span class="text-muted">Pay a 50% GCash deposit now, then settle the remaining balance on event day or pickup.</span>
                                     </span>
                                 </label>
                             </div>
@@ -92,14 +92,14 @@
                                 <label class="form-check border rounded p-3 h-100 payment-option">
                                     <input class="form-check-input package-payment-radio" type="radio" name="payment_method" value="gcash">
                                     <span class="form-check-label ms-2">
-                                        <strong>GCash</strong><br>
-                                        <span class="text-muted">Upload proof of payment for verification.</span>
+                                        <strong>{{ payment_plan_labels.gcash }}</strong><br>
+                                        <span class="text-muted">Pay the full booking amount through GCash during checkout.</span>
                                     </span>
                                 </label>
                             </div>
                         </div>
 
-                        <div id="package-gcash-fields" class="border rounded p-3 mb-4 d-none">
+                        <div id="package-gcash-fields" class="border rounded p-3 mb-4">
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <label class="form-label fw-semibold">GCash Reference Number</label>
@@ -122,9 +122,10 @@
                                             </div>
                                             <div class="col-md-8">
                                                 <h6 class="fw-bold mb-2">GCash Payment Instructions</h6>
+                                                <div class="small text-muted mb-2">Use this for the required deposit or full payment shown below.</div>
                                                 <div class="small mb-1"><strong>Account Name:</strong> {{ gcash_account.account_name }}</div>
                                                 <div class="small mb-1"><strong>GCash Number:</strong> {{ gcash_account.account_number }}</div>
-                                                <div class="small mb-1"><strong>Amount:</strong> <span id="package-gcash-amount">{{ gcash_preview.amount_label }}</span></div>
+                                                <div class="small mb-1"><strong>Amount Due Now:</strong> <span id="package-gcash-amount">{{ gcash_preview.amount_label }}</span></div>
                                                 <div class="small text-muted" id="package-gcash-note">{{ gcash_account.payment_note }}</div>
                                             </div>
                                         </div>
@@ -204,17 +205,28 @@
                                         <div id="review-package-contact-email">Not provided</div>
                                     </div>
                                     <div class="col-md-6">
-                                        <div class="fw-semibold text-muted">Payment Method</div>
-                                        <div id="review-package-payment">Cash on Delivery</div>
+                                        <div class="fw-semibold text-muted">Payment Plan</div>
+                                        <div id="review-package-payment">{{ payment_plan_labels.cod }}</div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="fw-semibold text-muted">GCash Reference</div>
                                         <div id="review-package-reference">Not required</div>
                                     </div>
+                                    <div class="col-md-6">
+                                        <div class="fw-semibold text-muted">Pay Now</div>
+                                        <div id="review-package-deposit">P{{ deposit_amount }}</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="fw-semibold text-muted">Balance Due</div>
+                                        <div id="review-package-balance">P{{ balance_due }}</div>
+                                    </div>
                                     <div class="col-12">
                                         <div class="fw-semibold text-muted">Proof of Payment</div>
                                         <div id="review-package-proof">Not required</div>
                                     </div>
+                                </div>
+                                <div class="alert alert-warning small mt-3 mb-0">
+                                    Cancellation policy: package orders more than 7 days before the event incur a 10% fee on the paid GCash amount, within 7 days incur 25%, and once preparation starts the fee is 50%.
                                 </div>
                             </div>
                         </div>
@@ -268,6 +280,14 @@
                         <span>Cake Customization</span>
                         <span>P{{ custom_total }}</span>
                     </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Amount Due Now</span>
+                        <span id="summary-package-deposit">P{{ deposit_amount }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Balance Due Later</span>
+                        <span id="summary-package-balance">P{{ balance_due }}</span>
+                    </div>
                     <div class="d-flex justify-content-between">
                         <span>Total Amount</span>
                         <strong class="text-gold-pink">P{{ grand_total }}</strong>
@@ -299,12 +319,27 @@
     const packagePaymentQrPreviewUrl = '{{ payment_qr_preview_url }}';
     const packageOrderLabel = '{{ package.name|escapejs }} package booking';
     const packageGrandTotal = parseFloat('{{ grand_total }}');
+    const paymentPlanLabels = {
+        cod: '{{ payment_plan_labels.cod|escapejs }}',
+        gcash: '{{ payment_plan_labels.gcash|escapejs }}',
+    };
     let packageReviewReady = false;
 
+    function getPackagePaymentBreakdown() {
+        const selectedPlan = document.querySelector('.package-payment-radio:checked').value;
+        const dueNow = selectedPlan === 'gcash' ? packageGrandTotal : packageGrandTotal / 2;
+        return {
+            selectedPlan,
+            dueNow,
+            balanceDue: Math.max(packageGrandTotal - dueNow, 0),
+        };
+    }
+
     async function refreshPackageGcashQr() {
+        const { dueNow } = getPackagePaymentBreakdown();
         try {
             const params = new URLSearchParams({
-                amount: packageGrandTotal.toFixed(2),
+                amount: dueNow.toFixed(2),
                 order_label: packageOrderLabel,
             });
             const response = await fetch(`${packagePaymentQrPreviewUrl}?${params.toString()}`, {
@@ -325,14 +360,14 @@
     }
 
     function updatePackagePaymentFields() {
-        const selectedPayment = document.querySelector('.package-payment-radio:checked').value;
-        packageGcashFields.classList.toggle('d-none', selectedPayment !== 'gcash');
-        packageReferenceInput.required = selectedPayment === 'gcash';
-        packageProofInput.required = selectedPayment === 'gcash';
-
-        if (selectedPayment === 'gcash') {
-            refreshPackageGcashQr();
-        }
+        const { selectedPlan, dueNow, balanceDue } = getPackagePaymentBreakdown();
+        packageGcashFields.classList.remove('d-none');
+        packageReferenceInput.required = true;
+        packageProofInput.required = true;
+        document.getElementById('summary-package-deposit').textContent = `P${dueNow.toFixed(2)}`;
+        document.getElementById('summary-package-balance').textContent = `P${balanceDue.toFixed(2)}`;
+        document.getElementById('review-package-payment').textContent = paymentPlanLabels[selectedPlan];
+        refreshPackageGcashQr();
     }
 
     function resetPackageReviewState() {
@@ -347,20 +382,18 @@
             return;
         }
 
-        const selectedPayment = document.querySelector('.package-payment-radio:checked').value;
+        const { selectedPlan, dueNow, balanceDue } = getPackagePaymentBreakdown();
         document.getElementById('review-package-date').textContent = packagePaymentForm.querySelector('input[name="event_date"]').value || 'Not selected';
         document.getElementById('review-package-time').textContent = packagePaymentForm.querySelector('input[name="event_time"]').value || 'Not selected';
         document.getElementById('review-package-venue').textContent = packagePaymentForm.querySelector('textarea[name="venue"]').value.trim() || 'Not provided';
         document.getElementById('review-package-contact-name').textContent = packagePaymentForm.querySelector('input[name="contact_name"]').value.trim() || 'Not provided';
         document.getElementById('review-package-contact-phone').textContent = packagePaymentForm.querySelector('input[name="contact_phone"]').value.trim() || 'Not provided';
         document.getElementById('review-package-contact-email').textContent = packagePaymentForm.querySelector('input[name="contact_email"]').value.trim() || 'Not provided';
-        document.getElementById('review-package-payment').textContent = selectedPayment === 'gcash' ? 'GCash' : 'Cash on Delivery';
-        document.getElementById('review-package-reference').textContent = selectedPayment === 'gcash'
-            ? (packageReferenceInput.value.trim() || 'Missing reference number')
-            : 'Not required';
-        document.getElementById('review-package-proof').textContent = selectedPayment === 'gcash'
-            ? (packageProofInput.files[0]?.name || 'Missing proof of payment')
-            : 'Not required';
+        document.getElementById('review-package-payment').textContent = paymentPlanLabels[selectedPlan];
+        document.getElementById('review-package-reference').textContent = packageReferenceInput.value.trim() || 'Missing reference number';
+        document.getElementById('review-package-proof').textContent = packageProofInput.files[0]?.name || 'Missing proof of payment';
+        document.getElementById('review-package-deposit').textContent = `P${dueNow.toFixed(2)}`;
+        document.getElementById('review-package-balance').textContent = `P${balanceDue.toFixed(2)}`;
 
         packageReviewReady = true;
         packageReviewPanel.classList.remove('d-none');
