@@ -12,8 +12,12 @@ The project is designed to run locally with SQLite and can be deployed on Render
 - Search and filter catalog pages
 - Place customized cake orders
 - Book event packages through a multi-step flow
-- Submit Cash on Delivery or GCash payment details
+- Review orders before final confirmation
+- Submit either a 50% GCash deposit with COD balance or a full GCash payment
+- Preview GCash checkout QR details before submitting payment proof
 - Track live cake and package orders
+- Request order cancellation and follow refund processing from tracking
+- Edit profile details, change password, and manage account preferences
 - View profile stats and recent notifications
 - Receive in-app notifications and optional email updates
 
@@ -23,7 +27,8 @@ The project is designed to run locally with SQLite and can be deployed on Render
 - Cake and package management
 - Cake and package order status management
 - Payment verification workflow
-- User management and role updates
+- Refund and cancellation request handling
+- User management, direct staff account creation, and role updates
 - Activity log for staff actions
 
 ### Current implementation highlights
@@ -31,8 +36,21 @@ The project is designed to run locally with SQLite and can be deployed on Render
 - Homepage recommendations are rule-based and use prior customer orders with best-seller fallback
 - Cake orders create real `CakeOrder`, `CakeCustomization`, and `Payment` records
 - Package bookings use a session-backed draft flow before final payment submission
+- Cake and package checkout flows support deposit/full-payment plans and create the related payment records automatically
+- Tracking pages expose cancellation quotes, request submission, refund status, and order-linked notifications
+- Package catalog entries can render a primary image plus up to 4 ordered thumbnails
+- Role handling includes `customer`, `supervisor`, and staff-only admin access paths
 - Notifications are stored in the database and can also trigger plain-text email delivery
 - The app includes focused automated tests for ordering, tracking, payments, notifications, admin security, and dashboard metrics
+
+## Recent updates
+
+- Profile page now supports editing first name, last name, email, phone number, and address, alongside password and notification-preference management
+- Customer tracking now supports cancellation requests with refund estimates and an admin refund-processing workflow
+- Checkout flows now include a review-before-confirm step and a GCash QR preview for payment submission
+- Admin user management now supports direct staff account creation and the `supervisor` role
+- Package media now supports up to four ordered thumbnails in addition to the main package image
+- The canonical package-ordering route is `/order-package/`, while `/package-order/` remains as a compatibility alias
 
 ## Tech stack
 
@@ -132,6 +150,7 @@ DEFAULT_FROM_EMAIL=Hanilies Cakeshoppe <your-email@example.com>
 HANILIES_GCASH_ACCOUNT_NAME=Hanilies Cakeshoppe
 HANILIES_GCASH_ACCOUNT_NUMBER=
 HANILIES_GCASH_PAYMENT_NOTE=Send payment using the account details shown on the checkout page.
+DEMO_BOT_REMOTE_ENABLED=False
 ```
 
 ## Email behavior
@@ -199,6 +218,7 @@ Render environment variables currently include:
 
 - `PYTHON_VERSION`
 - `DEBUG`
+- `DEMO_BOT_REMOTE_ENABLED`
 - `SECRET_KEY`
 - `ALLOWED_HOSTS`
 - `CSRF_TRUSTED_ORIGINS`
