@@ -521,6 +521,11 @@ class OrderingIntegrationTests(TestCase):
         self.assertEqual(
             tracking_response.context['selected_payment'].cake_order_id, created_order.id)
         self.assertEqual(len(tracking_response.context['selected_payments']), 2)
+        self.assertContains(tracking_response, 'Submit Cancellation Request')
+        self.assertContains(
+            tracking_response,
+            reverse('request_order_cancellation', args=['cake', created_order.id]),
+        )
 
     def test_package_booking_flow_redirects_to_tracking_with_created_order(self):
         first_step = self.client.post(reverse('package_order'), {

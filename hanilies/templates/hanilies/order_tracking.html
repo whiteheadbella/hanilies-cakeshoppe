@@ -114,7 +114,20 @@
                             {% endif %}
                         </div>
                         {% if cancellation_quote.allowed %}
-                        <a href="#cancellation-request-card" class="btn btn-outline-danger btn-sm">Request Cancellation</a>
+                        <button type="button" class="btn btn-outline-danger btn-sm" id="open-cancellation-form-button">Request Cancellation</button>
+                        {% endif %}
+                        {% if cancellation_quote.allowed %}
+                        <div class="w-100 mt-2 pt-2 border-top d-none" id="inline-cancellation-form">
+                            <div class="small text-muted mb-2">This will submit a cancellation request for admin review. The order is not cancelled instantly.</div>
+                            <form method="post" action="{% url 'request_order_cancellation' selected_order_type selected_order.id %}">
+                                {% csrf_token %}
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold">Reason for Cancellation</label>
+                                    <textarea class="form-control" name="reason" rows="3" placeholder="Tell the shop why you need to cancel this order." required></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-outline-danger">Submit Cancellation Request</button>
+                            </form>
+                        </div>
                         {% endif %}
                     </div>
                     {% endif %}
@@ -266,7 +279,7 @@
                     </div>
                 </div>
             </div>
-            {% elif cancellation_quote %}
+            {% elif cancellation_quote and not cancellation_quote.allowed %}
             <div class="card border-0 shadow-sm mb-4" id="cancellation-request-card">
                 <div class="card-header bg-light py-3">
                     <h5 class="mb-0"><i class="fas fa-ban me-2"></i>Request Cancellation</h5>
@@ -345,4 +358,27 @@
     </div>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const openCancellationFormButton = document.getElementById('open-cancellation-form-button');
+    const inlineCancellationForm = document.getElementById('inline-cancellation-form');
+
+    if (openCancellationFormButton && inlineCancellationForm) {
+        openCancellationFormButton.addEventListener('click', () => {
+            const willShow = inlineCancellationForm.classList.contains('d-none');
+            inlineCancellationForm.classList.toggle('d-none');
+            openCancellationFormButton.textContent = willShow ? 'Hide Cancellation Form' : 'Request Cancellation';
+
+            if (willShow) {
+                inlineCancellationForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                const reasonField = inlineCancellationForm.querySelector('textarea[name="reason"]');
+                if (reasonField) {
+                    reasonField.focus();
+                }
+            }
+        });
+    }
+</script>
 {% endblock %}
