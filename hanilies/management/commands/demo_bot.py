@@ -297,7 +297,7 @@ class Command(BaseCommand):
         profile, _ = UserProfile.objects.get_or_create(
             user=user,
             defaults={
-                "role": "viewer",
+                "role": "customer",
                 "phone": "09171234567",
                 "address": "123 Demo Street, Lucena City",
             },
@@ -306,7 +306,7 @@ class Command(BaseCommand):
             profile.phone = "09171234567"
         if not profile.address:
             profile.address = "123 Demo Street, Lucena City"
-        profile.role = "viewer"
+        profile.role = "customer"
         profile.save()
 
         if not Cake.objects.filter(is_active=True).exists():

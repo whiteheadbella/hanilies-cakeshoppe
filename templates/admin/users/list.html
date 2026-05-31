@@ -1,13 +1,16 @@
 {% extends "admin/base_admin.html" %}
 
 {% block title %}Users{% endblock %}
-{% block page_title %}User Management{% endblock %}
+{% block page_title %}User And Role Management{% endblock %}
 {% block page_icon %}users{% endblock %}
 
 {% block content %}
 <div class="module-card">
-    <div class="module-header">
+    <div class="module-header" style="display: flex; justify-content: space-between; align-items: center; gap: 16px;">
         <h2><i class="fas fa-list"></i> All Users</h2>
+        <a href="{% url 'admin_user_add' %}" class="btn-primary" style="text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
+            <i class="fas fa-user-plus"></i>Create User
+        </a>
     </div>
     <table class="module-table">
         <thead>
@@ -24,7 +27,7 @@
                     {% if user.profile %}
                     <span class="status-badge role-{{ user.profile.role }}">{{ user.profile.get_role_display }}</span>
                     {% else %}
-                    <span class="status-badge role-viewer">Viewer</span>
+                    <span class="status-badge role-customer">Customer</span>
                     {% endif %}
                 </td>
                 <td>{{ user.date_joined|date:"Y-m-d" }}</td>

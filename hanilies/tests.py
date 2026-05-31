@@ -114,7 +114,7 @@ class CakeOrderViewUnitTests(TestCase):
         )
         UserProfile.objects.create(
             user=self.user,
-            role='viewer',
+            role='customer',
             phone='09123456789',
             address='Oroquieta City',
         )
@@ -247,7 +247,7 @@ class PackageFlowUnitTests(TestCase):
         )
         UserProfile.objects.create(
             user=self.user,
-            role='viewer',
+            role='customer',
             phone='09999999999',
             address='Clarin, Misamis Occidental',
         )
@@ -464,7 +464,7 @@ class OrderingIntegrationTests(TestCase):
         )
         UserProfile.objects.create(
             user=self.user,
-            role='viewer',
+            role='customer',
             phone='09170000000',
             address='Oroquieta City',
         )
@@ -601,7 +601,7 @@ class SecurityValidationTests(TestCase):
             password='TestPass123!',
             email='viewer@example.com',
         )
-        UserProfile.objects.create(user=self.viewer, role='viewer')
+        UserProfile.objects.create(user=self.viewer, role='customer')
 
         self.admin_user = User.objects.create_user(
             username='admin-user',
@@ -621,6 +621,12 @@ class SecurityValidationTests(TestCase):
             email='cashier@example.com',
         )
         UserProfile.objects.create(user=self.cashier_user, role='cashier')
+        self.supervisor_user = User.objects.create_user(
+            username='supervisor-user',
+            password='TestPass123!',
+            email='supervisor@example.com',
+        )
+        UserProfile.objects.create(user=self.supervisor_user, role='supervisor')
         self.cake = Cake.objects.create(
             name='Admin Test Cake',
             category='birthday',
@@ -755,6 +761,28 @@ class SecurityValidationTests(TestCase):
         self.assertEqual(users_response.status_code, 200)
         self.assertEqual(payments_response.context['payments'].count(), 1)
         self.assertGreaterEqual(users_response.context['users'].count(), 4)
+        self.assertContains(users_response, reverse('admin_user_add'))
+
+    def test_admin_can_create_staff_user_from_admin_panel(self):
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.post(reverse('admin_user_add'), {
+            'username': 'new-supervisor',
+            'email': 'new-supervisor@example.com',
+            'password': 'TestPass123!',
+            'confirm_password': 'TestPass123!',
+            'first_name': 'New',
+            'last_name': 'Supervisor',
+            'phone': '09179990000',
+            'address': 'Oroquieta City',
+            'role': 'supervisor',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers['Location'], reverse('admin_users'))
+        created_user = User.objects.get(username='new-supervisor')
+        self.assertEqual(created_user.profile.role, 'supervisor')
+        self.assertTrue(created_user.is_staff)
 
     def test_manager_is_redirected_from_admin_users(self):
         self.client.login(username='manager-user', password='TestPass123!')
@@ -772,6 +800,20 @@ class SecurityValidationTests(TestCase):
 
         self.assertEqual(payments_response.status_code, 200)
         self.assertEqual(refunds_response.status_code, 200)
+
+    def test_supervisor_can_access_operations_routes_but_not_user_management(self):
+        self.client.login(username='supervisor-user', password='TestPass123!')
+
+        cake_orders_response = self.client.get(reverse('admin_cake_orders'))
+        package_orders_response = self.client.get(reverse('admin_package_orders'))
+        refunds_response = self.client.get(reverse('admin_refunds'))
+        users_response = self.client.get(reverse('admin_users'))
+
+        self.assertEqual(cake_orders_response.status_code, 200)
+        self.assertEqual(package_orders_response.status_code, 200)
+        self.assertEqual(refunds_response.status_code, 200)
+        self.assertEqual(users_response.status_code, 302)
+        self.assertEqual(users_response.headers['Location'], reverse('admin_dashboard'))
 
     def test_admin_can_access_activity_logs_page(self):
         ActivityLog.objects.create(
@@ -856,7 +898,7 @@ class SecurityValidationTests(TestCase):
             password='TestPass123!',
             email='delete-me@example.com',
         )
-        UserProfile.objects.create(user=delete_user, role='viewer')
+        UserProfile.objects.create(user=delete_user, role='customer')
         self.client.login(username='admin-user', password='TestPass123!')
 
         response = self.client.post(
@@ -1195,7 +1237,7 @@ class OrderStatusNotificationTests(TestCase):
             first_name='Notified',
             last_name='User',
         )
-        UserProfile.objects.create(user=self.customer, role='viewer')
+        UserProfile.objects.create(user=self.customer, role='customer')
 
         self.admin_user = User.objects.create_user(
             username='status-admin',
@@ -1415,7 +1457,7 @@ class InAppNotificationViewTests(TestCase):
             first_name='Profile',
             last_name='User',
         )
-        UserProfile.objects.create(user=self.customer, role='viewer')
+        UserProfile.objects.create(user=self.customer, role='customer')
         self.cake = Cake.objects.create(
             name='Tracked Cake',
             category='birthday',
@@ -1702,7 +1744,7 @@ class HomeRecommendationTests(TestCase):
             last_name='User',
             email='recommend@example.com',
         )
-        UserProfile.objects.create(user=self.user, role='viewer')
+        UserProfile.objects.create(user=self.user, role='customer')
 
         self.birthday_cake = Cake.objects.create(
             name='Birthday Chocolate Cake',
@@ -1786,6 +1828,25 @@ class HomeRecommendationTests(TestCase):
         self.assertGreaterEqual(len(response.context['recommended_cakes']), 1)
         self.assertGreaterEqual(
             len(response.context['recommended_packages']), 1)
+
+
+class AuthenticationFlowTests(TestCase):
+    def test_public_register_creates_customer_profile(self):
+        response = self.client.post(reverse('register'), {
+            'username': 'registered-customer',
+            'email': 'registered@example.com',
+            'password': 'TestPass123!',
+            'confirm_password': 'TestPass123!',
+            'firstname': 'Registered',
+            'lastname': 'Customer',
+            'phone': '09171234567',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers['Location'], reverse('profile'))
+        registered_user = User.objects.get(username='registered-customer')
+        self.assertEqual(registered_user.profile.role, 'customer')
+        self.assertFalse(registered_user.is_staff)
 
 
 @override_settings(DEBUG=False, DEMO_BOT_REMOTE_ENABLED=True)

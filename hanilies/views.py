@@ -185,22 +185,24 @@ REFUND_STATUS_NOTIFICATION_CONFIG = {
 }
 
 DEPOSIT_RATE = Decimal('0.50')
-STAFF_ROLE_VALUES = {'owner', 'admin', 'manager', 'baker', 'packager', 'cashier'}
+STAFF_ROLE_VALUES = {'owner', 'admin', 'manager', 'supervisor', 'baker', 'packager', 'cashier'}
 PAYMENT_PLAN_LABELS = {
     'cod': '50% GCash Deposit + COD Balance',
     'gcash': 'Full GCash Payment',
 }
 ADMIN_MENU_ITEMS = [
     {'name': 'Dashboard', 'url': 'admin_dashboard', 'icon': 'tachometer-alt', 'roles': STAFF_ROLE_VALUES},
-    {'name': 'Cakes', 'url': 'admin_cakes', 'icon': 'birthday-cake', 'roles': {'owner', 'admin', 'baker'}},
-    {'name': 'Cake Orders', 'url': 'admin_cake_orders', 'icon': 'shopping-cart', 'roles': {'owner', 'admin', 'manager', 'baker'}},
-    {'name': 'Packages', 'url': 'admin_packages', 'icon': 'gift', 'roles': {'owner', 'admin', 'packager'}},
-    {'name': 'Package Orders', 'url': 'admin_package_orders', 'icon': 'calendar-check', 'roles': {'owner', 'admin', 'manager', 'packager'}},
+    {'name': 'Cakes', 'url': 'admin_cakes', 'icon': 'birthday-cake', 'roles': {'owner', 'admin', 'supervisor', 'baker'}},
+    {'name': 'Cake Orders', 'url': 'admin_cake_orders', 'icon': 'shopping-cart', 'roles': {'owner', 'admin', 'manager', 'supervisor', 'baker'}},
+    {'name': 'Packages', 'url': 'admin_packages', 'icon': 'gift', 'roles': {'owner', 'admin', 'supervisor', 'packager'}},
+    {'name': 'Package Orders', 'url': 'admin_package_orders', 'icon': 'calendar-check', 'roles': {'owner', 'admin', 'manager', 'supervisor', 'packager'}},
     {'name': 'Payments', 'url': 'admin_payments', 'icon': 'credit-card', 'roles': {'owner', 'admin', 'cashier'}},
-    {'name': 'Refunds', 'url': 'admin_refunds', 'icon': 'rotate-left', 'roles': {'owner', 'admin', 'manager', 'cashier'}},
+    {'name': 'Refunds', 'url': 'admin_refunds', 'icon': 'rotate-left', 'roles': {'owner', 'admin', 'manager', 'supervisor', 'cashier'}},
     {'name': 'Users', 'url': 'admin_users', 'icon': 'users', 'roles': {'owner', 'admin'}},
     {'name': 'Audit Trail', 'url': 'admin_activity_logs', 'icon': 'clipboard-list', 'roles': {'owner', 'admin'}},
 ]
+
+ROLE_CHOICES = UserProfile.ROLE_CHOICES
 
 
 def _parse_decimal(value, default='0.00'):
@@ -234,6 +236,35 @@ def _require_admin_roles(request, allowed_roles, redirect_name='admin_dashboard'
         return None
     messages.error(request, 'Permission denied')
     return redirect(redirect_name)
+
+
+def _sync_user_staff_flags(user, role_value):
+    is_staff_user = user.is_superuser or role_value in STAFF_ROLE_VALUES
+    if user.is_staff != is_staff_user:
+        user.is_staff = is_staff_user
+        user.save(update_fields=['is_staff'])
+
+
+def _ensure_user_profile(user, default_role='customer'):
+    profile, created = UserProfile.objects.get_or_create(
+        user=user,
+        defaults={'role': default_role},
+    )
+    if created:
+        _sync_user_staff_flags(user, profile.role)
+    return profile
+
+
+def _assign_user_role(user, role_value, phone=None, address=None):
+    profile = _ensure_user_profile(user, default_role=role_value)
+    profile.role = role_value
+    if phone is not None:
+        profile.phone = phone
+    if address is not None:
+        profile.address = address
+    profile.save()
+    _sync_user_staff_flags(user, role_value)
+    return profile
 
 
 def _get_payment_plan_label(payment_plan):
@@ -833,17 +864,18 @@ def _ensure_browser_demo_user():
     profile, _ = UserProfile.objects.get_or_create(
         user=user,
         defaults={
-            'role': 'viewer',
+            'role': 'customer',
             'phone': '09171234567',
             'address': '123 Demo Street, Lucena City',
         },
     )
-    profile.role = 'viewer'
+    profile.role = 'customer'
     if not profile.phone:
         profile.phone = '09171234567'
     if not profile.address:
         profile.address = '123 Demo Street, Lucena City'
     profile.save()
+    _sync_user_staff_flags(user, profile.role)
     return user
 
 
@@ -1629,14 +1661,14 @@ def login_view(request):
             # Ensure user has a profile
             if not hasattr(user, 'profile'):
                 if user.is_superuser:
-                    UserProfile.objects.create(user=user, role='owner')
+                    _assign_user_role(user, 'owner')
                 else:
-                    UserProfile.objects.create(user=user, role='viewer')
+                    _assign_user_role(user, 'customer')
 
             # Check if user has admin role (for redirect)
             role = user.profile.role
 
-            if user.is_superuser or role in ['owner', 'admin', 'manager', 'baker', 'packager', 'cashier']:
+            if user.is_superuser or role in STAFF_ROLE_VALUES:
                 return redirect('admin_dashboard')
             else:
                 return redirect('profile')
@@ -1680,8 +1712,9 @@ def register_view(request):
         UserProfile.objects.create(
             user=user,
             phone=phone,
-            role='viewer'
+            role='customer'
         )
+        _sync_user_staff_flags(user, 'customer')
 
         login(request, user)
         messages.success(
@@ -1707,7 +1740,7 @@ def logout_view(request):
 def profile(request):
     """User profile page"""
     if not hasattr(request.user, 'profile'):
-        UserProfile.objects.create(user=request.user, role='viewer')
+        _assign_user_role(request.user, 'customer')
 
     if request.method == 'POST':
         user = request.user
@@ -2257,9 +2290,9 @@ def admin_dashboard(request):
 
     if not hasattr(request.user, 'profile'):
         if request.user.is_superuser:
-            UserProfile.objects.create(user=request.user, role='owner')
+            _assign_user_role(request.user, 'owner')
         else:
-            UserProfile.objects.create(user=request.user, role='viewer')
+            _assign_user_role(request.user, 'customer')
 
     role = getattr(request.user, 'profile', None)
     admin_menu = get_admin_menu(request)
@@ -2312,7 +2345,7 @@ def admin_dashboard(request):
 @login_required
 def admin_cakes(request):
     """List all cakes"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'baker'})
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'supervisor', 'baker'})
     if access_denied:
         return access_denied
 
@@ -2326,7 +2359,7 @@ def admin_cakes(request):
 @login_required
 def admin_cake_add(request):
     """Add a new cake with image upload"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'baker'})
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'supervisor', 'baker'})
     if access_denied:
         return access_denied
 
@@ -2386,7 +2419,7 @@ def admin_cake_add(request):
 @login_required
 def admin_cake_edit(request, cake_id):
     """Edit a cake with image upload"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'baker'})
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'supervisor', 'baker'})
     if access_denied:
         return access_denied
 
@@ -2475,7 +2508,7 @@ def admin_cake_delete(request, cake_id):
 @login_required
 def admin_cake_orders(request):
     """List all cake orders"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'baker'})
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'supervisor', 'baker'})
     if access_denied:
         return access_denied
 
@@ -2489,7 +2522,7 @@ def admin_cake_orders(request):
 @login_required
 def admin_cake_order_view(request, order_id):
     """View order details"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'baker'})
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'supervisor', 'baker'})
     if access_denied:
         return access_denied
 
@@ -2503,7 +2536,7 @@ def admin_cake_order_view(request, order_id):
 @login_required
 def admin_cake_order_update(request, order_id):
     """Update order status"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'baker'})
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'supervisor', 'baker'})
     if access_denied:
         return access_denied
 
@@ -2534,7 +2567,7 @@ def admin_cake_order_update(request, order_id):
 @require_POST
 def admin_cake_order_delete(request, order_id):
     """Delete a cake order"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager'})
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'supervisor'})
     if access_denied:
         return access_denied
 
@@ -2559,7 +2592,7 @@ def admin_cake_order_delete(request, order_id):
 @login_required
 def admin_packages(request):
     """List all packages"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'packager'})
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'supervisor', 'packager'})
     if access_denied:
         return access_denied
 
@@ -2573,7 +2606,7 @@ def admin_packages(request):
 @login_required
 def admin_package_add(request):
     """Add a new package"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'packager'})
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'supervisor', 'packager'})
     if access_denied:
         return access_denied
 
@@ -2621,7 +2654,7 @@ def admin_package_add(request):
 @login_required
 def admin_package_edit(request, package_id):
     """Edit a package"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'packager'})
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'supervisor', 'packager'})
     if access_denied:
         return access_denied
 
@@ -2706,7 +2739,7 @@ def admin_package_delete(request, package_id):
 @login_required
 def admin_package_orders(request):
     """List all package orders"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'packager'})
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'supervisor', 'packager'})
     if access_denied:
         return access_denied
 
@@ -2720,7 +2753,7 @@ def admin_package_orders(request):
 @login_required
 def admin_package_order_view(request, order_id):
     """View package order details"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'packager'})
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'supervisor', 'packager'})
     if access_denied:
         return access_denied
 
@@ -2734,7 +2767,7 @@ def admin_package_order_view(request, order_id):
 @login_required
 def admin_package_order_update(request, order_id):
     """Update package order status"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'packager'})
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'supervisor', 'packager'})
     if access_denied:
         return access_denied
 
@@ -2765,7 +2798,7 @@ def admin_package_order_update(request, order_id):
 @require_POST
 def admin_package_order_delete(request, order_id):
     """Delete a package order"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager'})
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'supervisor'})
     if access_denied:
         return access_denied
 
@@ -2901,7 +2934,7 @@ def admin_payment_delete(request, payment_id):
 @login_required
 def admin_refunds(request):
     """List customer cancellation and refund requests."""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'cashier'})
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'supervisor', 'cashier'})
     if access_denied:
         return access_denied
 
@@ -2929,7 +2962,7 @@ def admin_refund_update(request, refund_id):
     action = request.POST.get('action')
 
     if action in ['approve', 'reject']:
-        access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager'})
+        access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'supervisor'})
     else:
         access_denied = _require_admin_roles(request, {'owner', 'admin', 'cashier'})
     if access_denied:
@@ -3050,6 +3083,65 @@ def admin_users(request):
 
 
 @login_required
+def admin_user_add(request):
+    """Create a customer or staff account from the admin panel."""
+    access_denied = _require_admin_roles(request, {'owner', 'admin'})
+    if access_denied:
+        return access_denied
+
+    if request.method == 'POST':
+        username = (request.POST.get('username') or '').strip()
+        email = (request.POST.get('email') or '').strip()
+        password = request.POST.get('password') or ''
+        confirm_password = request.POST.get('confirm_password') or ''
+        first_name = (request.POST.get('first_name') or '').strip()
+        last_name = (request.POST.get('last_name') or '').strip()
+        phone = (request.POST.get('phone') or '').strip()
+        address = (request.POST.get('address') or '').strip()
+        role_value = request.POST.get('role') or 'customer'
+
+        if role_value not in dict(ROLE_CHOICES):
+            messages.error(request, 'Please choose a valid role.')
+        elif not username:
+            messages.error(request, 'Username is required.')
+        elif not email:
+            messages.error(request, 'Email is required.')
+        elif password != confirm_password:
+            messages.error(request, 'Passwords do not match.')
+        elif len(password) < 8:
+            messages.error(request, 'Password must be at least 8 characters.')
+        elif User.objects.filter(username=username).exists():
+            messages.error(request, 'Username already exists.')
+        elif User.objects.filter(email=email).exists():
+            messages.error(request, 'Email already registered.')
+        else:
+            new_user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password,
+                first_name=first_name,
+                last_name=last_name,
+            )
+            _assign_user_role(new_user, role_value, phone=phone, address=address)
+
+            _log_staff_activity(
+                request.user,
+                'user_created',
+                f'Created user "{new_user.username}" with role {role_value}.',
+                'user',
+                new_user.id,
+            )
+
+            messages.success(request, f'User "{new_user.username}" created successfully!')
+            return redirect('admin_users')
+
+    return render(request, 'admin/users/add.html', {
+        'role_choices': ROLE_CHOICES,
+        'admin_menu': get_admin_menu(request),
+    })
+
+
+@login_required
 def admin_user_edit(request, user_id):
     """Edit user profile"""
     access_denied = _require_admin_roles(request, {'owner', 'admin'})
@@ -3125,11 +3217,16 @@ def admin_user_role(request, user_id):
 
     if request.method == 'POST':
         new_role = request.POST.get('role')
-        if hasattr(edit_user, 'profile'):
-            edit_user.profile.role = new_role
-            edit_user.profile.save()
-        else:
-            UserProfile.objects.create(user=edit_user, role=new_role)
+        if new_role not in dict(ROLE_CHOICES):
+            messages.error(request, 'Please choose a valid role.')
+            return redirect('admin_user_role', user_id=user_id)
+
+        _assign_user_role(
+            edit_user,
+            new_role,
+            phone=getattr(getattr(edit_user, 'profile', None), 'phone', ''),
+            address=getattr(getattr(edit_user, 'profile', None), 'address', ''),
+        )
 
         _log_staff_activity(
             request.user,
@@ -3145,6 +3242,7 @@ def admin_user_role(request, user_id):
 
     return render(request, 'admin/users/role.html', {
         'edit_user': edit_user,
+        'role_choices': ROLE_CHOICES,
         'admin_menu': get_admin_menu(request)
     })
 
@@ -3185,7 +3283,7 @@ def user_role_context(request):
     if request.user.is_authenticated:
         role = getattr(request.user, 'profile', None)
         return {
-            'user_role': role.role if role else 'viewer',
-            'user_role_display': role.get_role_display() if role else 'Viewer - Read Only',
+            'user_role': role.role if role else 'customer',
+            'user_role_display': role.get_role_display() if role else 'Customer - Customer Portal',
         }
     return {}

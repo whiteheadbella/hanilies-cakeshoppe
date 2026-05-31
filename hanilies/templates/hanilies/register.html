@@ -1,7 +1,7 @@
 {% extends 'hanilies/base.html' %}
 {% load static %}
 
-{% block title %}Register{% endblock %}
+{% block title %}Register Customer Account{% endblock %}
 
 {% block content %}
 <div class="container py-5">
@@ -10,8 +10,8 @@
             <div class="card shadow-lg border-0">
                 <div class="card-header bg-gold-pink text-white text-center py-4">
                     <i class="fas fa-user-plus fa-3x mb-3"></i>
-                    <h4 class="mb-0">Create Your Account</h4>
-                    <p class="mb-0 small">Join Hanilies Cakeshoppe today</p>
+                    <h4 class="mb-0">Create Your Customer Account</h4>
+                    <p class="mb-0 small">Customers can register here. Staff accounts are created by an owner or admin.</p>
                 </div>
                 <div class="card-body p-5">
                     <form method="POST" action="{% url 'register' %}" id="registerForm">
@@ -92,7 +92,7 @@
                         </div>
                         
                         <button type="submit" class="btn btn-gold w-100 py-3 mb-3" id="submitBtn">
-                            <i class="fas fa-user-plus me-2"></i>Register
+                            <i class="fas fa-user-plus me-2"></i>Register Customer Account
                         </button>
                     </form>
                     

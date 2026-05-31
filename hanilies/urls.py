@@ -76,6 +76,7 @@ urlpatterns = [
     path('admin-panel/activity-logs/delete/<int:log_id>/',
          views.admin_activity_log_delete, name='admin_activity_log_delete'),
     path('admin-panel/users/', views.admin_users, name='admin_users'),
+     path('admin-panel/users/add/', views.admin_user_add, name='admin_user_add'),
     path('admin-panel/users/edit/<int:user_id>/',
          views.admin_user_edit, name='admin_user_edit'),
     path('admin-panel/users/delete/<int:user_id>/',

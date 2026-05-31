@@ -23,10 +23,11 @@ def user_has_permission(user, model_name, action='view'):
         'owner': ['*'],
         'admin': ['*'],
         'manager': ['CakeOrder', 'PackageOrder'],
+        'supervisor': ['Cake', 'CakeOrder', 'CakeCustomization', 'Package', 'PackageOrder'],
         'baker': ['Cake', 'CakeOrder', 'CakeCustomization'],
         'packager': ['Package', 'PackageOrder'],
         'cashier': ['Payment'],
-        'viewer': [],
+        'customer': [],
     }
     
     allowed = permissions.get(role, [])
@@ -61,10 +62,11 @@ class HaniliesAdminSite(admin.AdminSite):
             'owner': ['Cake', 'CakeOrder', 'CakeCustomization', 'Package', 'PackageOrder', 'Payment', 'User', 'UserProfile'],
             'admin': ['Cake', 'CakeOrder', 'CakeCustomization', 'Package', 'PackageOrder', 'Payment', 'User', 'UserProfile'],
             'manager': ['CakeOrder', 'PackageOrder'],
+            'supervisor': ['Cake', 'CakeOrder', 'CakeCustomization', 'Package', 'PackageOrder'],
             'baker': ['Cake', 'CakeOrder', 'CakeCustomization'],
             'packager': ['Package', 'PackageOrder'],
             'cashier': ['Payment'],
-            'viewer': [],
+            'customer': [],
         }
         
         allowed = allowed_models.get(role, [])
@@ -107,10 +109,11 @@ class CustomUserAdmin(UserAdmin):
                 'owner': '#fbbf24',
                 'admin': '#f97316',
                 'manager': '#3b82f6',
+                'supervisor': '#14b8a6',
                 'baker': '#ec489a',
                 'packager': '#8b5cf6',
                 'cashier': '#10b981',
-                'viewer': '#6b7280',
+                'customer': '#6b7280',
             }
             color = role_colors.get(obj.profile.role, '#6b7280')
             return format_html('<span style="background: {}; color: white; padding: 4px 12px; border-radius: 20px;">{}</span>', 

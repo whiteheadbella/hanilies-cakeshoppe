@@ -18,15 +18,12 @@
             <div class="form-group">
                 <label>Select Role</label>
                 <select name="role" class="form-control" required>
-                    <option value="owner" {% if edit_user.profile.role == 'owner' %}selected{% endif %}>Owner - Full Access</option>
-                    <option value="admin" {% if edit_user.profile.role == 'admin' %}selected{% endif %}>Admin - All Management</option>
-                    <option value="manager" {% if edit_user.profile.role == 'manager' %}selected{% endif %}>Manager - Orders & Customers</option>
-                    <option value="baker" {% if edit_user.profile.role == 'baker' %}selected{% endif %}>Baker - Cake Management</option>
-                    <option value="packager" {% if edit_user.profile.role == 'packager' %}selected{% endif %}>Packager - Package Management</option>
-                    <option value="cashier" {% if edit_user.profile.role == 'cashier' %}selected{% endif %}>Cashier - Payments Only</option>
-                    <option value="viewer" {% if edit_user.profile.role == 'viewer' %}selected{% endif %}>Viewer - Read Only</option>
+                    {% for role_value, role_label in role_choices %}
+                    <option value="{{ role_value }}" {% if edit_user.profile.role == role_value %}selected{% endif %}>{{ role_label }}</option>
+                    {% endfor %}
                 </select>
             </div>
+            <p style="color: #6b7280; margin-top: 8px;">Public registration creates customer accounts. Use this screen to assign staff roles such as supervisor, cashier, or manager.</p>
             <hr>
             <div class="form-group">
                 <button type="submit" class="btn-primary">Update Role</button>

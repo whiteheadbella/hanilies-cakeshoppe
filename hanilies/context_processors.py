@@ -6,8 +6,8 @@ def user_role_context(request):
     if request.user.is_authenticated:
         role = getattr(request.user, 'profile', None)
         return {
-            'user_role': role.role if role else 'viewer',
-            'user_role_display': role.get_role_display() if role else 'Viewer - Read Only',
+            'user_role': role.role if role else 'customer',
+            'user_role_display': role.get_role_display() if role else 'Customer - Customer Portal',
         }
     return {}
 

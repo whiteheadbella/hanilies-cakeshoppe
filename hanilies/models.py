@@ -8,16 +8,17 @@ class UserProfile(models.Model):
         ('owner', 'Owner - Full Access'),
         ('admin', 'Admin - All Management'),
         ('manager', 'Manager - Orders & Customers'),
+        ('supervisor', 'Supervisor - Operations Oversight'),
         ('baker', 'Baker - Cake Management'),
         ('packager', 'Packager - Package Management'),
         ('cashier', 'Cashier - Payments Only'),
-        ('viewer', 'Viewer - Read Only'),
+        ('customer', 'Customer - Customer Portal'),
     ]
 
     user = models.OneToOneField(
         User, on_delete=models.CASCADE, related_name='profile')
     role = models.CharField(
-        max_length=20, choices=ROLE_CHOICES, default='viewer')
+        max_length=20, choices=ROLE_CHOICES, default='customer')
     phone = models.CharField(max_length=20, blank=True)
     address = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
