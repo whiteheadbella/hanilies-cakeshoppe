@@ -176,6 +176,8 @@ class CakeOrderViewUnitTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'GCash Payment Instructions')
         self.assertContains(response, reverse('payment_qr_preview'))
+        self.assertContains(response, 'Review Cake Order')
+        self.assertContains(response, 'Confirm Cake Order')
 
     def test_cake_customize_get_renders_special_occasions_theme_option(self):
         response = self.client.get(reverse('cake_customize'), {
@@ -409,6 +411,8 @@ class PackageFlowUnitTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'GCash Payment Instructions')
         self.assertContains(response, reverse('payment_qr_preview'))
+        self.assertContains(response, 'Review Package Order')
+        self.assertContains(response, 'Confirm Package Order')
 
     def test_package_cake_customize_get_renders_special_occasions_theme_option(self):
         session = self.client.session

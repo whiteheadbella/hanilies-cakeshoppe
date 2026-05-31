@@ -7,7 +7,7 @@
     <div class="row mb-4">
         <div class="col-lg-8">
             <h1 class="display-5 fw-bold mb-2">Finalize Package Order</h1>
-            <p class="lead text-muted mb-0">Step 3 of 3: submit event details, contact information, and payment details.</p>
+            <p class="lead text-muted mb-0">Step 3 of 3: enter event and payment details, review everything, then confirm your booking.</p>
         </div>
     </div>
 
@@ -133,9 +133,100 @@
                             </div>
                         </div>
 
-                        <div class="d-flex justify-content-between">
+                        <div id="package-review-panel" class="card border-0 bg-light-subtle mb-4 d-none">
+                            <div class="card-body">
+                                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+                                    <div>
+                                        <h6 class="fw-bold mb-1">Review Your Package Order</h6>
+                                        <p class="text-muted small mb-0">Confirm the booking details below before the package order is submitted.</p>
+                                    </div>
+                                    <span class="badge text-bg-warning">Confirmation Required</span>
+                                </div>
+                                <div class="row g-3 small">
+                                    <div class="col-md-6">
+                                        <div class="fw-semibold text-muted">Package</div>
+                                        <div>{{ package.name }}</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="fw-semibold text-muted">Grand Total</div>
+                                        <div class="fw-bold text-gold-pink">P{{ grand_total }}</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="fw-semibold text-muted">Event Type</div>
+                                        <div>{{ draft.event_type|default:package.package_type }}</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="fw-semibold text-muted">Selected Add-ons</div>
+                                        {% if draft.selected_addon_labels %}
+                                        <div>{{ draft.selected_addon_labels|join:', ' }}</div>
+                                        {% else %}
+                                        <div>No add-ons selected</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="fw-semibold text-muted">Cake Flavor</div>
+                                        <div>{{ draft.cake_flavor|default:'Not specified' }}</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="fw-semibold text-muted">Cake Frosting</div>
+                                        <div>{{ draft.cake_frosting|default:'Not specified' }}</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="fw-semibold text-muted">Cake Filling</div>
+                                        <div>{{ draft.cake_filling|default:'None' }}</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="fw-semibold text-muted">Cake Message</div>
+                                        <div>{{ draft.cake_message|default:'None' }}</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="fw-semibold text-muted">Event Date</div>
+                                        <div id="review-package-date">Not selected</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="fw-semibold text-muted">Event Time</div>
+                                        <div id="review-package-time">Not selected</div>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="fw-semibold text-muted">Venue</div>
+                                        <div id="review-package-venue">Not provided</div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="fw-semibold text-muted">Contact Name</div>
+                                        <div id="review-package-contact-name">Not provided</div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="fw-semibold text-muted">Phone Number</div>
+                                        <div id="review-package-contact-phone">Not provided</div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="fw-semibold text-muted">Email Address</div>
+                                        <div id="review-package-contact-email">Not provided</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="fw-semibold text-muted">Payment Method</div>
+                                        <div id="review-package-payment">Cash on Delivery</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="fw-semibold text-muted">GCash Reference</div>
+                                        <div id="review-package-reference">Not required</div>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="fw-semibold text-muted">Proof of Payment</div>
+                                        <div id="review-package-proof">Not required</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between" id="package-primary-actions">
                             <a href="{% url 'package_cake_customize' %}" class="btn btn-outline-gold">Back to Cake Details</a>
-                            <button type="submit" class="btn btn-gold">Place Package Order</button>
+                            <button type="button" class="btn btn-gold" id="package-review-button">Review Package Order</button>
+                        </div>
+
+                        <div class="d-flex justify-content-between d-none" id="package-confirm-actions">
+                            <button type="button" class="btn btn-outline-gold" id="package-edit-button">Back to Edit</button>
+                            <button type="submit" class="btn btn-gold" id="package-confirm-button">Confirm Package Order</button>
                         </div>
                     </form>
                 </div>
@@ -196,9 +287,19 @@
     const packageGcashQrZoom = document.getElementById('package-gcash-qr-zoom');
     const packageGcashAmount = document.getElementById('package-gcash-amount');
     const packageGcashNote = document.getElementById('package-gcash-note');
+    const packagePaymentForm = document.getElementById('package-step-three');
+    const packageReviewPanel = document.getElementById('package-review-panel');
+    const packagePrimaryActions = document.getElementById('package-primary-actions');
+    const packageConfirmActions = document.getElementById('package-confirm-actions');
+    const packageReviewButton = document.getElementById('package-review-button');
+    const packageEditButton = document.getElementById('package-edit-button');
+    const packageConfirmButton = document.getElementById('package-confirm-button');
+    const packageReferenceInput = packagePaymentForm.querySelector('input[name="reference_number"]');
+    const packageProofInput = packagePaymentForm.querySelector('input[name="proof_image"]');
     const packagePaymentQrPreviewUrl = '{{ payment_qr_preview_url }}';
     const packageOrderLabel = '{{ package.name|escapejs }} package booking';
     const packageGrandTotal = parseFloat('{{ grand_total }}');
+    let packageReviewReady = false;
 
     async function refreshPackageGcashQr() {
         try {
@@ -226,13 +327,65 @@
     function updatePackagePaymentFields() {
         const selectedPayment = document.querySelector('.package-payment-radio:checked').value;
         packageGcashFields.classList.toggle('d-none', selectedPayment !== 'gcash');
+        packageReferenceInput.required = selectedPayment === 'gcash';
+        packageProofInput.required = selectedPayment === 'gcash';
 
         if (selectedPayment === 'gcash') {
             refreshPackageGcashQr();
         }
     }
 
+    function resetPackageReviewState() {
+        packageReviewReady = false;
+        packageReviewPanel.classList.add('d-none');
+        packagePrimaryActions.classList.remove('d-none');
+        packageConfirmActions.classList.add('d-none');
+    }
+
+    function showPackageReview() {
+        if (!packagePaymentForm.reportValidity()) {
+            return;
+        }
+
+        const selectedPayment = document.querySelector('.package-payment-radio:checked').value;
+        document.getElementById('review-package-date').textContent = packagePaymentForm.querySelector('input[name="event_date"]').value || 'Not selected';
+        document.getElementById('review-package-time').textContent = packagePaymentForm.querySelector('input[name="event_time"]').value || 'Not selected';
+        document.getElementById('review-package-venue').textContent = packagePaymentForm.querySelector('textarea[name="venue"]').value.trim() || 'Not provided';
+        document.getElementById('review-package-contact-name').textContent = packagePaymentForm.querySelector('input[name="contact_name"]').value.trim() || 'Not provided';
+        document.getElementById('review-package-contact-phone').textContent = packagePaymentForm.querySelector('input[name="contact_phone"]').value.trim() || 'Not provided';
+        document.getElementById('review-package-contact-email').textContent = packagePaymentForm.querySelector('input[name="contact_email"]').value.trim() || 'Not provided';
+        document.getElementById('review-package-payment').textContent = selectedPayment === 'gcash' ? 'GCash' : 'Cash on Delivery';
+        document.getElementById('review-package-reference').textContent = selectedPayment === 'gcash'
+            ? (packageReferenceInput.value.trim() || 'Missing reference number')
+            : 'Not required';
+        document.getElementById('review-package-proof').textContent = selectedPayment === 'gcash'
+            ? (packageProofInput.files[0]?.name || 'Missing proof of payment')
+            : 'Not required';
+
+        packageReviewReady = true;
+        packageReviewPanel.classList.remove('d-none');
+        packagePrimaryActions.classList.add('d-none');
+        packageConfirmActions.classList.remove('d-none');
+        packageReviewPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
     packagePaymentRadios.forEach((radio) => radio.addEventListener('change', updatePackagePaymentFields));
+    packageReviewButton.addEventListener('click', showPackageReview);
+    packageEditButton.addEventListener('click', () => {
+        resetPackageReviewState();
+        packagePaymentForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    packageConfirmButton.addEventListener('click', () => {
+        packageReviewReady = true;
+    });
+    packagePaymentForm.addEventListener('submit', (event) => {
+        if (!packageReviewReady) {
+            event.preventDefault();
+            showPackageReview();
+        }
+    });
+    packagePaymentForm.addEventListener('input', resetPackageReviewState);
+    packagePaymentForm.addEventListener('change', resetPackageReviewState);
     document.getElementById('event_date').setAttribute('min', new Date().toISOString().split('T')[0]);
     updatePackagePaymentFields();
 </script>

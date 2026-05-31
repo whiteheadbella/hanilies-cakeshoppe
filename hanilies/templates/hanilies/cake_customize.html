@@ -7,7 +7,7 @@
     <div class="row mb-4">
         <div class="col-lg-8">
             <h1 class="display-5 fw-bold mb-2">Customize Your Cake</h1>
-            <p class="lead text-muted mb-0">Complete the form below to place a real cake order and send it directly to the admin dashboard.</p>
+            <p class="lead text-muted mb-0">Complete the form below, review every detail, then confirm your cake order.</p>
         </div>
     </div>
 
@@ -225,9 +225,116 @@
                             </div>
                         </div>
 
-                        <div class="d-flex justify-content-between">
+                        <div id="cake-review-panel" class="card border-0 bg-light-subtle mb-4 d-none">
+                            <div class="card-body">
+                                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+                                    <div>
+                                        <h6 class="fw-bold mb-1">Review Your Cake Order</h6>
+                                        <p class="text-muted small mb-0">Check the details below before the order is sent.</p>
+                                    </div>
+                                    <span class="badge text-bg-warning">Confirmation Required</span>
+                                </div>
+                                <div class="row g-3 small">
+                                    <div class="col-md-6">
+                                        <div class="fw-semibold text-muted">Cake</div>
+                                        <div>{{ cake.name }}</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="fw-semibold text-muted">Total</div>
+                                        <div class="fw-bold text-gold-pink" id="review-cake-total">P{{ cake.price }}</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="fw-semibold text-muted">Theme</div>
+                                        <div id="review-cake-theme">Not selected</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="fw-semibold text-muted">Size</div>
+                                        <div id="review-cake-size">Not selected</div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="fw-semibold text-muted">Quantity</div>
+                                        <div id="review-cake-quantity">1</div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="fw-semibold text-muted">Shape</div>
+                                        <div id="review-cake-shape">Round</div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="fw-semibold text-muted">Flavor</div>
+                                        <div id="review-cake-flavor">Chocolate</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="fw-semibold text-muted">Frosting</div>
+                                        <div id="review-cake-frosting">Buttercream</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="fw-semibold text-muted">Filling</div>
+                                        <div id="review-cake-filling">None</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="fw-semibold text-muted">Color Palette</div>
+                                        <div id="review-cake-color">Not specified</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="fw-semibold text-muted">Decoration Add-ons</div>
+                                        <div id="review-cake-decorations">None selected</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="fw-semibold text-muted">Message on Cake</div>
+                                        <div id="review-cake-message">None</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="fw-semibold text-muted">Design Reference</div>
+                                        <div id="review-cake-design">No file selected</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="fw-semibold text-muted">Pickup / Delivery Date</div>
+                                        <div id="review-cake-date">Not selected</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="fw-semibold text-muted">Payment Method</div>
+                                        <div id="review-cake-payment">Cash on Delivery</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="fw-semibold text-muted">GCash Reference</div>
+                                        <div id="review-cake-reference">Not required</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="fw-semibold text-muted">Proof of Payment</div>
+                                        <div id="review-cake-proof">Not required</div>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="fw-semibold text-muted">Delivery Address</div>
+                                        <div id="review-cake-address">Not provided</div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="fw-semibold text-muted">Contact Name</div>
+                                        <div id="review-cake-contact-name">Not provided</div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="fw-semibold text-muted">Phone Number</div>
+                                        <div id="review-cake-contact-phone">Not provided</div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="fw-semibold text-muted">Email Address</div>
+                                        <div id="review-cake-contact-email">Not provided</div>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="fw-semibold text-muted">Special Instructions</div>
+                                        <div id="review-cake-instructions">None</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between" id="cake-primary-actions">
                             <a href="{% url 'cakes' %}" class="btn btn-outline-gold">Back to Cakes</a>
-                            <button type="submit" class="btn btn-gold">Place Cake Order</button>
+                            <button type="button" class="btn btn-gold" id="cake-review-button">Review Cake Order</button>
+                        </div>
+
+                        <div class="d-flex justify-content-between d-none" id="cake-confirm-actions">
+                            <button type="button" class="btn btn-outline-gold" id="cake-edit-button">Back to Edit</button>
+                            <button type="submit" class="btn btn-gold" id="cake-confirm-button">Confirm Cake Order</button>
                         </div>
                     </form>
                 </div>
@@ -294,9 +401,20 @@
     const cakeGcashQrZoom = document.getElementById('cake-gcash-qr-zoom');
     const cakeGcashAmount = document.getElementById('cake-gcash-amount');
     const cakeGcashNote = document.getElementById('cake-gcash-note');
+    const cakeOrderForm = document.getElementById('cake-order-form');
+    const cakeReviewPanel = document.getElementById('cake-review-panel');
+    const cakePrimaryActions = document.getElementById('cake-primary-actions');
+    const cakeConfirmActions = document.getElementById('cake-confirm-actions');
+    const cakeReviewButton = document.getElementById('cake-review-button');
+    const cakeEditButton = document.getElementById('cake-edit-button');
+    const cakeConfirmButton = document.getElementById('cake-confirm-button');
+    const cakeReferenceInput = cakeOrderForm.querySelector('input[name="reference_number"]');
+    const cakeProofInput = cakeOrderForm.querySelector('input[name="proof_image"]');
+    const cakeDesignReferenceInput = cakeOrderForm.querySelector('input[name="design_reference"]');
     const paymentQrPreviewUrl = '{{ payment_qr_preview_url }}';
     const cakeOrderLabel = '{{ cake.name|escapejs }} cake order';
     let cakeQrRefreshTimer;
+    let cakeReviewReady = false;
 
     function getCakeTotals() {
         const quantity = Math.max(parseInt(quantityInput.value || '1', 10), 1);
@@ -366,10 +484,66 @@
         const selectedPayment = document.querySelector('.payment-radio:checked').value;
         document.getElementById('summary-payment').textContent = selectedPayment === 'gcash' ? 'GCash' : 'Cash on Delivery';
         gcashFields.classList.toggle('d-none', selectedPayment !== 'gcash');
+        cakeReferenceInput.required = selectedPayment === 'gcash';
+        cakeProofInput.required = selectedPayment === 'gcash';
 
         if (selectedPayment === 'gcash') {
             scheduleCakeQrRefresh(getCakeTotals().total);
         }
+    }
+
+    function resetCakeReviewState() {
+        cakeReviewReady = false;
+        cakeReviewPanel.classList.add('d-none');
+        cakePrimaryActions.classList.remove('d-none');
+        cakeConfirmActions.classList.add('d-none');
+    }
+
+    function populateCakeReview() {
+        const selectedPayment = document.querySelector('.payment-radio:checked').value;
+        const selectedDecorations = Array.from(addonCheckboxes)
+            .filter((checkbox) => checkbox.checked)
+            .map((checkbox) => checkbox.closest('label').querySelector('strong').textContent.trim());
+        const { quantity, total } = getCakeTotals();
+
+        document.getElementById('review-cake-theme').textContent = themeSelect.value || 'Not selected';
+        document.getElementById('review-cake-size').textContent = sizeSelect.value || 'Not selected';
+        document.getElementById('review-cake-quantity').textContent = quantity;
+        document.getElementById('review-cake-shape').textContent = cakeOrderForm.querySelector('select[name="shape"]').value || 'Not selected';
+        document.getElementById('review-cake-flavor').textContent = cakeOrderForm.querySelector('select[name="flavor"]').value || 'Not selected';
+        document.getElementById('review-cake-frosting').textContent = cakeOrderForm.querySelector('select[name="frosting"]').value || 'Not selected';
+        document.getElementById('review-cake-filling').textContent = cakeOrderForm.querySelector('select[name="filling"]').value || 'None';
+        document.getElementById('review-cake-color').textContent = cakeOrderForm.querySelector('input[name="color_palette"]').value.trim() || 'Not specified';
+        document.getElementById('review-cake-decorations').textContent = selectedDecorations.join(', ') || 'None selected';
+        document.getElementById('review-cake-message').textContent = cakeOrderForm.querySelector('input[name="message_on_cake"]').value.trim() || 'None';
+        document.getElementById('review-cake-design').textContent = cakeDesignReferenceInput.files[0]?.name || 'No file selected';
+        document.getElementById('review-cake-date').textContent = cakeOrderForm.querySelector('input[name="delivery_date"]').value || 'Not selected';
+        document.getElementById('review-cake-payment').textContent = selectedPayment === 'gcash' ? 'GCash' : 'Cash on Delivery';
+        document.getElementById('review-cake-reference').textContent = selectedPayment === 'gcash'
+            ? (cakeReferenceInput.value.trim() || 'Missing reference number')
+            : 'Not required';
+        document.getElementById('review-cake-proof').textContent = selectedPayment === 'gcash'
+            ? (cakeProofInput.files[0]?.name || 'Missing proof of payment')
+            : 'Not required';
+        document.getElementById('review-cake-address').textContent = cakeOrderForm.querySelector('textarea[name="delivery_address"]').value.trim() || 'Not provided';
+        document.getElementById('review-cake-contact-name').textContent = cakeOrderForm.querySelector('input[name="contact_name"]').value.trim() || 'Not provided';
+        document.getElementById('review-cake-contact-phone').textContent = cakeOrderForm.querySelector('input[name="contact_phone"]').value.trim() || 'Not provided';
+        document.getElementById('review-cake-contact-email').textContent = cakeOrderForm.querySelector('input[name="contact_email"]').value.trim() || 'Not provided';
+        document.getElementById('review-cake-instructions').textContent = cakeOrderForm.querySelector('textarea[name="special_instructions"]').value.trim() || 'None';
+        document.getElementById('review-cake-total').textContent = `P${total.toFixed(2)}`;
+    }
+
+    function showCakeReview() {
+        if (!cakeOrderForm.reportValidity()) {
+            return;
+        }
+
+        populateCakeReview();
+        cakeReviewReady = true;
+        cakeReviewPanel.classList.remove('d-none');
+        cakePrimaryActions.classList.add('d-none');
+        cakeConfirmActions.classList.remove('d-none');
+        cakeReviewPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     themeSelect.addEventListener('change', updateCakeSummary);
@@ -377,6 +551,22 @@
     quantityInput.addEventListener('input', updateCakeSummary);
     addonCheckboxes.forEach((checkbox) => checkbox.addEventListener('change', updateCakeSummary));
     paymentRadios.forEach((radio) => radio.addEventListener('change', updatePaymentSummary));
+    cakeReviewButton.addEventListener('click', showCakeReview);
+    cakeEditButton.addEventListener('click', () => {
+        resetCakeReviewState();
+        cakeOrderForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    cakeConfirmButton.addEventListener('click', () => {
+        cakeReviewReady = true;
+    });
+    cakeOrderForm.addEventListener('submit', (event) => {
+        if (!cakeReviewReady) {
+            event.preventDefault();
+            showCakeReview();
+        }
+    });
+    cakeOrderForm.addEventListener('input', resetCakeReviewState);
+    cakeOrderForm.addEventListener('change', resetCakeReviewState);
 
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('delivery_date').setAttribute('min', today);
