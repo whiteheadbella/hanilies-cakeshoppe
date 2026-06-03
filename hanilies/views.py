@@ -121,6 +121,10 @@ ORDER_STATUS_NOTIFICATION_CONFIG = {
             'headline': 'Your cake is now being prepared.',
             'subject': 'Cake order now preparing',
         },
+        'ready_for_pickup': {
+            'headline': 'Your cake order is ready for pickup.',
+            'subject': 'Cake order ready for pickup',
+        },
         'out_for_delivery': {
             'headline': 'Your cake order is out for delivery.',
             'subject': 'Cake order out for delivery',
@@ -142,6 +146,10 @@ ORDER_STATUS_NOTIFICATION_CONFIG = {
         'ready_for_pickup': {
             'headline': 'Your package booking is ready for pickup.',
             'subject': 'Package booking ready for pickup',
+        },
+        'out_for_delivery': {
+            'headline': 'Your package booking is out for delivery.',
+            'subject': 'Package booking out for delivery',
         },
         'completed': {
             'headline': 'Your package booking has been completed.',
@@ -196,7 +204,7 @@ ADMIN_MENU_ITEMS = [
     {'name': 'Cake Orders', 'url': 'admin_cake_orders', 'icon': 'shopping-cart', 'roles': {'owner', 'admin', 'manager', 'supervisor', 'baker'}},
     {'name': 'Packages', 'url': 'admin_packages', 'icon': 'gift', 'roles': {'owner', 'admin', 'supervisor', 'packager'}},
     {'name': 'Package Orders', 'url': 'admin_package_orders', 'icon': 'calendar-check', 'roles': {'owner', 'admin', 'manager', 'supervisor', 'packager'}},
-    {'name': 'Payments', 'url': 'admin_payments', 'icon': 'credit-card', 'roles': {'owner', 'admin', 'cashier'}},
+    {'name': 'Payments', 'url': 'admin_payments', 'icon': 'credit-card', 'roles': {'owner', 'admin', 'manager', 'supervisor', 'cashier'}},
     {'name': 'Refunds', 'url': 'admin_refunds', 'icon': 'rotate-left', 'roles': {'owner', 'admin', 'manager', 'supervisor', 'cashier'}},
     {'name': 'Users', 'url': 'admin_users', 'icon': 'users', 'roles': {'owner', 'admin'}},
     {'name': 'Audit Trail', 'url': 'admin_activity_logs', 'icon': 'clipboard-list', 'roles': {'owner', 'admin'}},
@@ -346,10 +354,10 @@ def _build_cancellation_quote(order_type, order):
         }
 
     if order_type == 'cake':
-        if order.order_status in ['out_for_delivery', 'delivered']:
+        if order.order_status in ['ready_for_pickup', 'out_for_delivery', 'delivered']:
             return {
                 'allowed': False,
-                'reason': 'Cake orders can no longer be cancelled once they are out for delivery or delivered.',
+                'reason': 'Cake orders can no longer be cancelled once they are ready for pickup, out for delivery, or delivered.',
                 'penalty_rate': Decimal('1.00'),
                 'penalty_fee': refundable_base,
                 'refundable_amount': Decimal('0.00'),
@@ -364,10 +372,10 @@ def _build_cancellation_quote(order_type, order):
             penalty_rate = Decimal('0.00')
             policy_note = 'No cancellation fee applies because the request was submitted at least 48 hours before delivery.'
     else:
-        if order.order_status in ['ready_for_pickup', 'completed']:
+        if order.order_status in ['ready_for_pickup', 'out_for_delivery', 'completed']:
             return {
                 'allowed': False,
-                'reason': 'Package orders can no longer be cancelled once they are ready for pickup or completed.',
+                'reason': 'Package orders can no longer be cancelled once they are ready for pickup, out for delivery, or completed.',
                 'penalty_rate': Decimal('1.00'),
                 'penalty_fee': refundable_base,
                 'refundable_amount': Decimal('0.00'),
@@ -1284,6 +1292,8 @@ def _build_tracking_steps(order_kind, order_status):
              'Your package inclusions and cake are being prepared.'),
             ('ready_for_pickup', 'Ready for Pickup',
              'Your package is ready for pickup or dispatch.'),
+            ('out_for_delivery', 'Out for Delivery',
+             'Your package order is already on the way.'),
             ('completed', 'Completed', 'Your package order has been completed.'),
         ]
     else:
@@ -1292,6 +1302,8 @@ def _build_tracking_steps(order_kind, order_status):
             ('confirmed', 'Order Confirmed', 'Your cake order is confirmed.'),
             ('preparing', 'Preparing Cake',
              'The baking team is preparing your order.'),
+            ('ready_for_pickup', 'Ready for Pickup',
+             'Your cake is ready for pickup or release.'),
             ('out_for_delivery', 'Out for Delivery',
              'Your order is already on the way.'),
             ('delivered', 'Delivered', 'Your order has been delivered.'),
@@ -2522,11 +2534,14 @@ def admin_cake_orders(request):
 @login_required
 def admin_cake_order_view(request, order_id):
     """View order details"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'supervisor', 'baker'})
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'supervisor', 'baker', 'cashier'})
     if access_denied:
         return access_denied
 
-    order = get_object_or_404(CakeOrder, id=order_id)
+    order = get_object_or_404(
+        CakeOrder.objects.select_related('user', 'cake').prefetch_related('payments'),
+        id=order_id,
+    )
     return render(request, 'admin/orders/cake_order_view.html', {
         'order': order,
         'admin_menu': get_admin_menu(request)
@@ -2753,11 +2768,14 @@ def admin_package_orders(request):
 @login_required
 def admin_package_order_view(request, order_id):
     """View package order details"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'supervisor', 'packager'})
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'supervisor', 'packager', 'cashier'})
     if access_denied:
         return access_denied
 
-    order = get_object_or_404(PackageOrder, id=order_id)
+    order = get_object_or_404(
+        PackageOrder.objects.select_related('user', 'package').prefetch_related('payments'),
+        id=order_id,
+    )
     return render(request, 'admin/orders/package_order_view.html', {
         'order': order,
         'admin_menu': get_admin_menu(request)
@@ -2824,7 +2842,7 @@ def admin_package_order_delete(request, order_id):
 @login_required
 def admin_payments(request):
     """List all payments"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'cashier'})
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'supervisor', 'cashier'})
     if access_denied:
         return access_denied
 
@@ -2857,7 +2875,7 @@ def admin_payments(request):
 @login_required
 def admin_payment_verify(request, payment_id):
     """Verify/Approve/Reject a payment"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'cashier'})
+    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'supervisor', 'cashier'})
     if access_denied:
         return access_denied
 

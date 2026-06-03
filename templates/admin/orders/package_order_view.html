@@ -1,0 +1,103 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Package Order Preview{% endblock %}
+{% block page_title %}Customer Order Preview{% endblock %}
+{% block page_icon %}calendar-check{% endblock %}
+
+{% block content %}
+<div class="module-card">
+    <div class="module-header" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <h2><i class="fas fa-calendar-alt"></i> Package Order #{{ order.id }}</h2>
+        <a href="{% url 'admin_payments' %}" class="btn-preview-back">
+            <i class="fas fa-arrow-left"></i> Back to Payments
+        </a>
+    </div>
+
+    <div class="preview-grid">
+        <section class="preview-panel">
+            <h3>Customer</h3>
+            <p><strong>Name:</strong> {{ order.contact_name|default:order.user.get_full_name|default:order.user.username }}</p>
+            <p><strong>Username:</strong> {{ order.user.username }}</p>
+            <p><strong>Email:</strong> {{ order.contact_email|default:order.user.email|default:"-" }}</p>
+            <p><strong>Phone:</strong> {{ order.contact_phone|default:"-" }}</p>
+            <p><strong>Venue:</strong> {{ order.venue|default:"-" }}</p>
+        </section>
+
+        <section class="preview-panel">
+            <h3>Order Summary</h3>
+            <p><strong>Package:</strong> {{ order.package.name|default:"Custom Package" }}</p>
+            <p><strong>Status:</strong> {{ order.get_order_status_display }}</p>
+            <p><strong>Event Type:</strong> {{ order.get_event_type_display }}</p>
+            <p><strong>Event Date:</strong> {{ order.event_date|date:"Y-m-d" }}</p>
+            <p><strong>Event Time:</strong> {{ order.event_time|time:"H:i"|default:"-" }}</p>
+            <p><strong>Total Price:</strong> ₱{{ order.total_price }}</p>
+            <p><strong>Payment Plan:</strong> {{ order.get_payment_plan_display }}</p>
+            <p><strong>Deposit Amount:</strong> ₱{{ order.deposit_amount }}</p>
+            <p><strong>Balance Due:</strong> ₱{{ order.balance_due }}</p>
+            <p><strong>Created:</strong> {{ order.created_at|date:"Y-m-d H:i" }}</p>
+        </section>
+
+        <section class="preview-panel">
+            <h3>Package Customization</h3>
+            <p><strong>Selected Add-ons:</strong> {{ order.selected_addons|linebreaksbr|default:"-" }}</p>
+            <p><strong>Cake Flavor:</strong> {{ order.cake_flavor|default:"-" }}</p>
+            <p><strong>Cake Frosting:</strong> {{ order.cake_frosting|default:"-" }}</p>
+            <p><strong>Cake Filling:</strong> {{ order.cake_filling|default:"-" }}</p>
+            <p><strong>Cake Message:</strong> {{ order.cake_message|default:"-" }}</p>
+        </section>
+
+        <section class="preview-panel">
+            <h3>Payments</h3>
+            {% for payment in order.payments.all %}
+                <div class="payment-row">
+                    <p><strong>Payment #{{ payment.id }}</strong></p>
+                    <p>{{ payment.get_payment_purpose_display }} | {{ payment.get_payment_method_display }} | {{ payment.get_payment_status_display }}</p>
+                    <p>Amount: ₱{{ payment.amount }}</p>
+                    <p>Reference: {{ payment.reference_number|default:"-" }}</p>
+                </div>
+            {% empty %}
+                <p>No payments recorded yet.</p>
+            {% endfor %}
+        </section>
+    </div>
+</div>
+
+<style>
+    .preview-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 20px;
+    }
+    .preview-panel {
+        background: #fffaf0;
+        border: 1px solid #f5e4b8;
+        border-radius: 16px;
+        padding: 20px;
+    }
+    .preview-panel h3 {
+        margin-top: 0;
+        margin-bottom: 14px;
+        color: #b45309;
+    }
+    .preview-panel p {
+        margin: 0 0 10px;
+        line-height: 1.5;
+    }
+    .payment-row {
+        padding: 12px 0;
+        border-top: 1px solid #f5e4b8;
+    }
+    .payment-row:first-child {
+        border-top: none;
+        padding-top: 0;
+    }
+    .btn-preview-back {
+        background: #0f766e;
+        color: white;
+        padding: 10px 14px;
+        border-radius: 999px;
+        text-decoration: none;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}

@@ -801,16 +801,25 @@ class SecurityValidationTests(TestCase):
         self.assertEqual(payments_response.status_code, 200)
         self.assertEqual(refunds_response.status_code, 200)
 
+    def test_manager_can_access_admin_payments(self):
+        self.client.login(username='manager-user', password='TestPass123!')
+
+        response = self.client.get(reverse('admin_payments'))
+
+        self.assertEqual(response.status_code, 200)
+
     def test_supervisor_can_access_operations_routes_but_not_user_management(self):
         self.client.login(username='supervisor-user', password='TestPass123!')
 
         cake_orders_response = self.client.get(reverse('admin_cake_orders'))
         package_orders_response = self.client.get(reverse('admin_package_orders'))
+        payments_response = self.client.get(reverse('admin_payments'))
         refunds_response = self.client.get(reverse('admin_refunds'))
         users_response = self.client.get(reverse('admin_users'))
 
         self.assertEqual(cake_orders_response.status_code, 200)
         self.assertEqual(package_orders_response.status_code, 200)
+        self.assertEqual(payments_response.status_code, 200)
         self.assertEqual(refunds_response.status_code, 200)
         self.assertEqual(users_response.status_code, 302)
         self.assertEqual(users_response.headers['Location'], reverse('admin_dashboard'))
@@ -970,6 +979,114 @@ class SecurityValidationTests(TestCase):
         log = ActivityLog.objects.get(action='payment_status_updated', target_id=payment.id)
         self.assertEqual(log.actor, self.admin_user)
         self.assertIn('Updated payment', log.description)
+
+    def test_admin_payments_page_renders_preview_customer_order_actions(self):
+        cake_order = CakeOrder.objects.create(
+            user=self.viewer,
+            cake=self.cake,
+            quantity=1,
+            total_price=Decimal('999.00'),
+            contact_name='Viewer User',
+            contact_phone='09123456789',
+            contact_email='viewer@example.com',
+        )
+        package_order = PackageOrder.objects.create(
+            user=self.viewer,
+            package=self.package,
+            total_price=Decimal('4200.00'),
+            event_type='christening',
+            event_date=date(2026, 6, 1),
+            event_time=time(10, 30),
+            venue='Oroquieta City Hall',
+            contact_name='Viewer User',
+            contact_phone='09123456789',
+            contact_email='viewer@example.com',
+        )
+        Payment.objects.create(
+            amount=Decimal('999.00'),
+            payment_method='gcash',
+            payment_status='verifying',
+            cake_order=cake_order,
+            reference_number='CAKE-REF-001',
+        )
+        Payment.objects.create(
+            amount=Decimal('4200.00'),
+            payment_method='gcash',
+            payment_status='pending',
+            package_order=package_order,
+            reference_number='PACKAGE-REF-001',
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.get(reverse('admin_payments'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Preview Customer Order', count=2)
+        self.assertContains(response, reverse('admin_cake_order_view', args=[cake_order.id]))
+        self.assertContains(response, reverse('admin_package_order_view', args=[package_order.id]))
+
+    def test_cashier_can_open_order_preview_from_payment_review(self):
+        order = CakeOrder.objects.create(
+            user=self.viewer,
+            cake=self.cake,
+            quantity=1,
+            total_price=Decimal('999.00'),
+            payment_plan='gcash',
+            deposit_amount=Decimal('0.00'),
+            balance_due=Decimal('0.00'),
+            theme='Birthday',
+            size='8 inches',
+            flavor='Chocolate',
+            frosting='Buttercream',
+            message_on_cake='Happy Birthday',
+            special_instructions='Use gold accents.',
+            delivery_address='Oroquieta City',
+            contact_name='Viewer User',
+            contact_phone='09123456789',
+            contact_email='viewer@example.com',
+        )
+        Payment.objects.create(
+            amount=Decimal('999.00'),
+            payment_method='gcash',
+            payment_purpose='full',
+            payment_status='verifying',
+            cake_order=order,
+            reference_number='CAKE-REF-002',
+        )
+        self.client.login(username='cashier-user', password='TestPass123!')
+
+        response = self.client.get(reverse('admin_cake_order_view', args=[order.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Customer Order Preview')
+        self.assertContains(response, 'Happy Birthday')
+
+    def test_supervisor_can_verify_payment_from_review_queue(self):
+        order = CakeOrder.objects.create(
+            user=self.viewer,
+            cake=self.cake,
+            quantity=1,
+            total_price=Decimal('999.00'),
+            contact_name='Viewer User',
+            contact_phone='09123456789',
+            contact_email='viewer@example.com',
+        )
+        payment = Payment.objects.create(
+            amount=Decimal('999.00'),
+            payment_method='gcash',
+            payment_status='verifying',
+            cake_order=order,
+            reference_number='SUP-VERIFY-001',
+        )
+        self.client.login(username='supervisor-user', password='TestPass123!')
+
+        response = self.client.post(reverse('admin_payment_verify', args=[payment.id]), {
+            'action': 'approve',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        payment.refresh_from_db()
+        self.assertEqual(payment.payment_status, 'paid')
 
     def test_admin_can_delete_verified_payment_via_post_route(self):
         order = CakeOrder.objects.create(
@@ -1183,6 +1300,7 @@ class SecurityValidationTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Delete Order')
+        self.assertContains(response, 'Ready for Pickup')
 
     def test_admin_can_delete_package_order_via_post_route(self):
         order = PackageOrder.objects.create(
@@ -1226,6 +1344,7 @@ class SecurityValidationTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Delete Order')
+        self.assertContains(response, 'Out for Delivery')
 
 
 class OrderStatusNotificationTests(TestCase):
@@ -1288,6 +1407,28 @@ class OrderStatusNotificationTests(TestCase):
         self.assertEqual(notification.notification_type, 'order_status')
         self.assertIn('Current status: Confirmed.', notification.message)
 
+    def test_admin_cake_order_update_accepts_ready_for_pickup_status(self):
+        order = CakeOrder.objects.create(
+            user=self.customer,
+            cake=self.cake,
+            quantity=1,
+            total_price=Decimal('1200.00'),
+            order_status='preparing',
+            contact_name='Notified User',
+            contact_phone='09170000000',
+            contact_email='customer@example.com',
+        )
+
+        response = self.client.post(reverse('admin_cake_order_update', args=[order.id]), {
+            'status': 'ready_for_pickup',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        order.refresh_from_db()
+        self.assertEqual(order.order_status, 'ready_for_pickup')
+        notification = Notification.objects.get(cake_order=order)
+        self.assertIn('Current status: Ready for Pickup.', notification.message)
+
     def test_admin_cake_order_update_sends_customer_email(self):
         order = CakeOrder.objects.create(
             user=self.customer,
@@ -1334,6 +1475,31 @@ class OrderStatusNotificationTests(TestCase):
         self.assertEqual(order.order_status, 'preparing')
         self.assertTrue(Notification.objects.filter(
             package_order=order).exists())
+
+    def test_admin_package_order_update_accepts_out_for_delivery_status(self):
+        order = PackageOrder.objects.create(
+            user=self.customer,
+            package=self.package,
+            total_price=Decimal('6500.00'),
+            order_status='ready_for_pickup',
+            event_type='christening',
+            event_date=date(2026, 6, 1),
+            event_time=time(10, 30),
+            venue='Oroquieta City Hall',
+            contact_name='Notified User',
+            contact_phone='09170000000',
+            contact_email='customer@example.com',
+        )
+
+        response = self.client.post(reverse('admin_package_order_update', args=[order.id]), {
+            'status': 'out_for_delivery',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        order.refresh_from_db()
+        self.assertEqual(order.order_status, 'out_for_delivery')
+        notification = Notification.objects.get(package_order=order)
+        self.assertIn('Current status: Out for Delivery.', notification.message)
 
     def test_no_notification_is_created_when_status_does_not_change(self):
         order = CakeOrder.objects.create(

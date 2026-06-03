@@ -41,6 +41,7 @@
                                 <option value="pending" {% if order.order_status == 'pending' %}selected{% endif %}>Pending</option>
                                 <option value="confirmed" {% if order.order_status == 'confirmed' %}selected{% endif %}>Confirmed</option>
                                 <option value="preparing" {% if order.order_status == 'preparing' %}selected{% endif %}>Preparing</option>
+                                <option value="ready_for_pickup" {% if order.order_status == 'ready_for_pickup' %}selected{% endif %}>Ready for Pickup</option>
                                 <option value="out_for_delivery" {% if order.order_status == 'out_for_delivery' %}selected{% endif %}>Out for Delivery</option>
                                 <option value="delivered" {% if order.order_status == 'delivered' %}selected{% endif %}>Delivered</option>
                                 <option value="cancelled" {% if order.order_status == 'cancelled' %}selected{% endif %}>Cancelled</option>

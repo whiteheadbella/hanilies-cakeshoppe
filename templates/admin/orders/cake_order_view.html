@@ -1,0 +1,106 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Cake Order Preview{% endblock %}
+{% block page_title %}Customer Order Preview{% endblock %}
+{% block page_icon %}shopping-cart{% endblock %}
+
+{% block content %}
+<div class="module-card">
+    <div class="module-header" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <h2><i class="fas fa-birthday-cake"></i> Cake Order #{{ order.id }}</h2>
+        <a href="{% url 'admin_payments' %}" class="btn-preview-back">
+            <i class="fas fa-arrow-left"></i> Back to Payments
+        </a>
+    </div>
+
+    <div class="preview-grid">
+        <section class="preview-panel">
+            <h3>Customer</h3>
+            <p><strong>Name:</strong> {{ order.contact_name|default:order.user.get_full_name|default:order.user.username }}</p>
+            <p><strong>Username:</strong> {{ order.user.username }}</p>
+            <p><strong>Email:</strong> {{ order.contact_email|default:order.user.email|default:"-" }}</p>
+            <p><strong>Phone:</strong> {{ order.contact_phone|default:"-" }}</p>
+            <p><strong>Delivery Address:</strong> {{ order.delivery_address|default:"-" }}</p>
+        </section>
+
+        <section class="preview-panel">
+            <h3>Order Summary</h3>
+            <p><strong>Cake:</strong> {{ order.cake.name|default:"Custom Cake" }}</p>
+            <p><strong>Status:</strong> {{ order.get_order_status_display }}</p>
+            <p><strong>Quantity:</strong> {{ order.quantity }}</p>
+            <p><strong>Total Price:</strong> ₱{{ order.total_price }}</p>
+            <p><strong>Payment Plan:</strong> {{ order.get_payment_plan_display }}</p>
+            <p><strong>Deposit Amount:</strong> ₱{{ order.deposit_amount }}</p>
+            <p><strong>Balance Due:</strong> ₱{{ order.balance_due }}</p>
+            <p><strong>Delivery Date:</strong> {{ order.delivery_date|date:"Y-m-d H:i"|default:"-" }}</p>
+            <p><strong>Created:</strong> {{ order.created_at|date:"Y-m-d H:i" }}</p>
+        </section>
+
+        <section class="preview-panel">
+            <h3>Customization</h3>
+            <p><strong>Theme:</strong> {{ order.theme|default:"-" }}</p>
+            <p><strong>Size:</strong> {{ order.size|default:"-" }}</p>
+            <p><strong>Shape:</strong> {{ order.shape|default:"-" }}</p>
+            <p><strong>Flavor:</strong> {{ order.flavor|default:"-" }}</p>
+            <p><strong>Frosting:</strong> {{ order.frosting|default:"-" }}</p>
+            <p><strong>Filling:</strong> {{ order.filling|default:"-" }}</p>
+            <p><strong>Color Palette:</strong> {{ order.color_palette|default:"-" }}</p>
+            <p><strong>Message on Cake:</strong> {{ order.message_on_cake|default:"-" }}</p>
+            <p><strong>Special Instructions:</strong> {{ order.special_instructions|linebreaksbr|default:"-" }}</p>
+        </section>
+
+        <section class="preview-panel">
+            <h3>Payments</h3>
+            {% for payment in order.payments.all %}
+                <div class="payment-row">
+                    <p><strong>Payment #{{ payment.id }}</strong></p>
+                    <p>{{ payment.get_payment_purpose_display }} | {{ payment.get_payment_method_display }} | {{ payment.get_payment_status_display }}</p>
+                    <p>Amount: ₱{{ payment.amount }}</p>
+                    <p>Reference: {{ payment.reference_number|default:"-" }}</p>
+                </div>
+            {% empty %}
+                <p>No payments recorded yet.</p>
+            {% endfor %}
+        </section>
+    </div>
+</div>
+
+<style>
+    .preview-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 20px;
+    }
+    .preview-panel {
+        background: #fff7fb;
+        border: 1px solid #f3d9e7;
+        border-radius: 16px;
+        padding: 20px;
+    }
+    .preview-panel h3 {
+        margin-top: 0;
+        margin-bottom: 14px;
+        color: #9d174d;
+    }
+    .preview-panel p {
+        margin: 0 0 10px;
+        line-height: 1.5;
+    }
+    .payment-row {
+        padding: 12px 0;
+        border-top: 1px solid #f3d9e7;
+    }
+    .payment-row:first-child {
+        border-top: none;
+        padding-top: 0;
+    }
+    .btn-preview-back {
+        background: #0f766e;
+        color: white;
+        padding: 10px 14px;
+        border-radius: 999px;
+        text-decoration: none;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}

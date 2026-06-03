@@ -98,6 +98,7 @@ class CakeOrder(models.Model):
         ('pending', 'Pending'),
         ('confirmed', 'Confirmed'),
         ('preparing', 'Preparing'),
+        ('ready_for_pickup', 'Ready for Pickup'),
         ('out_for_delivery', 'Out for Delivery'),
         ('delivered', 'Delivered'),
         ('cancelled', 'Cancelled'),
@@ -250,6 +251,7 @@ class PackageOrder(models.Model):
         ('confirmed', 'Confirmed'),
         ('preparing', 'Preparing'),
         ('ready_for_pickup', 'Ready for Pickup'),
+        ('out_for_delivery', 'Out for Delivery'),
         ('completed', 'Completed'),
         ('cancelled', 'Cancelled'),
     ]
