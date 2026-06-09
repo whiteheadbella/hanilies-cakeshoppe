@@ -729,13 +729,35 @@ def _log_staff_activity(actor, action, description, target_type='', target_id=No
     )
 
 
-def _build_payment_qr_response(amount, order_label):
-    preview = build_gcash_checkout_details(amount, order_label)
+def _get_payment_qr_reference_seed(request=None):
+    if request is None:
+        return 'public-preview'
+    if not request.session.session_key:
+        request.session.create()
+    return f'user:{request.user.pk}|session:{request.session.session_key}'
+
+
+def _build_checkout_gcash_preview(request, amount, order_label):
+    reference_seed = _get_payment_qr_reference_seed(request)
+    return build_gcash_checkout_details(
+        amount,
+        order_label,
+        reference_seed=reference_seed,
+    )
+
+
+def _build_payment_qr_response(amount, order_label, reference_seed=''):
+    preview = build_gcash_checkout_details(
+        amount,
+        order_label,
+        reference_seed=reference_seed,
+    )
     return {
         'amount': preview['amount'],
         'amount_label': preview['amount_label'],
         'merchant_name': preview['account_name'],
         'merchant_number': preview['account_number'],
+        'payment_reference': preview['payment_reference'],
         'instruction_note': preview['payment_note'],
         'instruction_payload': preview['instruction_payload'],
         'qr_code_data_uri': preview['qr_code_data_uri'],
@@ -749,7 +771,13 @@ def payment_qr_preview(request):
         return JsonResponse({'error': 'A positive amount is required.'}, status=400)
 
     order_label = request.GET.get('order_label', '').strip() or 'Order payment'
-    return JsonResponse(_build_payment_qr_response(amount, order_label))
+    return JsonResponse(
+        _build_payment_qr_response(
+            amount,
+            order_label,
+            reference_seed=_get_payment_qr_reference_seed(request),
+        )
+    )
 
 
 def _is_local_demo_request(request):
@@ -2060,7 +2088,8 @@ def cake_customize(request):
         'default_deposit_amount': base_deposit_amount,
         'defaults': defaults,
         'gcash_account': get_gcash_profile(),
-        'gcash_preview': build_gcash_checkout_details(
+        'gcash_preview': _build_checkout_gcash_preview(
+            request,
             base_deposit_amount,
             cake_order_label,
         ),
@@ -2258,7 +2287,8 @@ def package_payment(request):
         'deposit_amount': deposit_amount,
         'balance_due': balance_due,
         'gcash_account': get_gcash_profile(),
-        'gcash_preview': build_gcash_checkout_details(
+        'gcash_preview': _build_checkout_gcash_preview(
+            request,
             deposit_amount,
             package_order_label,
         ),

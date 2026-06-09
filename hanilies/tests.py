@@ -15,6 +15,7 @@ from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
+from .management.commands.demo_bot import Command as DemoBotCommand
 from .models import ActivityLog, Cake, CakeCustomization, CakeOrder, Notification, Package, PackageOrder, PackageThumbnail, Payment, RefundRequest, UserProfile
 from .payment_qr import build_gcash_checkout_details
 from .views import CAKE_DECORATION_OPTIONS, _get_selected_option_labels, _parse_delivery_datetime
@@ -44,8 +45,6 @@ class ViewHelperUnitTests(TestCase):
 
         self.assertEqual(labels, ['Fresh Flowers', 'Edible Sprinkles'])
         self.assertEqual(total, Decimal('400.00'))
-
-
 class PaymentQrUnitTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
@@ -56,13 +55,14 @@ class PaymentQrUnitTests(TestCase):
 
     def test_build_gcash_checkout_details_returns_png_data_uri(self):
         preview = build_gcash_checkout_details(
-            '2450.50', 'Chocolate Dream cake order')
+            '2450.50', 'Chocolate Dream cake order', reference_seed='qr-tester')
 
         self.assertEqual(preview['amount_label'], 'P2450.50')
         self.assertTrue(preview['qr_code_data_uri'].startswith(
             'data:image/png;base64,'))
-        self.assertIn('Account Name:', preview['instruction_payload'])
-        self.assertIn('Amount: PHP 2450.50', preview['instruction_payload'])
+        self.assertRegex(preview['payment_reference'], r'^HANI-[A-F0-9]{10}$')
+        self.assertTrue(preview['instruction_payload'].startswith('000201010212'))
+        self.assertNotIn('\n', preview['instruction_payload'])
 
     def test_payment_qr_preview_returns_json_for_logged_in_user(self):
         self.client.login(username='qr-tester', password='TestPass123!')
@@ -76,8 +76,30 @@ class PaymentQrUnitTests(TestCase):
         payload = response.json()
         self.assertEqual(payload['amount_label'], 'P1500.00')
         self.assertEqual(payload['merchant_name'], 'Hanilies Cakeshoppe')
+        self.assertRegex(payload['payment_reference'], r'^HANI-[A-F0-9]{10}$')
+        self.assertTrue(payload['instruction_payload'].startswith('000201010212'))
+        self.assertNotIn('scan_target_url', payload)
         self.assertTrue(payload['qr_code_data_uri'].startswith(
             'data:image/png;base64,'))
+
+    def test_payment_qr_preview_keeps_reference_stable_for_same_session(self):
+        self.client.login(username='qr-tester', password='TestPass123!')
+
+        first_response = self.client.get(reverse('payment_qr_preview'), {
+            'amount': '1500.00',
+            'order_label': 'Chocolate Dream cake order',
+        })
+        second_response = self.client.get(reverse('payment_qr_preview'), {
+            'amount': '1500.00',
+            'order_label': 'Chocolate Dream cake order',
+        })
+
+        self.assertEqual(first_response.status_code, 200)
+        self.assertEqual(second_response.status_code, 200)
+        self.assertEqual(
+            first_response.json()['payment_reference'],
+            second_response.json()['payment_reference'],
+        )
 
     def test_payment_qr_preview_rejects_non_positive_amount(self):
         self.client.login(username='qr-tester', password='TestPass123!')
@@ -87,6 +109,35 @@ class PaymentQrUnitTests(TestCase):
         })
 
         self.assertEqual(response.status_code, 400)
+
+
+class DemoBotCommandUnitTests(TestCase):
+    def test_gcash_cake_scenario_uses_manual_flow_steps(self):
+        command = DemoBotCommand()
+        command.payment_mode = 'gcash'
+
+        self.assertEqual(
+            command._scenario_steps('cake'),
+            ['login', 'cakes', 'cake_order', 'cake_tracking'],
+        )
+
+    def test_gcash_package_scenario_uses_manual_flow_steps(self):
+        command = DemoBotCommand()
+        command.payment_mode = 'gcash'
+
+        self.assertEqual(
+            command._scenario_steps('package'),
+            ['login', 'packages', 'package_order', 'package_tracking'],
+        )
+
+    def test_cod_full_scenario_matches_default_script(self):
+        command = DemoBotCommand()
+        command.payment_mode = 'cod'
+
+        self.assertEqual(
+            command._scenario_steps('full'),
+            ['home', 'login', 'ai_recommendations', 'cakes', 'cake_order', 'cake_tracking', 'packages', 'package_order', 'package_tracking', 'profile', 'ai_recommendations', 'order_tracking'],
+        )
 
 
 class CakeModelUnitTests(TestCase):
@@ -184,7 +235,8 @@ class CakeOrderViewUnitTests(TestCase):
         })
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'GCash Payment Instructions')
+        self.assertContains(response, 'Account Name:')
+        self.assertContains(response, 'GCash Number:')
         self.assertContains(response, reverse('payment_qr_preview'))
         self.assertContains(response, '50% GCash Deposit + COD Balance')
         self.assertContains(response, 'Review Cake Order')
@@ -430,7 +482,8 @@ class PackageFlowUnitTests(TestCase):
         response = self.client.get(reverse('package_payment'))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'GCash Payment Instructions')
+        self.assertContains(response, 'Account Name:')
+        self.assertContains(response, 'GCash Number:')
         self.assertContains(response, reverse('payment_qr_preview'))
         self.assertContains(response, '50% GCash Deposit + COD Balance')
         self.assertContains(response, 'Review Package Order')
@@ -2107,6 +2160,21 @@ class RemoteBrowserDemoBotTests(TestCase):
             payload['browser_demo']['step_urls']['order_tracking'],
             f"{reverse('order_tracking')}?type=cake&id={demo_cake_order.id}",
         )
+
+    def test_remote_demo_bot_start_keeps_manual_gcash_flow_without_payment_demo_steps(self):
+        response = self.client.post(
+            reverse('start_demo_bot'),
+            data=json.dumps({'scenario': 'full', 'payment_mode': 'gcash'}),
+            content_type='application/json',
+            REMOTE_ADDR='198.51.100.20',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        browser_demo = response.json()['browser_demo']
+        self.assertNotIn('cake_payment_demo', browser_demo['script_steps'])
+        self.assertNotIn('package_payment_demo', browser_demo['script_steps'])
+        self.assertNotIn('cake_payment_demo', browser_demo['step_urls'])
+        self.assertNotIn('package_payment_demo', browser_demo['step_urls'])
 
     def test_remote_demo_bot_status_and_stop_work_for_browser_mode(self):
         self.client.post(

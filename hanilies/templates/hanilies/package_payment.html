@@ -103,7 +103,7 @@
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <label class="form-label fw-semibold">GCash Reference Number</label>
-                                    <input type="text" class="form-control" name="reference_number" placeholder="Enter transaction reference">
+                                    <input type="text" class="form-control" name="reference_number" placeholder="Paste the GCash reference number">
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label fw-semibold">Proof of Payment</label>
@@ -114,19 +114,15 @@
                                         <div class="row g-3 align-items-center">
                                             <div class="col-md-4 text-center">
                                                 <div class="image-zoom-frame d-inline-block rounded-4">
-                                                    <img id="package-gcash-qr-image" src="{{ gcash_preview.qr_code_data_uri }}" alt="GCash payment instructions QR" class="img-fluid bg-white border rounded p-2" style="max-width: 220px;">
+                                                    <img id="package-gcash-qr-image" src="{{ gcash_preview.qr_code_data_uri }}" alt="GCash payment QR" class="img-fluid bg-white border rounded p-2" style="max-width: 220px;">
                                                     <button type="button" id="package-gcash-qr-zoom" class="image-zoom-trigger" data-zoom-src="{{ gcash_preview.qr_code_data_uri }}" data-zoom-title="GCash QR Code">
                                                         <i class="fas fa-search-plus"></i> Zoom
                                                     </button>
                                                 </div>
                                             </div>
                                             <div class="col-md-8">
-                                                <h6 class="fw-bold mb-2">GCash Payment Instructions</h6>
-                                                <div class="small text-muted mb-2">Use this for the required deposit or full payment shown below.</div>
                                                 <div class="small mb-1"><strong>Account Name:</strong> {{ gcash_account.account_name }}</div>
                                                 <div class="small mb-1"><strong>GCash Number:</strong> {{ gcash_account.account_number }}</div>
-                                                <div class="small mb-1"><strong>Amount Due Now:</strong> <span id="package-gcash-amount">{{ gcash_preview.amount_label }}</span></div>
-                                                <div class="small text-muted" id="package-gcash-note">{{ gcash_account.payment_note }}</div>
                                             </div>
                                         </div>
                                     </div>
@@ -305,8 +301,6 @@
     const packageGcashFields = document.getElementById('package-gcash-fields');
     const packageGcashQrImage = document.getElementById('package-gcash-qr-image');
     const packageGcashQrZoom = document.getElementById('package-gcash-qr-zoom');
-    const packageGcashAmount = document.getElementById('package-gcash-amount');
-    const packageGcashNote = document.getElementById('package-gcash-note');
     const packagePaymentForm = document.getElementById('package-step-three');
     const packageReviewPanel = document.getElementById('package-review-panel');
     const packagePrimaryActions = document.getElementById('package-primary-actions');
@@ -352,10 +346,8 @@
             const payload = await response.json();
             packageGcashQrImage.src = payload.qr_code_data_uri;
             packageGcashQrZoom.dataset.zoomSrc = payload.qr_code_data_uri;
-            packageGcashAmount.textContent = payload.amount_label;
-            packageGcashNote.textContent = payload.instruction_note;
         } catch (error) {
-            packageGcashNote.textContent = 'Unable to refresh the QR preview. You can still send payment manually using the GCash number above.';
+            console.warn('Unable to refresh the package GCash QR preview.', error);
         }
     }
 

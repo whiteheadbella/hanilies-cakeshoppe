@@ -161,7 +161,7 @@ class Command(BaseCommand):
 
             if options["scenario"] == "login":
                 self._run_script(
-                    ["login"],
+                    self._scenario_steps("login"),
                     driver,
                     wait,
                     By,
@@ -173,7 +173,7 @@ class Command(BaseCommand):
                 )
             elif options["scenario"] == "cake":
                 self._run_script(
-                    ["login", "cakes", "cake_order", "cake_tracking"],
+                    self._scenario_steps("cake"),
                     driver,
                     wait,
                     By,
@@ -185,7 +185,7 @@ class Command(BaseCommand):
                 )
             elif options["scenario"] == "package":
                 self._run_script(
-                    ["login", "packages", "package_order", "package_tracking"],
+                    self._scenario_steps("package"),
                     driver,
                     wait,
                     By,
@@ -197,7 +197,7 @@ class Command(BaseCommand):
                 )
             elif options["scenario"] == "custom":
                 self._run_script(
-                    self._parse_script(options["script"]),
+                    self._scenario_steps("custom", options["script"]),
                     driver,
                     wait,
                     By,
@@ -209,7 +209,7 @@ class Command(BaseCommand):
                 )
             else:
                 self._run_script(
-                    DEFAULT_FULL_SCRIPT,
+                    self._scenario_steps("full"),
                     driver,
                     wait,
                     By,
@@ -461,6 +461,19 @@ class Command(BaseCommand):
             )
         return steps
 
+    def _scenario_steps(self, scenario: str, custom_script: str = ""):
+        if scenario == "login":
+            steps = ["login"]
+        elif scenario == "cake":
+            steps = ["login", "cakes", "cake_order", "cake_tracking"]
+        elif scenario == "package":
+            steps = ["login", "packages", "package_order", "package_tracking"]
+        elif scenario == "custom":
+            steps = self._parse_script(custom_script)
+        else:
+            steps = list(DEFAULT_FULL_SCRIPT)
+        return steps
+
     def _run_script(self, steps, driver, wait, By, Select, EC, credentials, base_url: str, delay: float):
         handlers = {
             "home": lambda: self._show_homepage(driver, wait, By, base_url, delay),
@@ -610,7 +623,8 @@ class Command(BaseCommand):
 
         if self.payment_mode == "gcash":
             self._announce(
-                "Switching to GCash to demonstrate payment verification for the cake order.")
+                "Switching to GCash to demonstrate payment verification for the cake order."
+            )
             self._click(
                 driver.find_element(
                     By.CSS_SELECTOR, "input[name='payment_method'][value='gcash']"),
@@ -704,7 +718,8 @@ class Command(BaseCommand):
             By.NAME, "contact_email"), "paneldemo@example.com", delay)
         if self.payment_mode == "gcash":
             self._announce(
-                "Switching to GCash to demonstrate package payment verification.")
+                "Switching to GCash to demonstrate package payment verification."
+            )
             self._click(
                 driver.find_element(
                     By.CSS_SELECTOR, "input[name='payment_method'][value='gcash']"),
