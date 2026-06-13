@@ -133,9 +133,31 @@
                                         <input type="tel" class="form-control" name="phone" value="{{ user.profile.phone }}">
                                     </div>
                                 </div>
-                                <div class="mb-3">
-                                    <label class="form-label fw-bold">Address</label>
-                                    <textarea class="form-control" name="address" rows="2">{{ user.profile.address }}</textarea>
+                                <div class="row g-3 mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">House No. / Street</label>
+                                        <input type="text" class="form-control" name="address_line_1" value="{{ profile_defaults.delivery_street_address }}" placeholder="Example: 123 Mabini Street">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Barangay</label>
+                                        <input type="text" class="form-control" name="address_barangay" value="{{ profile_defaults.delivery_barangay }}" placeholder="Example: Poblacion 1">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">City / Municipality</label>
+                                        <select class="form-select" name="address_city">
+                                            <option value="">Select a service area</option>
+                                            {% for city, province in delivery_area_choices %}
+                                            <option value="{{ city }}" {% if profile_defaults.delivery_city == city %}selected{% endif %}>{{ city }} ({{ province }})</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Landmark</label>
+                                        <input type="text" class="form-control" name="address_landmark" value="{{ profile_defaults.delivery_landmark }}" placeholder="Example: Near City Hall">
+                                    </div>
+                                    <div class="col-12">
+                                        <small class="text-muted">Saved delivery addresses must use one of the listed service areas.</small>
+                                    </div>
                                 </div>
                                 <hr>
                                 <div class="d-flex justify-content-end gap-2">

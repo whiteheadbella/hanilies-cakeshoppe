@@ -143,9 +143,29 @@
                                 <label class="form-label fw-semibold">Pickup / Delivery Date</label>
                                 <input type="date" class="form-control" name="delivery_date" id="delivery_date" required>
                             </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">House No. / Street</label>
+                                <input type="text" class="form-control" name="delivery_street_address" value="{{ defaults.delivery_street_address }}" placeholder="Example: 123 Mabini Street" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Barangay</label>
+                                <input type="text" class="form-control" name="delivery_barangay" value="{{ defaults.delivery_barangay }}" placeholder="Example: Poblacion 1" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">City / Municipality</label>
+                                <select class="form-select" name="delivery_city" required>
+                                    <option value="">Select a service area</option>
+                                    {% for city, province in delivery_area_choices %}
+                                    <option value="{{ city }}" {% if defaults.delivery_city == city %}selected{% endif %}>{{ city }} ({{ province }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Landmark</label>
+                                <input type="text" class="form-control" name="delivery_landmark" value="{{ defaults.delivery_landmark }}" placeholder="Example: Near City Hall">
+                            </div>
                             <div class="col-12">
-                                <label class="form-label fw-semibold">Delivery Address</label>
-                                <textarea class="form-control" name="delivery_address" rows="2" required>{{ defaults.delivery_address }}</textarea>
+                                <div class="small text-muted">Deliveries are accepted only within the listed service areas.</div>
                             </div>
                             <div class="col-12">
                                 <label class="form-label fw-semibold">Special Instructions</label>
@@ -425,6 +445,10 @@
     const cakeReferenceInput = cakeOrderForm.querySelector('input[name="reference_number"]');
     const cakeProofInput = cakeOrderForm.querySelector('input[name="proof_image"]');
     const cakeDesignReferenceInput = cakeOrderForm.querySelector('input[name="design_reference"]');
+    const cakeStreetAddressInput = cakeOrderForm.querySelector('input[name="delivery_street_address"]');
+    const cakeBarangayInput = cakeOrderForm.querySelector('input[name="delivery_barangay"]');
+    const cakeCityInput = cakeOrderForm.querySelector('select[name="delivery_city"]');
+    const cakeLandmarkInput = cakeOrderForm.querySelector('input[name="delivery_landmark"]');
     const paymentQrPreviewUrl = '{{ payment_qr_preview_url }}';
     const cakeOrderLabel = '{{ cake.name|escapejs }} cake order';
     const paymentPlanLabels = {
@@ -518,6 +542,31 @@
         cakeConfirmActions.classList.add('d-none');
     }
 
+    function formatCakeDeliveryAddress() {
+        const streetAddress = cakeStreetAddressInput.value.trim();
+        const barangay = cakeBarangayInput.value.trim();
+        const city = cakeCityInput.value.trim();
+        const cityLabel = city ? cakeCityInput.options[cakeCityInput.selectedIndex].textContent.trim() : '';
+        const landmark = cakeLandmarkInput.value.trim();
+        if (!streetAddress && !barangay && !city) {
+            return 'Not provided';
+        }
+
+        const addressParts = [streetAddress];
+        if (barangay) {
+            addressParts.push(`Brgy. ${barangay}`);
+        }
+        if (cityLabel) {
+            addressParts.push(cityLabel);
+        }
+
+        let address = addressParts.filter(Boolean).join(', ');
+        if (landmark) {
+            address += ` (Landmark: ${landmark})`;
+        }
+        return address || 'Not provided';
+    }
+
     function populateCakeReview() {
         const { selectedPlan, dueNow, balanceDue } = getCakePaymentBreakdown();
         const selectedDecorations = Array.from(addonCheckboxes)
@@ -542,7 +591,7 @@
         document.getElementById('review-cake-balance').textContent = `P${balanceDue.toFixed(2)}`;
         document.getElementById('review-cake-reference').textContent = cakeReferenceInput.value.trim() || 'Missing reference number';
         document.getElementById('review-cake-proof').textContent = cakeProofInput.files[0]?.name || 'Missing proof of payment';
-        document.getElementById('review-cake-address').textContent = cakeOrderForm.querySelector('textarea[name="delivery_address"]').value.trim() || 'Not provided';
+        document.getElementById('review-cake-address').textContent = formatCakeDeliveryAddress();
         document.getElementById('review-cake-contact-name').textContent = cakeOrderForm.querySelector('input[name="contact_name"]').value.trim() || 'Not provided';
         document.getElementById('review-cake-contact-phone').textContent = cakeOrderForm.querySelector('input[name="contact_phone"]').value.trim() || 'Not provided';
         document.getElementById('review-cake-contact-email').textContent = cakeOrderForm.querySelector('input[name="contact_email"]').value.trim() || 'Not provided';

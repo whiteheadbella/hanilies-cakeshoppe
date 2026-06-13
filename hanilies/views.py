@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -21,6 +22,7 @@ from django.db.models import Sum, Count, Q
 from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_POST
+from PIL import Image, UnidentifiedImageError
 from .models import UserProfile, Notification, Cake, CakeOrder, CakeCustomization, Package, PackageOrder, PackageThumbnail, Payment, RefundRequest, ActivityLog
 from .payment_qr import build_gcash_checkout_details, get_gcash_profile
 
@@ -198,6 +200,36 @@ PAYMENT_PLAN_LABELS = {
     'cod': '50% GCash Deposit + COD Balance',
     'gcash': 'Full GCash Payment',
 }
+DELIVERY_SERVICE_AREA_CHOICES = [
+    ('Oroquieta City', 'Misamis Occidental'),
+    ('Aloran', 'Misamis Occidental'),
+    ('Baliangao', 'Misamis Occidental'),
+    ('Bonifacio', 'Misamis Occidental'),
+    ('Calamba', 'Misamis Occidental'),
+    ('Clarin', 'Misamis Occidental'),
+    ('Concepcion', 'Misamis Occidental'),
+    ('Don Victoriano Chiongbian', 'Misamis Occidental'),
+    ('Jimenez', 'Misamis Occidental'),
+    ('Lopez Jaena', 'Misamis Occidental'),
+    ('Ozamiz City', 'Misamis Occidental'),
+    ('Panaon', 'Misamis Occidental'),
+    ('Plaridel', 'Misamis Occidental'),
+    ('Sapang Dalaga', 'Misamis Occidental'),
+    ('Sinacaban', 'Misamis Occidental'),
+    ('Tangub City', 'Misamis Occidental'),
+    ('Lucena City', 'Quezon'),
+]
+DELIVERY_SERVICE_AREA_MAP = {
+    city.lower(): {'city': city, 'province': province}
+    for city, province in DELIVERY_SERVICE_AREA_CHOICES
+}
+PAYMENT_PROOF_MAX_BYTES = 5 * 1024 * 1024
+PAYMENT_PROOF_ALLOWED_FORMATS = {'JPEG', 'PNG', 'WEBP'}
+PAYMENT_PROOF_ALLOWED_CONTENT_TYPES = {
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+}
 ADMIN_MENU_ITEMS = [
     {'name': 'Dashboard', 'url': 'admin_dashboard', 'icon': 'tachometer-alt', 'roles': STAFF_ROLE_VALUES},
     {'name': 'Cakes', 'url': 'admin_cakes', 'icon': 'birthday-cake', 'roles': {'owner', 'admin', 'supervisor', 'baker'}},
@@ -222,6 +254,47 @@ def _parse_decimal(value, default='0.00'):
 
 def _quantize_amount(value):
     return _parse_decimal(value).quantize(Decimal('0.01'))
+
+
+def _normalize_reference_number(reference_number):
+    return re.sub(r'\s+', '', str(reference_number or '')).upper()
+
+
+def _validate_checkout_payment_submission(reference_number, proof_image):
+    normalized_reference = _normalize_reference_number(reference_number)
+    if not normalized_reference or proof_image is None:
+        return None, 'A GCash reference number and proof of payment are required to place the order.'
+
+    if len(normalized_reference) < 6 or len(normalized_reference) > 100:
+        return None, 'Enter a valid GCash reference number before placing the order.'
+
+    if Payment.objects.filter(reference_number__iexact=normalized_reference).exists():
+        return None, 'That GCash reference number has already been used. Please check your payment details and try again.'
+
+    if getattr(proof_image, 'size', 0) > PAYMENT_PROOF_MAX_BYTES:
+        return None, 'The uploaded payment proof must be 5 MB or smaller.'
+
+    content_type = str(getattr(proof_image, 'content_type', '') or '').lower()
+    if content_type and content_type not in PAYMENT_PROOF_ALLOWED_CONTENT_TYPES:
+        return None, 'The uploaded payment proof must be a JPG, PNG, or WEBP image.'
+
+    try:
+        proof_image.seek(0)
+        with Image.open(proof_image) as image:
+            image.verify()
+            image_format = (image.format or '').upper()
+    except (UnidentifiedImageError, OSError, ValueError):
+        return None, 'The uploaded payment proof must be a valid image file.'
+    finally:
+        try:
+            proof_image.seek(0)
+        except (AttributeError, OSError, ValueError):
+            pass
+
+    if image_format not in PAYMENT_PROOF_ALLOWED_FORMATS:
+        return None, 'The uploaded payment proof must be a JPG, PNG, or WEBP image.'
+
+    return normalized_reference, None
 
 
 def _get_user_role_value(user):
@@ -541,14 +614,117 @@ def _parse_delivery_datetime(date_value):
     return delivery_datetime
 
 
+def _format_structured_delivery_address(street_address, barangay, city, province, landmark=''):
+    address = f'{street_address}, Brgy. {barangay}, {city}, {province}'
+    if landmark:
+        address = f'{address} (Landmark: {landmark})'
+    return address
+
+
+def _split_structured_delivery_address(raw_address):
+    parsed = {
+        'delivery_street_address': '',
+        'delivery_barangay': '',
+        'delivery_city': '',
+        'delivery_province': '',
+        'delivery_landmark': '',
+    }
+    raw_address = (raw_address or '').strip()
+    if not raw_address:
+        return parsed
+
+    landmark_match = re.search(r'\(Landmark:\s*(.*?)\)\s*$', raw_address, flags=re.IGNORECASE)
+    if landmark_match:
+        parsed['delivery_landmark'] = landmark_match.group(1).strip()
+        raw_address = raw_address[:landmark_match.start()].rstrip(' ,')
+
+    parts = [part.strip() for part in raw_address.split(',') if part.strip()]
+    if len(parts) >= 4 and re.match(r'^(?:brgy\.|barangay)\s+', parts[1], flags=re.IGNORECASE):
+        parsed['delivery_street_address'] = parts[0]
+        parsed['delivery_barangay'] = re.sub(
+            r'^(?:brgy\.|barangay)\s+',
+            '',
+            parts[1],
+            count=1,
+            flags=re.IGNORECASE,
+        ).strip()
+        parsed['delivery_city'] = parts[2]
+        parsed['delivery_province'] = parts[3]
+        return parsed
+
+    if raw_address.lower() in DELIVERY_SERVICE_AREA_MAP:
+        area = DELIVERY_SERVICE_AREA_MAP[raw_address.lower()]
+        parsed['delivery_city'] = area['city']
+        parsed['delivery_province'] = area['province']
+        return parsed
+
+    for index, part in enumerate(parts):
+        area = DELIVERY_SERVICE_AREA_MAP.get(part.lower())
+        if not area:
+            continue
+        parsed['delivery_city'] = area['city']
+        parsed['delivery_province'] = area['province']
+        if index > 0:
+            parsed['delivery_street_address'] = ', '.join(parts[:index])
+        return parsed
+
+    parsed['delivery_street_address'] = raw_address
+    return parsed
+
+
+def _validate_structured_delivery_address(street_address, barangay, city, landmark='', required=True):
+    parsed = {
+        'delivery_street_address': (street_address or '').strip(),
+        'delivery_barangay': (barangay or '').strip(),
+        'delivery_city': (city or '').strip(),
+        'delivery_landmark': (landmark or '').strip(),
+        'delivery_province': '',
+        'delivery_address': '',
+    }
+
+    if not any([
+        parsed['delivery_street_address'],
+        parsed['delivery_barangay'],
+        parsed['delivery_city'],
+        parsed['delivery_landmark'],
+    ]) and not required:
+        return parsed, None
+
+    if not parsed['delivery_street_address'] or not parsed['delivery_barangay'] or not parsed['delivery_city']:
+        return None, 'Please complete the street address, barangay, and city for the delivery address.'
+
+    area = DELIVERY_SERVICE_AREA_MAP.get(parsed['delivery_city'].lower())
+    if area is None:
+        return None, 'We currently deliver only within the listed service areas. Please choose a supported city or municipality.'
+
+    if len(parsed['delivery_street_address']) < 5:
+        return None, 'Enter a more complete street address for delivery.'
+
+    if len(parsed['delivery_barangay']) < 2:
+        return None, 'Enter a valid barangay for the delivery address.'
+
+    parsed['delivery_city'] = area['city']
+    parsed['delivery_province'] = area['province']
+    parsed['delivery_address'] = _format_structured_delivery_address(
+        parsed['delivery_street_address'],
+        parsed['delivery_barangay'],
+        parsed['delivery_city'],
+        parsed['delivery_province'],
+        parsed['delivery_landmark'],
+    )
+    return parsed, None
+
+
 def _get_profile_defaults(user):
     profile = getattr(user, 'profile', None)
     full_name = f'{user.first_name} {user.last_name}'.strip() or user.username
+    address_defaults = _split_structured_delivery_address(
+        profile.address if profile else '')
     return {
         'contact_name': full_name,
         'contact_phone': profile.phone if profile else '',
         'contact_email': user.email,
-        'delivery_address': profile.address if profile else '',
+        **address_defaults,
     }
 
 
@@ -1809,21 +1985,40 @@ def profile(request):
     if not hasattr(request.user, 'profile'):
         _assign_user_role(request.user, 'customer')
 
+    profile_defaults = _get_profile_defaults(request.user)
+
     if request.method == 'POST':
         user = request.user
+        profile_defaults.update({
+            'delivery_street_address': request.POST.get('address_line_1', '').strip(),
+            'delivery_barangay': request.POST.get('address_barangay', '').strip(),
+            'delivery_city': request.POST.get('address_city', '').strip(),
+            'delivery_landmark': request.POST.get('address_landmark', '').strip(),
+        })
         user.first_name = request.POST.get('first_name', user.first_name)
         user.last_name = request.POST.get('last_name', user.last_name)
         user.email = request.POST.get('email', user.email)
-        user.save()
 
-        if hasattr(user, 'profile'):
-            user.profile.phone = request.POST.get('phone', user.profile.phone)
-            user.profile.address = request.POST.get(
-                'address', user.profile.address)
-            user.profile.save()
+        address_data, address_error = _validate_structured_delivery_address(
+            request.POST.get('address_line_1'),
+            request.POST.get('address_barangay'),
+            request.POST.get('address_city'),
+            request.POST.get('address_landmark'),
+            required=False,
+        )
 
-        messages.success(request, 'Profile updated successfully!')
-        return redirect('profile')
+        if address_error:
+            messages.error(request, address_error)
+        else:
+            user.save()
+
+            if hasattr(user, 'profile'):
+                user.profile.phone = request.POST.get('phone', user.profile.phone)
+                user.profile.address = address_data['delivery_address']
+                user.profile.save()
+
+            messages.success(request, 'Profile updated successfully!')
+            return redirect('profile')
 
     cake_orders = CakeOrder.objects.filter(user=request.user)
     package_orders = PackageOrder.objects.filter(user=request.user)
@@ -1842,6 +2037,8 @@ def profile(request):
     context = {
         'order_count': cake_orders.count() + package_orders.count(),
         'total_spent': total_spent,
+        'profile_defaults': profile_defaults,
+        'delivery_area_choices': DELIVERY_SERVICE_AREA_CHOICES,
         'recent_notifications': recent_notifications,
         'unread_notification_count': sum(
             1 for notification in recent_notifications if not notification.is_read),
@@ -2035,6 +2232,15 @@ def cake_customize(request):
     defaults = _get_profile_defaults(request.user)
 
     if request.method == 'POST':
+        defaults.update({
+            'contact_name': request.POST.get('contact_name', '').strip(),
+            'contact_phone': request.POST.get('contact_phone', '').strip(),
+            'contact_email': request.POST.get('contact_email', '').strip(),
+            'delivery_street_address': request.POST.get('delivery_street_address', '').strip(),
+            'delivery_barangay': request.POST.get('delivery_barangay', '').strip(),
+            'delivery_city': request.POST.get('delivery_city', '').strip(),
+            'delivery_landmark': request.POST.get('delivery_landmark', '').strip(),
+        })
         quantity = max(int(request.POST.get('quantity', 1) or 1), 1)
         selected_decorations = request.POST.getlist('decorations')
         decoration_labels, decoration_total = _get_selected_option_labels(
@@ -2048,9 +2254,20 @@ def cake_customize(request):
         if payment_method not in PAYMENT_PLAN_LABELS:
             payment_method = 'cod'
 
-        if not reference_number or proof_image is None:
-            messages.error(
-                request, 'A GCash reference number and proof of payment are required to place the order.')
+        delivery_address_data, address_error = _validate_structured_delivery_address(
+            request.POST.get('delivery_street_address'),
+            request.POST.get('delivery_barangay'),
+            request.POST.get('delivery_city'),
+            request.POST.get('delivery_landmark'),
+        )
+        normalized_reference, payment_error = _validate_checkout_payment_submission(
+            reference_number,
+            proof_image,
+        )
+        if address_error:
+            messages.error(request, address_error)
+        elif payment_error:
+            messages.error(request, payment_error)
         else:
             cake_order = CakeOrder.objects.create(
                 user=request.user,
@@ -2074,8 +2291,7 @@ def cake_customize(request):
                     'special_instructions', '').strip(),
                 delivery_date=_parse_delivery_datetime(
                     request.POST.get('delivery_date')),
-                delivery_address=request.POST.get(
-                    'delivery_address', '').strip(),
+                delivery_address=delivery_address_data['delivery_address'],
                 contact_name=request.POST.get('contact_name', '').strip(),
                 contact_phone=request.POST.get('contact_phone', '').strip(),
                 contact_email=request.POST.get('contact_email', '').strip(),
@@ -2092,7 +2308,7 @@ def cake_customize(request):
             _create_checkout_payments(
                 cake_order,
                 payment_method,
-                reference_number,
+                normalized_reference,
                 proof_image,
             )
             messages.success(
@@ -2114,6 +2330,7 @@ def cake_customize(request):
         'payment_plan_labels': PAYMENT_PLAN_LABELS,
         'default_deposit_amount': base_deposit_amount,
         'defaults': defaults,
+        'delivery_area_choices': DELIVERY_SERVICE_AREA_CHOICES,
         'gcash_account': get_gcash_profile(),
         'gcash_preview': _build_checkout_gcash_preview(
             request,
@@ -2259,48 +2476,52 @@ def package_payment(request):
         if event_type not in PUBLIC_EVENT_TYPE_VALUES:
             messages.error(
                 request, 'Selected event type is no longer available for package bookings.')
-        elif not reference_number or proof_image is None:
-            messages.error(
-                request, 'A GCash reference number and proof of payment are required to place the package order.')
         else:
-            package_order = PackageOrder.objects.create(
-                user=request.user,
-                package=selected_package,
-                total_price=grand_total,
-                payment_plan=payment_method,
-                deposit_amount=grand_total if payment_method == 'gcash' else deposit_amount,
-                balance_due=Decimal('0.00') if payment_method == 'gcash' else balance_due,
-                event_type=event_type,
-                event_date=request.POST.get('event_date'),
-                event_time=request.POST.get('event_time') or None,
-                venue=request.POST.get('venue', '').strip(),
-                contact_name=request.POST.get('contact_name', '').strip(),
-                contact_phone=request.POST.get('contact_phone', '').strip(),
-                contact_email=request.POST.get('contact_email', '').strip(),
-                selected_addons='\n'.join(
-                    draft.get('selected_addon_labels', [])),
-                cake_flavor=draft.get('cake_flavor', ''),
-                cake_frosting=draft.get('cake_frosting', ''),
-                cake_filling=draft.get('cake_filling', ''),
-                cake_message=draft.get('cake_message', ''),
-            )
-
-            _create_checkout_payments(
-                package_order,
-                payment_method,
+            normalized_reference, payment_error = _validate_checkout_payment_submission(
                 reference_number,
                 proof_image,
             )
+            if payment_error:
+                messages.error(request, payment_error)
+            else:
+                package_order = PackageOrder.objects.create(
+                    user=request.user,
+                    package=selected_package,
+                    total_price=grand_total,
+                    payment_plan=payment_method,
+                    deposit_amount=grand_total if payment_method == 'gcash' else deposit_amount,
+                    balance_due=Decimal('0.00') if payment_method == 'gcash' else balance_due,
+                    event_type=event_type,
+                    event_date=request.POST.get('event_date'),
+                    event_time=request.POST.get('event_time') or None,
+                    venue=request.POST.get('venue', '').strip(),
+                    contact_name=request.POST.get('contact_name', '').strip(),
+                    contact_phone=request.POST.get('contact_phone', '').strip(),
+                    contact_email=request.POST.get('contact_email', '').strip(),
+                    selected_addons='\n'.join(
+                        draft.get('selected_addon_labels', [])),
+                    cake_flavor=draft.get('cake_flavor', ''),
+                    cake_frosting=draft.get('cake_frosting', ''),
+                    cake_filling=draft.get('cake_filling', ''),
+                    cake_message=draft.get('cake_message', ''),
+                )
 
-            _clear_package_draft(request)
-            messages.success(
-                request,
-                (
-                    f'Package order #{package_order.id} was placed successfully. '
-                    f'Your {_get_payment_plan_label(payment_method).lower()} is now waiting for payment review.'
-                ),
-            )
-            return redirect(f"{reverse('order_tracking')}?type=package&id={package_order.id}")
+                _create_checkout_payments(
+                    package_order,
+                    payment_method,
+                    normalized_reference,
+                    proof_image,
+                )
+
+                _clear_package_draft(request)
+                messages.success(
+                    request,
+                    (
+                        f'Package order #{package_order.id} was placed successfully. '
+                        f'Your {_get_payment_plan_label(payment_method).lower()} is now waiting for payment review.'
+                    ),
+                )
+                return redirect(f"{reverse('order_tracking')}?type=package&id={package_order.id}")
 
     package_order_label = f'{selected_package.name} package booking'
     context = {
