@@ -2066,6 +2066,12 @@ class AuthenticationFlowTests(TestCase):
         registered_user = User.objects.get(username='registered-customer')
         self.assertEqual(registered_user.profile.role, 'customer')
         self.assertFalse(registered_user.is_staff)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].subject, 'Welcome to Hanilies Cakeshoppe')
+        self.assertEqual(mail.outbox[0].to, ['registered@example.com'])
+        self.assertIn('http://testserver' + reverse('login'), mail.outbox[0].body)
+        self.assertIn('http://testserver' + reverse('profile'), mail.outbox[0].body)
+        self.assertIn('http://testserver' + reverse('contact'), mail.outbox[0].body)
 
 
 @override_settings(DEBUG=False, DEMO_BOT_REMOTE_ENABLED=True)

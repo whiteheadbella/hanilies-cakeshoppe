@@ -651,6 +651,32 @@ def _create_customer_notification(user, notification_type, title, message, statu
     return notification
 
 
+def _send_registration_confirmation_email(request, user):
+    if not user.email:
+        return
+
+    login_url = request.build_absolute_uri(reverse('login'))
+    profile_url = request.build_absolute_uri(reverse('profile'))
+    contact_url = request.build_absolute_uri(reverse('contact'))
+    full_name = user.get_full_name().strip() or user.username
+
+    send_mail(
+        'Welcome to Hanilies Cakeshoppe',
+        (
+            f'Hello {full_name},\n\n'
+            'Your Hanilies Cakeshoppe customer account has been created successfully. '
+            'You can now sign in, manage your profile, and place cake or package orders online.\n\n'
+            f'Login: {login_url}\n'
+            f'Profile: {profile_url}\n'
+            f'Contact us: {contact_url}\n\n'
+            'Thank you for registering with Hanilies Cakeshoppe.'
+        ),
+        settings.DEFAULT_FROM_EMAIL,
+        [user.email],
+        fail_silently=False,
+    )
+
+
 def _create_order_status_notification(order, order_type, previous_status):
     if previous_status == order.order_status:
         return None
@@ -1755,6 +1781,7 @@ def register_view(request):
             role='customer'
         )
         _sync_user_staff_flags(user, 'customer')
+        _send_registration_confirmation_email(request, user)
 
         login(request, user)
         messages.success(
