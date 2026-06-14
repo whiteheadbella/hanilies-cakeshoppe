@@ -40,7 +40,12 @@
                                     <div class="fw-semibold">Cake Order #{{ order.id }}</div>
                                     <div class="small">{{ order.cake.name|default:'Custom Cake' }}</div>
                                 </div>
-                                <span class="badge text-bg-light">{{ order.get_order_status_display }}</span>
+                                <div class="d-flex flex-column align-items-end gap-1">
+                                    <span class="badge text-bg-light">{{ order.get_order_status_display }}</span>
+                                    {% if order.is_archived %}
+                                    <span class="badge bg-secondary">Archived</span>
+                                    {% endif %}
+                                </div>
                             </div>
                         </a>
                         {% endfor %}
@@ -51,7 +56,12 @@
                                     <div class="fw-semibold">Package Order #{{ order.id }}</div>
                                     <div class="small">{{ order.package.name|default:'Custom Package' }}</div>
                                 </div>
-                                <span class="badge text-bg-light">{{ order.get_order_status_display }}</span>
+                                <div class="d-flex flex-column align-items-end gap-1">
+                                    <span class="badge text-bg-light">{{ order.get_order_status_display }}</span>
+                                    {% if order.is_archived %}
+                                    <span class="badge bg-secondary">Archived</span>
+                                    {% endif %}
+                                </div>
                             </div>
                         </a>
                         {% endfor %}
@@ -72,7 +82,12 @@
                             <i class="fas fa-gift me-2"></i>Package Order #{{ selected_order.id }}
                             {% endif %}
                         </h5>
-                        <span class="badge bg-light text-dark">{{ selected_order.get_order_status_display }}</span>
+                        <div class="d-flex gap-2 align-items-center">
+                            <span class="badge bg-light text-dark">{{ selected_order.get_order_status_display }}</span>
+                            {% if selected_order.is_archived %}
+                            <span class="badge bg-secondary">Archived Record</span>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
                 <div class="card-body p-4">

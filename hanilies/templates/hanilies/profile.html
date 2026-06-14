@@ -251,6 +251,53 @@
                 </div>
             </div>
 
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-light py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-receipt me-2"></i>Recent Orders</h5>
+                    <a href="{% url 'order_tracking' %}" class="btn btn-sm btn-outline-gold">Open Tracking</a>
+                </div>
+                <div class="card-body p-4">
+                    {% if recent_orders %}
+                        <div class="d-flex flex-column gap-3">
+                            {% for item in recent_orders %}
+                                <a href="{% url 'order_tracking' %}?type={{ item.order_type }}&id={{ item.order.id }}" class="text-decoration-none text-reset border rounded-3 p-3 order-history-link">
+                                    <div class="d-flex justify-content-between align-items-start gap-3">
+                                        <div>
+                                            <div class="fw-semibold">
+                                                {% if item.order_type == 'cake' %}
+                                                Cake Order #{{ item.order.id }}
+                                                {% else %}
+                                                Package Order #{{ item.order.id }}
+                                                {% endif %}
+                                            </div>
+                                            <div class="text-muted small mt-1">{{ item.title }}</div>
+                                            <div class="small text-muted mt-2">Placed {{ item.order.created_at|date:"M d, Y h:i A" }}</div>
+                                            {% if item.schedule_label %}
+                                            <div class="small text-muted">
+                                                {% if item.order_type == 'cake' %}
+                                                Delivery: {{ item.schedule_label|date:"F d, Y" }}
+                                                {% else %}
+                                                Event: {{ item.schedule_label|date:"F d, Y" }}
+                                                {% endif %}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        <div class="text-end d-flex flex-column align-items-end gap-2">
+                                            <span class="badge bg-gold-pink px-3 py-2">{{ item.order.get_order_status_display }}</span>
+                                            {% if item.order.is_archived %}
+                                            <span class="badge bg-secondary">Archived Record</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">Your recent cake and package orders will appear here after checkout.</p>
+                    {% endif %}
+                </div>
+            </div>
+
             <div class="card border-0 shadow-sm" id="profile-notifications-card">
                 <div class="card-header bg-light py-3 d-flex justify-content-between align-items-center">
                     <h5 class="mb-0"><i class="fas fa-bell me-2"></i>Recent Notifications</h5>
@@ -373,6 +420,13 @@
     .form-switch .form-check-input:checked {
         background-color: #FF69B4;
         border-color: #FF69B4;
+    }
+    .order-history-link {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .order-history-link:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.08);
     }
 </style>
 {% endblock %}

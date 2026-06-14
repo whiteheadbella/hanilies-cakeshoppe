@@ -814,6 +814,77 @@ class OrderingIntegrationTests(TestCase):
         self.assertEqual(len(tracking_response.context['selected_payments']), 2)
         self.assertNotIn('package_order_draft', self.client.session)
 
+    def test_profile_shows_recent_orders_after_customer_login(self):
+        cake_order = CakeOrder.objects.create(
+            user=self.user,
+            cake=self.cake,
+            quantity=1,
+            total_price=Decimal('980.00'),
+            payment_plan='cod',
+            deposit_amount=Decimal('490.00'),
+            balance_due=Decimal('490.00'),
+            order_status='confirmed',
+            contact_name='Integration User',
+            contact_phone='09170000000',
+            contact_email='integration@example.com',
+        )
+        package_order = PackageOrder.objects.create(
+            user=self.user,
+            package=self.package,
+            total_price=Decimal('7000.00'),
+            payment_plan='gcash',
+            deposit_amount=Decimal('7000.00'),
+            balance_due=Decimal('0.00'),
+            order_status='pending',
+            event_type='kids_birthday',
+            event_date=date(2026, 8, 10),
+            venue='Oroquieta Gym',
+            contact_name='Integration User',
+            contact_phone='09170000000',
+            contact_email='integration@example.com',
+        )
+
+        response = self.client.get(reverse('profile'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['order_count'], 2)
+        self.assertContains(response, 'Recent Orders')
+        self.assertContains(
+            response,
+            f'{reverse("order_tracking")}?type=cake&id={cake_order.id}',
+        )
+        self.assertContains(
+            response,
+            f'{reverse("order_tracking")}?type=package&id={package_order.id}',
+        )
+        self.assertContains(response, self.cake.name)
+        self.assertContains(response, self.package.name)
+
+    def test_order_tracking_keeps_customer_archived_orders_visible(self):
+        archived_order = CakeOrder.objects.create(
+            user=self.user,
+            cake=self.cake,
+            quantity=1,
+            total_price=Decimal('980.00'),
+            payment_plan='cod',
+            deposit_amount=Decimal('490.00'),
+            balance_due=Decimal('490.00'),
+            order_status='confirmed',
+            contact_name='Integration User',
+            contact_phone='09170000000',
+            contact_email='integration@example.com',
+            is_archived=True,
+        )
+
+        response = self.client.get(
+            f'{reverse("order_tracking")}?type=cake&id={archived_order.id}'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['selected_order'].id, archived_order.id)
+        self.assertContains(response, f'Cake Order #{archived_order.id}')
+        self.assertContains(response, 'Archived Record')
+
 
 class SecurityValidationTests(TestCase):
     def setUp(self):

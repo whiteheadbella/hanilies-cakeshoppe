@@ -674,6 +674,14 @@ def _build_sales_export_filename(file_format):
     return f'hanilies-sales-report-{timezone.localdate().isoformat()}.{file_format}'
 
 
+def _get_customer_cake_orders_queryset(user):
+    return CakeOrder.objects.filter(user=user).order_by('-created_at')
+
+
+def _get_customer_package_orders_queryset(user):
+    return PackageOrder.objects.filter(user=user).order_by('-created_at')
+
+
 def _parse_delivery_datetime(date_value):
     if not date_value:
         return None
@@ -1644,8 +1652,8 @@ def _build_user_preference_profile(user):
             'subheadline': 'Rule-based suggestions based on current best sellers and order volume.',
         }
 
-    cake_orders = CakeOrder.objects.filter(user=user, is_archived=False)
-    package_orders = PackageOrder.objects.filter(user=user, is_archived=False)
+    cake_orders = _get_customer_cake_orders_queryset(user)
+    package_orders = _get_customer_package_orders_queryset(user)
     total_order_count = cake_orders.count() + package_orders.count()
     top_cake_category = _get_top_value(
         cake_orders.exclude(cake__category=''), 'cake__category')
@@ -2079,8 +2087,8 @@ def profile(request):
             messages.success(request, 'Profile updated successfully!')
             return redirect('profile')
 
-    cake_orders = CakeOrder.objects.filter(user=request.user, is_archived=False)
-    package_orders = PackageOrder.objects.filter(user=request.user, is_archived=False)
+    cake_orders = _get_customer_cake_orders_queryset(request.user).select_related('cake')
+    package_orders = _get_customer_package_orders_queryset(request.user).select_related('package')
     total_spent = (
         cake_orders.aggregate(total=Sum('total_price')).get(
             'total') or Decimal('0.00')
@@ -2088,6 +2096,27 @@ def profile(request):
         package_orders.aggregate(total=Sum('total_price')).get(
             'total') or Decimal('0.00')
     )
+    recent_orders = sorted(
+        [
+            {
+                'order_type': 'cake',
+                'order': order,
+                'title': order.cake.name if order.cake else 'Custom Cake',
+                'schedule_label': order.delivery_date,
+            }
+            for order in cake_orders[:3]
+        ] + [
+            {
+                'order_type': 'package',
+                'order': order,
+                'title': order.package.name if order.package else 'Custom Package',
+                'schedule_label': order.event_date,
+            }
+            for order in package_orders[:3]
+        ],
+        key=lambda item: item['order'].created_at,
+        reverse=True,
+    )[:5]
     recent_notifications = list(
         Notification.objects.filter(user=request.user).select_related(
             'cake_order', 'package_order', 'payment'
@@ -2098,6 +2127,7 @@ def profile(request):
         'total_spent': total_spent,
         'profile_defaults': profile_defaults,
         'delivery_area_choices': DELIVERY_SERVICE_AREA_CHOICES,
+        'recent_orders': recent_orders,
         'recent_notifications': recent_notifications,
         'unread_notification_count': sum(
             1 for notification in recent_notifications if not notification.is_read),
@@ -2159,11 +2189,11 @@ def update_preferences(request):
 def order_tracking(request):
     """Track order status"""
     cake_orders = list(
-        CakeOrder.objects.filter(user=request.user, is_archived=False).select_related(
+        _get_customer_cake_orders_queryset(request.user).select_related(
             'cake').prefetch_related('payments').order_by('-created_at')
     )
     package_orders = list(
-        PackageOrder.objects.filter(user=request.user, is_archived=False).select_related(
+        _get_customer_package_orders_queryset(request.user).select_related(
             'package').prefetch_related('payments').order_by('-created_at')
     )
 
