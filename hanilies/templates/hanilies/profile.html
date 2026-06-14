@@ -60,16 +60,19 @@
                             <small class="text-muted">Member Since</small>
                         </div>
                     </div>
-                    <div class="d-grid gap-2 mt-4">
-                        <a href="#profile-edit-card" class="btn btn-gold">Edit Personal Info</a>
-                        <a href="#profile-notifications-card" class="btn btn-outline-gold">View Notifications</a>
-                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Right Column - Edit Profile Form -->
         <div class="col-lg-8">
+            <div class="d-flex flex-wrap gap-2 mb-4">
+                <a href="{% url 'profile' %}?section=profile&tab={{ active_profile_tab }}" class="btn {% if active_profile_section == 'profile' %}btn-gold{% else %}btn-outline-gold{% endif %}">Edit Profile</a>
+                <a href="{% url 'profile' %}?section=orders" class="btn {% if active_profile_section == 'orders' %}btn-gold{% else %}btn-outline-gold{% endif %}">Recent Orders</a>
+                <a href="{% url 'profile' %}?section=notifications" class="btn {% if active_profile_section == 'notifications' %}btn-gold{% else %}btn-outline-gold{% endif %}">Notifications</a>
+            </div>
+
+            {% if active_profile_section == 'profile' %}
             <div class="card border-0 shadow-sm mb-4" id="profile-edit-card">
                 <div class="card-header bg-gold-pink text-white py-3">
                     <h5 class="mb-0"><i class="fas fa-user-edit me-2"></i>Edit Profile Information</h5>
@@ -79,27 +82,27 @@
                     <!-- Profile Tabs -->
                     <ul class="nav nav-tabs mb-4" id="profileTabs" role="tablist">
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="personal-tab" data-bs-toggle="tab" data-bs-target="#personal" type="button" role="tab">
+                            <a class="nav-link {% if active_profile_tab == 'personal' %}active{% endif %}" id="personal-tab" href="{% url 'profile' %}?section=profile&tab=personal" role="tab" aria-selected="{% if active_profile_tab == 'personal' %}true{% else %}false{% endif %}">
                                 <i class="fas fa-user me-2"></i>Personal Info
-                            </button>
+                            </a>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="password-tab" data-bs-toggle="tab" data-bs-target="#password" type="button" role="tab">
+                            <a class="nav-link {% if active_profile_tab == 'password' %}active{% endif %}" id="password-tab" href="{% url 'profile' %}?section=profile&tab=password" role="tab" aria-selected="{% if active_profile_tab == 'password' %}true{% else %}false{% endif %}">
                                 <i class="fas fa-lock me-2"></i>Change Password
-                            </button>
+                            </a>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="preferences-tab" data-bs-toggle="tab" data-bs-target="#preferences" type="button" role="tab">
+                            <a class="nav-link {% if active_profile_tab == 'preferences' %}active{% endif %}" id="preferences-tab" href="{% url 'profile' %}?section=profile&tab=preferences" role="tab" aria-selected="{% if active_profile_tab == 'preferences' %}true{% else %}false{% endif %}">
                                 <i class="fas fa-bell me-2"></i>Preferences
-                            </button>
+                            </a>
                         </li>
                     </ul>
 
                     <!-- Tab Content -->
                     <div class="tab-content" id="profileTabsContent">
                         <!-- Personal Info Tab -->
-                        <div class="tab-pane fade show active" id="personal" role="tabpanel">
-                            <form method="POST" action="{% url 'profile' %}">
+                        <div class="tab-pane fade {% if active_profile_tab == 'personal' %}show active{% endif %}" id="personal" role="tabpanel">
+                            <form method="POST" action="{% url 'profile' %}?section=profile&tab=personal">
                                 {% csrf_token %}
                                 <div class="row mb-3">
                                     <div class="col-md-6">
@@ -169,8 +172,8 @@
                         </div>
 
                         <!-- Change Password Tab -->
-                        <div class="tab-pane fade" id="password" role="tabpanel">
-                            <form method="POST" action="{% url 'change_password' %}">
+                        <div class="tab-pane fade {% if active_profile_tab == 'password' %}show active{% endif %}" id="password" role="tabpanel">
+                            <form method="POST" action="{% url 'change_password' %}?section=profile&tab=password">
                                 {% csrf_token %}
                                 <div class="mb-3">
                                     <label class="form-label fw-bold">Current Password</label>
@@ -209,8 +212,8 @@
                         </div>
 
                         <!-- Preferences Tab -->
-                        <div class="tab-pane fade" id="preferences" role="tabpanel">
-                            <form method="POST" action="{% url 'update_preferences' %}">
+                        <div class="tab-pane fade {% if active_profile_tab == 'preferences' %}show active{% endif %}" id="preferences" role="tabpanel">
+                            <form method="POST" action="{% url 'update_preferences' %}?section=profile&tab=preferences">
                                 {% csrf_token %}
                                 <h6 class="fw-bold mb-3">Notification Preferences</h6>
                                 <div class="mb-3">
@@ -250,6 +253,7 @@
                     </div>
                 </div>
             </div>
+            {% elif active_profile_section == 'orders' %}
 
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-light py-3 d-flex justify-content-between align-items-center">
@@ -297,6 +301,7 @@
                     {% endif %}
                 </div>
             </div>
+            {% elif active_profile_section == 'notifications' %}
 
             <div class="card border-0 shadow-sm" id="profile-notifications-card">
                 <div class="card-header bg-light py-3 d-flex justify-content-between align-items-center">
@@ -328,6 +333,7 @@
                     {% endif %}
                 </div>
             </div>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -390,9 +396,19 @@
     }
 
     function resetPreferences() {
-        document.querySelector('#preferences input[name="email_notifications"]').checked = true;
-        document.querySelector('#preferences input[name="promo_emails"]').checked = false;
-        document.querySelector('#preferences input[name="sms_notifications"]').checked = true;
+        const accountNotifications = document.querySelector('#preferences input[name="account_notifications"]');
+        const promoEmails = document.querySelector('#preferences input[name="promo_emails"]');
+        const smsNotifications = document.querySelector('#preferences input[name="sms_notifications"]');
+
+        if (accountNotifications) {
+            accountNotifications.checked = true;
+        }
+        if (promoEmails) {
+            promoEmails.checked = false;
+        }
+        if (smsNotifications) {
+            smsNotifications.checked = true;
+        }
     }
 </script>
 

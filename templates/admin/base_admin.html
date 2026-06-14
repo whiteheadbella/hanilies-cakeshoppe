@@ -383,6 +383,8 @@
         }
 
         .table-pagination-button {
+            display: inline-flex;
+            align-items: center;
             border: 1px solid #fbcfe8;
             background: white;
             color: #be185d;
@@ -390,11 +392,15 @@
             padding: 6px 14px;
             font-size: 0.8rem;
             font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
         }
 
-        .table-pagination-button:disabled {
+        .table-pagination-button:disabled,
+        .table-pagination-button.is-disabled {
             opacity: 0.45;
             cursor: not-allowed;
+            pointer-events: none;
         }
         
         /* Status Badges */
@@ -689,6 +695,10 @@
         }
 
         function enhanceAdminTable(table) {
+            if (table.dataset.paginationMode === 'server') {
+                return;
+            }
+
             const body = table.tBodies[0];
             if (!body) {
                 return;

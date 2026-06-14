@@ -12,7 +12,7 @@
             <i class="fas fa-box-archive"></i> {% if is_archived_view %}Back to Active{% else %}View Archived{% endif %}
         </a>
     </div>
-    <table class="module-table">
+    <table class="module-table" data-pagination-mode="server">
         <thead>
             <tr><th>Order ID</th><th>Customer</th><th>Cake</th><th>Quantity</th><th>Total</th><th>Status</th><th>Date</th><th>Actions</th></tr>
         </thead>
@@ -27,10 +27,13 @@
                 <td><span class="status-badge status-{{ order.order_status }}">{{ order.get_order_status_display }}</span></td>
                 <td>{{ order.created_at|date:"Y-m-d" }}</td>
                 <td>
+                    <a href="{% url 'admin_cake_order_view' order.id %}?next={{ request.get_full_path|urlencode }}" class="btn-preview" style="margin-right: 8px;">
+                        <i class="fas fa-eye"></i> Preview Summary
+                    </a>
                     <form method="post"
-                          action="{% url 'admin_cake_order_update' order.id %}"
-                          data-update-url="{% url 'admin_cake_order_update' order.id %}"
-                          data-delete-url="{% url 'admin_cake_order_delete' order.id %}"
+                          action="{% url 'admin_cake_order_update' order.id %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}"
+                          data-update-url="{% url 'admin_cake_order_update' order.id %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}"
+                          data-delete-url="{% url 'admin_cake_order_delete' order.id %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}"
                           data-order-label="cake order #{{ order.id }}"
                           onsubmit="return submitOrderAction(this);"
                           style="display: inline; margin: 0;">
@@ -64,6 +67,25 @@
             {% endfor %}
         </tbody>
     </table>
+    {% if orders.paginator.count %}
+    <div class="table-pagination">
+        <div class="table-pagination-info">{{ orders_pagination.summary }}</div>
+        {% if orders_pagination.has_multiple_pages %}
+        <div class="table-pagination-actions">
+            {% if orders_pagination.prev_url %}
+            <a href="{{ orders_pagination.prev_url }}" class="table-pagination-button">Previous</a>
+            {% else %}
+            <span class="table-pagination-button is-disabled">Previous</span>
+            {% endif %}
+            {% if orders_pagination.next_url %}
+            <a href="{{ orders_pagination.next_url }}" class="table-pagination-button">Next</a>
+            {% else %}
+            <span class="table-pagination-button is-disabled">Next</span>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
 

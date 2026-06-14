@@ -958,6 +958,11 @@ main { flex: 1 0 auto; width: 100%; }
 
 .step.active { box-shadow: 0 0 0 3px rgba(255,105,180,0.3); }
 
+/* Order tracking layout fix */
+.order-tracking-page .card {
+    height: auto;
+}
+
 /* ===== 9. COMPONENTS ===== */
 /* Footer */
 .footer {

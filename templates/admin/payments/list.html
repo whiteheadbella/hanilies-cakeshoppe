@@ -8,7 +8,7 @@
 <!-- Payments For Review -->
 <div class="module-card">
     <div class="module-header" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
-        <h2><i class="fas fa-clock"></i> Payments For Review <span class="badge" style="background: #fef3c7; color: #d97706; margin-left: 10px;">{{ pending_payments.count }}</span></h2>
+        <h2><i class="fas fa-clock"></i> Payments For Review <span class="badge" style="background: #fef3c7; color: #d97706; margin-left: 10px;">{{ pending_payments_page.paginator.count }}</span></h2>
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
             <a href="{% url 'admin_payments_export' 'xlsx' %}" class="btn-preview">
                 <i class="fas fa-file-excel"></i> Export Sales XLSX
@@ -22,7 +22,7 @@
         </div>
     </div>
     <div class="table-responsive">
-        <table class="module-table">
+        <table class="module-table" data-pagination-mode="server">
             <thead>
                 <tr>
                     <th>ID</th>
@@ -37,7 +37,7 @@
                 </tr>
             </thead>
             <tbody>
-                {% for payment in pending_payments %}
+                {% for payment in pending_payments_page %}
                 <tr>
                     <td>#{{ payment.id }}</td>
                     <td><strong>₱{{ payment.amount }}</strong></td>
@@ -67,15 +67,15 @@
                     <td>{{ payment.created_at|date:"Y-m-d H:i" }}</td>
                     <td>
                         {% if payment.cake_order %}
-                            <a href="{% url 'admin_cake_order_view' payment.cake_order.id %}" class="btn-preview">
+                            <a href="{% url 'admin_cake_order_view' payment.cake_order.id %}?next={{ request.get_full_path|urlencode }}" class="btn-preview">
                                 <i class="fas fa-eye"></i> Preview Customer Order
                             </a>
                         {% elif payment.package_order %}
-                            <a href="{% url 'admin_package_order_view' payment.package_order.id %}" class="btn-preview">
+                            <a href="{% url 'admin_package_order_view' payment.package_order.id %}?next={{ request.get_full_path|urlencode }}" class="btn-preview">
                                 <i class="fas fa-eye"></i> Preview Customer Order
                             </a>
                         {% endif %}
-                        <form method="post" action="{% url 'admin_payment_verify' payment.id %}" style="display: inline;">
+                        <form method="post" action="{% url 'admin_payment_verify' payment.id %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" style="display: inline;">
                             {% csrf_token %}
                             <button type="submit" name="action" value="approve" class="btn-approve">
                                 <i class="fas fa-check"></i> Approve {{ payment.get_payment_purpose_display }}
@@ -104,14 +104,33 @@
             </tbody>
         </table>
     </div>
+    {% if pending_payments_page.paginator.count %}
+    <div class="table-pagination">
+        <div class="table-pagination-info">{{ pending_payments_pagination.summary }}</div>
+        {% if pending_payments_pagination.has_multiple_pages %}
+        <div class="table-pagination-actions">
+            {% if pending_payments_pagination.prev_url %}
+            <a href="{{ pending_payments_pagination.prev_url }}" class="table-pagination-button">Previous</a>
+            {% else %}
+            <span class="table-pagination-button is-disabled">Previous</span>
+            {% endif %}
+            {% if pending_payments_pagination.next_url %}
+            <a href="{{ pending_payments_pagination.next_url }}" class="table-pagination-button">Next</a>
+            {% else %}
+            <span class="table-pagination-button is-disabled">Next</span>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
 </div>
 
 <div class="module-card">
     <div class="module-header">
-        <h2><i class="fas fa-money-bill-wave"></i> Outstanding COD Balances <span class="badge" style="background: #e0f2fe; color: #0369a1; margin-left: 10px;">{{ balance_payments.count }}</span></h2>
+        <h2><i class="fas fa-money-bill-wave"></i> Outstanding COD Balances <span class="badge" style="background: #e0f2fe; color: #0369a1; margin-left: 10px;">{{ balance_payments_page.paginator.count }}</span></h2>
     </div>
     <div class="table-responsive">
-        <table class="module-table">
+        <table class="module-table" data-pagination-mode="server">
             <thead>
                 <tr>
                     <th>ID</th>
@@ -123,7 +142,7 @@
                 </tr>
             </thead>
             <tbody>
-                {% for payment in balance_payments %}
+                {% for payment in balance_payments_page %}
                 <tr>
                     <td>#{{ payment.id }}</td>
                     <td><strong>₱{{ payment.amount }}</strong></td>
@@ -137,7 +156,7 @@
                     <td><span class="badge" style="background: #fef3c7; color: #d97706;">Pending Collection</span></td>
                     <td>{{ payment.created_at|date:"Y-m-d H:i" }}</td>
                     <td>
-                        <form method="post" action="{% url 'admin_payment_verify' payment.id %}" style="display: inline;">
+                        <form method="post" action="{% url 'admin_payment_verify' payment.id %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" style="display: inline;">
                             {% csrf_token %}
                             <button type="submit" name="action" value="collect_balance" class="btn-approve">
                                 <i class="fas fa-cash-register"></i> Mark as Collected
@@ -153,15 +172,34 @@
             </tbody>
         </table>
     </div>
+    {% if balance_payments_page.paginator.count %}
+    <div class="table-pagination">
+        <div class="table-pagination-info">{{ balance_payments_pagination.summary }}</div>
+        {% if balance_payments_pagination.has_multiple_pages %}
+        <div class="table-pagination-actions">
+            {% if balance_payments_pagination.prev_url %}
+            <a href="{{ balance_payments_pagination.prev_url }}" class="table-pagination-button">Previous</a>
+            {% else %}
+            <span class="table-pagination-button is-disabled">Previous</span>
+            {% endif %}
+            {% if balance_payments_pagination.next_url %}
+            <a href="{{ balance_payments_pagination.next_url }}" class="table-pagination-button">Next</a>
+            {% else %}
+            <span class="table-pagination-button is-disabled">Next</span>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
 </div>
 
 <!-- Verified Payments -->
 <div class="module-card">
     <div class="module-header">
-        <h2><i class="fas fa-check-circle"></i> Verified Payments <span class="badge" style="background: #d1fae5; color: #10b981; margin-left: 10px;">{{ verified_payments.count }}</span></h2>
+        <h2><i class="fas fa-check-circle"></i> Verified Payments <span class="badge" style="background: #d1fae5; color: #10b981; margin-left: 10px;">{{ verified_payments_page.paginator.count }}</span></h2>
     </div>
     <div class="table-responsive">
-        <table class="module-table">
+        <table class="module-table" data-pagination-mode="server">
             <thead>
                 <tr>
                     <th>ID</th>
@@ -175,7 +213,7 @@
                 </tr>
             </thead>
             <tbody>
-                {% for payment in verified_payments %}
+                {% for payment in verified_payments_page %}
                 <tr>
                     <td>#{{ payment.id }}</td>
                     <td>₱{{ payment.amount }}</td>
@@ -199,7 +237,7 @@
                     <td>
                         {% if request.user.is_superuser or request.user.profile.role == 'owner' or request.user.profile.role == 'admin' %}
                         {% if not is_archived_view %}
-                        <form method="post" action="{% url 'admin_payment_delete' payment.id %}" style="display: inline;">
+                        <form method="post" action="{% url 'admin_payment_delete' payment.id %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" style="display: inline;">
                             {% csrf_token %}
                             <button type="submit" onclick="return confirm('Archive payment #{{ payment.id }}?');" class="btn-delete">
                                 <i class="fas fa-box-archive"></i> Archive
@@ -219,15 +257,34 @@
             </tbody>
         </table>
     </div>
+    {% if verified_payments_page.paginator.count %}
+    <div class="table-pagination">
+        <div class="table-pagination-info">{{ verified_payments_pagination.summary }}</div>
+        {% if verified_payments_pagination.has_multiple_pages %}
+        <div class="table-pagination-actions">
+            {% if verified_payments_pagination.prev_url %}
+            <a href="{{ verified_payments_pagination.prev_url }}" class="table-pagination-button">Previous</a>
+            {% else %}
+            <span class="table-pagination-button is-disabled">Previous</span>
+            {% endif %}
+            {% if verified_payments_pagination.next_url %}
+            <a href="{{ verified_payments_pagination.next_url }}" class="table-pagination-button">Next</a>
+            {% else %}
+            <span class="table-pagination-button is-disabled">Next</span>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
 </div>
 
 <!-- Rejected Payments -->
 <div class="module-card">
     <div class="module-header">
-        <h2><i class="fas fa-times-circle"></i> Rejected Payments <span class="badge" style="background: #fee2e2; color: #dc2626; margin-left: 10px;">{{ rejected_payments.count }}</span></h2>
+        <h2><i class="fas fa-times-circle"></i> Rejected Payments <span class="badge" style="background: #fee2e2; color: #dc2626; margin-left: 10px;">{{ rejected_payments_page.paginator.count }}</span></h2>
     </div>
     <div class="table-responsive">
-        <table class="module-table">
+        <table class="module-table" data-pagination-mode="server">
             <thead>
                 <tr>
                     <th>ID</th>
@@ -241,7 +298,7 @@
                 </tr>
             </thead>
             <tbody>
-                {% for payment in rejected_payments %}
+                {% for payment in rejected_payments_page %}
                 <tr>
                     <td>#{{ payment.id }}</td>
                     <td>₱{{ payment.amount }}</td>
@@ -265,7 +322,7 @@
                     <td>
                         {% if request.user.is_superuser or request.user.profile.role == 'owner' or request.user.profile.role == 'admin' %}
                         {% if not is_archived_view %}
-                        <form method="post" action="{% url 'admin_payment_delete' payment.id %}" style="display: inline;">
+                        <form method="post" action="{% url 'admin_payment_delete' payment.id %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" style="display: inline;">
                             {% csrf_token %}
                             <button type="submit" onclick="return confirm('Archive payment #{{ payment.id }}?');" class="btn-delete">
                                 <i class="fas fa-box-archive"></i> Archive
@@ -285,6 +342,25 @@
             </tbody>
         </table>
     </div>
+    {% if rejected_payments_page.paginator.count %}
+    <div class="table-pagination">
+        <div class="table-pagination-info">{{ rejected_payments_pagination.summary }}</div>
+        {% if rejected_payments_pagination.has_multiple_pages %}
+        <div class="table-pagination-actions">
+            {% if rejected_payments_pagination.prev_url %}
+            <a href="{{ rejected_payments_pagination.prev_url }}" class="table-pagination-button">Previous</a>
+            {% else %}
+            <span class="table-pagination-button is-disabled">Previous</span>
+            {% endif %}
+            {% if rejected_payments_pagination.next_url %}
+            <a href="{{ rejected_payments_pagination.next_url }}" class="table-pagination-button">Next</a>
+            {% else %}
+            <span class="table-pagination-button is-disabled">Next</span>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
 </div>
 
 <!-- Modal for viewing proof image -->

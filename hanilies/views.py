@@ -4,9 +4,11 @@ import re
 import signal
 import subprocess
 import sys
+from urllib.parse import urlencode
 from io import BytesIO
 
 from django.conf import settings
+from django.core.paginator import Paginator
 from django.core.mail import send_mail
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, JsonResponse
@@ -21,6 +23,7 @@ from decimal import Decimal, InvalidOperation
 from django.core.exceptions import PermissionDenied
 from django.db.models import Sum, Count, Q
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_POST
 from PIL import Image, UnidentifiedImageError
@@ -196,7 +199,8 @@ REFUND_STATUS_NOTIFICATION_CONFIG = {
 }
 
 DEPOSIT_RATE = Decimal('0.50')
-STAFF_ROLE_VALUES = {'owner', 'admin', 'manager', 'supervisor', 'baker', 'packager', 'cashier'}
+STAFF_ROLE_VALUES = {'owner', 'admin', 'manager',
+                     'supervisor', 'baker', 'packager', 'cashier'}
 PAYMENT_PLAN_LABELS = {
     'cod': '50% GCash Deposit + COD Balance',
     'gcash': 'Full GCash Payment',
@@ -232,15 +236,24 @@ PAYMENT_PROOF_ALLOWED_CONTENT_TYPES = {
     'image/webp',
 }
 ADMIN_MENU_ITEMS = [
-    {'name': 'Dashboard', 'url': 'admin_dashboard', 'icon': 'tachometer-alt', 'roles': STAFF_ROLE_VALUES},
-    {'name': 'Cakes', 'url': 'admin_cakes', 'icon': 'birthday-cake', 'roles': {'owner', 'admin', 'supervisor', 'baker'}},
-    {'name': 'Cake Orders', 'url': 'admin_cake_orders', 'icon': 'shopping-cart', 'roles': {'owner', 'admin', 'manager', 'supervisor', 'baker'}},
-    {'name': 'Packages', 'url': 'admin_packages', 'icon': 'gift', 'roles': {'owner', 'admin', 'supervisor', 'packager'}},
-    {'name': 'Package Orders', 'url': 'admin_package_orders', 'icon': 'calendar-check', 'roles': {'owner', 'admin', 'manager', 'supervisor', 'packager'}},
-    {'name': 'Payments', 'url': 'admin_payments', 'icon': 'credit-card', 'roles': {'owner', 'admin', 'manager', 'supervisor', 'cashier'}},
-    {'name': 'Refunds', 'url': 'admin_refunds', 'icon': 'rotate-left', 'roles': {'owner', 'admin', 'manager', 'supervisor', 'cashier'}},
-    {'name': 'Users', 'url': 'admin_users', 'icon': 'users', 'roles': {'owner', 'admin'}},
-    {'name': 'Audit Trail', 'url': 'admin_activity_logs', 'icon': 'clipboard-list', 'roles': {'owner', 'admin'}},
+    {'name': 'Dashboard', 'url': 'admin_dashboard',
+        'icon': 'tachometer-alt', 'roles': STAFF_ROLE_VALUES},
+    {'name': 'Cakes', 'url': 'admin_cakes', 'icon': 'birthday-cake',
+        'roles': {'owner', 'admin', 'supervisor', 'baker'}},
+    {'name': 'Cake Orders', 'url': 'admin_cake_orders', 'icon': 'shopping-cart',
+        'roles': {'owner', 'admin', 'manager', 'supervisor', 'baker'}},
+    {'name': 'Packages', 'url': 'admin_packages', 'icon': 'gift',
+        'roles': {'owner', 'admin', 'supervisor', 'packager'}},
+    {'name': 'Package Orders', 'url': 'admin_package_orders', 'icon': 'calendar-check',
+        'roles': {'owner', 'admin', 'manager', 'supervisor', 'packager'}},
+    {'name': 'Payments', 'url': 'admin_payments', 'icon': 'credit-card',
+        'roles': {'owner', 'admin', 'manager', 'supervisor', 'cashier'}},
+    {'name': 'Refunds', 'url': 'admin_refunds', 'icon': 'rotate-left',
+        'roles': {'owner', 'admin', 'manager', 'supervisor', 'cashier'}},
+    {'name': 'Users', 'url': 'admin_users',
+        'icon': 'users', 'roles': {'owner', 'admin'}},
+    {'name': 'Audit Trail', 'url': 'admin_activity_logs',
+        'icon': 'clipboard-list', 'roles': {'owner', 'admin'}},
 ]
 
 ROLE_CHOICES = UserProfile.ROLE_CHOICES
@@ -465,7 +478,8 @@ def _build_cancellation_quote(order_type, order):
             policy_note = '10% of the paid GCash amount is charged for early package cancellations.'
 
     penalty_fee = _quantize_amount(refundable_base * penalty_rate)
-    refundable_amount = _quantize_amount(max(refundable_base - penalty_fee, Decimal('0.00')))
+    refundable_amount = _quantize_amount(
+        max(refundable_base - penalty_fee, Decimal('0.00')))
     return {
         'allowed': True,
         'reason': policy_note,
@@ -571,7 +585,8 @@ def _create_checkout_payments(order, selected_plan, reference_number, proof_imag
             )
         ]
 
-    deposit_amount, balance_due = _calculate_deposit_breakdown(order.total_price)
+    deposit_amount, balance_due = _calculate_deposit_breakdown(
+        order.total_price)
     order.deposit_amount = deposit_amount
     order.balance_due = balance_due
     order.save(update_fields=['deposit_amount', 'balance_due', 'updated_at'])
@@ -611,6 +626,53 @@ def _get_public_cake_queryset():
 
 def _is_archived_admin_view(request):
     return request.GET.get('archived') == '1'
+
+
+def _build_path_with_query(path, query_params):
+    encoded_query = query_params.urlencode()
+    return f'{path}?{encoded_query}' if encoded_query else path
+
+
+def _build_named_url_with_query(route_name, query_params):
+    return _build_path_with_query(reverse(route_name), query_params)
+
+
+def _get_safe_admin_return_url(request, fallback_name):
+    next_url = request.GET.get('next') or request.POST.get('next')
+    if next_url and url_has_allowed_host_and_scheme(
+        next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return next_url
+
+    query_params = request.GET.copy()
+    query_params.pop('next', None)
+    return _build_named_url_with_query(fallback_name, query_params)
+
+
+def _paginate_admin_queryset(request, queryset, page_param, per_page=10):
+    paginator = Paginator(queryset, per_page)
+    page_obj = paginator.get_page(request.GET.get(page_param) or 1)
+    result_count = paginator.count
+    start_index = page_obj.start_index() if result_count else 0
+    end_index = page_obj.end_index() if result_count else 0
+
+    def build_page_url(page_number):
+        query_params = request.GET.copy()
+        query_params.pop('next', None)
+        if int(page_number) > 1:
+            query_params[page_param] = str(page_number)
+        else:
+            query_params.pop(page_param, None)
+        return _build_path_with_query(request.path, query_params)
+
+    return page_obj, {
+        'summary': f'Showing {start_index}-{end_index} of {result_count}',
+        'has_multiple_pages': page_obj.has_other_pages(),
+        'prev_url': build_page_url(page_obj.previous_page_number()) if page_obj.has_previous() else None,
+        'next_url': build_page_url(page_obj.next_page_number()) if page_obj.has_next() else None,
+    }
 
 
 def _archive_model_instance(instance, **field_overrides):
@@ -714,7 +776,8 @@ def _split_structured_delivery_address(raw_address):
     if not raw_address:
         return parsed
 
-    landmark_match = re.search(r'\(Landmark:\s*(.*?)\)\s*$', raw_address, flags=re.IGNORECASE)
+    landmark_match = re.search(
+        r'\(Landmark:\s*(.*?)\)\s*$', raw_address, flags=re.IGNORECASE)
     if landmark_match:
         parsed['delivery_landmark'] = landmark_match.group(1).strip()
         raw_address = raw_address[:landmark_match.start()].rstrip(' ,')
@@ -1245,7 +1308,8 @@ def _ensure_browser_demo_orders(user, cake, package, payment_mode):
     default_payment_status = 'verifying' if payment_mode == 'gcash' else 'pending'
     reference_number = 'DEMO-GCASH-001' if payment_mode == 'gcash' else ''
 
-    cake_order = CakeOrder.objects.filter(user=user, cake=cake).order_by('-id').first()
+    cake_order = CakeOrder.objects.filter(
+        user=user, cake=cake).order_by('-id').first()
     if cake_order is None:
         cake_order = CakeOrder.objects.create(
             user=user,
@@ -1289,9 +1353,11 @@ def _ensure_browser_demo_orders(user, cake, package, payment_mode):
         cake_payment.payment_method = payment_mode
         cake_payment.payment_status = default_payment_status
         cake_payment.reference_number = reference_number
-        cake_payment.save(update_fields=['payment_method', 'payment_status', 'reference_number', 'updated_at'])
+        cake_payment.save(update_fields=[
+                          'payment_method', 'payment_status', 'reference_number', 'updated_at'])
 
-    package_order = PackageOrder.objects.filter(user=user, package=package).order_by('-id').first()
+    package_order = PackageOrder.objects.filter(
+        user=user, package=package).order_by('-id').first()
     if package_order is None:
         package_order = PackageOrder.objects.create(
             user=user,
@@ -1324,7 +1390,8 @@ def _ensure_browser_demo_orders(user, cake, package, payment_mode):
         package_payment.payment_method = payment_mode
         package_payment.payment_status = default_payment_status
         package_payment.reference_number = reference_number
-        package_payment.save(update_fields=['payment_method', 'payment_status', 'reference_number', 'updated_at'])
+        package_payment.save(update_fields=[
+                             'payment_method', 'payment_status', 'reference_number', 'updated_at'])
 
     Notification.objects.get_or_create(
         user=user,
@@ -1452,7 +1519,8 @@ def start_demo_bot(request):
         }, status=400)
 
     if demo_mode == 'browser':
-        resolved_steps = _resolve_demo_script_steps(scenario, payload.get('script_steps', []))
+        resolved_steps = _resolve_demo_script_steps(
+            scenario, payload.get('script_steps', []))
         browser_demo = _build_browser_demo_payload(
             request,
             scenario,
@@ -1944,7 +2012,8 @@ def cakes(request):
 
 def packages(request):
     """Packages listing page"""
-    package_list = _get_public_package_queryset().prefetch_related('thumbnails').order_by('name')
+    package_list = _get_public_package_queryset(
+    ).prefetch_related('thumbnails').order_by('name')
     selected_type = request.GET.get('type', '').strip()
     search_term = request.GET.get('q', '').strip()
 
@@ -2052,6 +2121,22 @@ def profile(request):
     if not hasattr(request.user, 'profile'):
         _assign_user_role(request.user, 'customer')
 
+    allowed_sections = {'profile', 'orders', 'notifications'}
+    allowed_tabs = {'personal', 'password', 'preferences'}
+    active_profile_section = request.GET.get('section', 'profile')
+    active_profile_tab = request.GET.get('tab', 'personal')
+
+    if active_profile_section not in allowed_sections:
+        active_profile_section = 'profile'
+    if active_profile_tab not in allowed_tabs:
+        active_profile_tab = 'personal'
+
+    def build_profile_url(section='profile', tab='personal'):
+        query = {'section': section if section in allowed_sections else 'profile'}
+        if query['section'] == 'profile':
+            query['tab'] = tab if tab in allowed_tabs else 'personal'
+        return f"{reverse('profile')}?{urlencode(query)}"
+
     profile_defaults = _get_profile_defaults(request.user)
 
     if request.method == 'POST':
@@ -2080,15 +2165,18 @@ def profile(request):
             user.save()
 
             if hasattr(user, 'profile'):
-                user.profile.phone = request.POST.get('phone', user.profile.phone)
+                user.profile.phone = request.POST.get(
+                    'phone', user.profile.phone)
                 user.profile.address = address_data['delivery_address']
                 user.profile.save()
 
             messages.success(request, 'Profile updated successfully!')
-            return redirect('profile')
+            return redirect(build_profile_url(section='profile', tab='personal'))
 
-    cake_orders = _get_customer_cake_orders_queryset(request.user).select_related('cake')
-    package_orders = _get_customer_package_orders_queryset(request.user).select_related('package')
+    cake_orders = _get_customer_cake_orders_queryset(
+        request.user).select_related('cake')
+    package_orders = _get_customer_package_orders_queryset(
+        request.user).select_related('package')
     total_spent = (
         cake_orders.aggregate(total=Sum('total_price')).get(
             'total') or Decimal('0.00')
@@ -2131,6 +2219,8 @@ def profile(request):
         'recent_notifications': recent_notifications,
         'unread_notification_count': sum(
             1 for notification in recent_notifications if not notification.is_read),
+        'active_profile_section': active_profile_section,
+        'active_profile_tab': active_profile_tab,
     }
     return render(request, 'hanilies/profile.html', context)
 
@@ -2143,27 +2233,28 @@ def change_password(request):
         current_password = request.POST.get('current_password')
         new_password = request.POST.get('new_password')
         confirm_password = request.POST.get('confirm_password')
+        profile_password_url = f"{reverse('profile')}?{urlencode({'section': 'profile', 'tab': 'password'})}"
 
         if not user.check_password(current_password):
             messages.error(request, 'Current password is incorrect')
-            return redirect('profile')
+            return redirect(profile_password_url)
 
         if new_password != confirm_password:
             messages.error(request, 'New passwords do not match')
-            return redirect('profile')
+            return redirect(profile_password_url)
 
         if len(new_password) < 8:
             messages.error(request, 'Password must be at least 8 characters')
-            return redirect('profile')
+            return redirect(profile_password_url)
 
         user.set_password(new_password)
         user.save()
         update_session_auth_hash(request, user)
 
         messages.success(request, 'Password changed successfully!')
-        return redirect('profile')
+        return redirect(profile_password_url)
 
-    return redirect('profile')
+    return redirect(f"{reverse('profile')}?{urlencode({'section': 'profile', 'tab': 'password'})}")
 
 
 @login_required
@@ -2180,9 +2271,9 @@ def update_preferences(request):
         request.session['sms_notifications'] = sms_notifications
 
         messages.success(request, 'Preferences updated successfully!')
-        return redirect('profile')
+        return redirect(f"{reverse('profile')}?{urlencode({'section': 'profile', 'tab': 'preferences'})}")
 
-    return redirect('profile')
+    return redirect(f"{reverse('profile')}?{urlencode({'section': 'profile', 'tab': 'preferences'})}")
 
 
 @login_required
@@ -2227,8 +2318,10 @@ def order_tracking(request):
         selected_payments = list(_get_order_payments_queryset(selected_order))
         selected_payment = _get_order_primary_payment(selected_order)
         if selected_type == 'cake':
-            selected_customization = getattr(selected_order, 'customization', None)
-        selected_refund_request = getattr(selected_order, 'refund_request', None)
+            selected_customization = getattr(
+                selected_order, 'customization', None)
+        selected_refund_request = getattr(
+            selected_order, 'refund_request', None)
         if selected_refund_request is None:
             cancellation_quote = _build_cancellation_quote(
                 selected_type, selected_order)
@@ -2275,17 +2368,20 @@ def request_order_cancellation(request, order_type, order_id):
         raise PermissionDenied('Invalid order type.')
 
     if getattr(order, 'refund_request', None) is not None:
-        messages.info(request, 'A cancellation request for this order is already on file.')
+        messages.info(
+            request, 'A cancellation request for this order is already on file.')
         return redirect(f"{reverse('order_tracking')}?type={order_type}&id={order.id}")
 
     cancellation_quote = _build_cancellation_quote(order_type, order)
     if not cancellation_quote.get('allowed'):
-        messages.error(request, cancellation_quote.get('reason', 'This order cannot be cancelled at the moment.'))
+        messages.error(request, cancellation_quote.get(
+            'reason', 'This order cannot be cancelled at the moment.'))
         return redirect(f"{reverse('order_tracking')}?type={order_type}&id={order.id}")
 
     reason = request.POST.get('reason', '').strip()
     if not reason:
-        messages.error(request, 'Please provide a reason for the cancellation request.')
+        messages.error(
+            request, 'Please provide a reason for the cancellation request.')
         return redirect(f"{reverse('order_tracking')}?type={order_type}&id={order.id}")
 
     refund_payment = _get_order_primary_payment(order)
@@ -2301,7 +2397,8 @@ def request_order_cancellation(request, order_type, order_id):
         status='requested',
     )
     _create_refund_status_notification(refund_request)
-    messages.success(request, 'Your cancellation request has been submitted for admin review.')
+    messages.success(
+        request, 'Your cancellation request has been submitted for admin review.')
     return redirect(f"{reverse('order_tracking')}?type={order_type}&id={order.id}")
 
 
@@ -2365,7 +2462,8 @@ def cake_customize(request):
                 total_price=total_price,
                 payment_plan=payment_method,
                 deposit_amount=total_price if payment_method == 'gcash' else deposit_amount,
-                balance_due=Decimal('0.00') if payment_method == 'gcash' else balance_due,
+                balance_due=Decimal(
+                    '0.00') if payment_method == 'gcash' else balance_due,
                 theme=request.POST.get('theme', '').strip(),
                 size=request.POST.get('size', '').strip(),
                 shape=request.POST.get('shape', '').strip() or 'Round',
@@ -2448,7 +2546,8 @@ def package_order(request):
         selected_package_id).isdigit() else package_queryset.order_by('name').first()
 
     if request.method == 'POST':
-        event_type = request.POST.get('event_type', selected_package.package_type)
+        event_type = request.POST.get(
+            'event_type', selected_package.package_type)
         if event_type not in PUBLIC_EVENT_TYPE_VALUES:
             messages.error(
                 request, 'Selected event type is no longer available for package bookings.')
@@ -2496,7 +2595,8 @@ def package_cake_customize(request):
         messages.error(request, 'Please select a package first.')
         return redirect('order_package')
 
-    selected_package = get_object_or_404(_get_public_package_queryset(), id=package_id)
+    selected_package = get_object_or_404(
+        _get_public_package_queryset(), id=package_id)
 
     if request.method == 'POST':
         size_key = request.POST.get('cake_size', 'standard')
@@ -2544,7 +2644,8 @@ def package_payment(request):
         messages.error(request, 'Please complete the package selection first.')
         return redirect('order_package')
 
-    selected_package = get_object_or_404(_get_public_package_queryset(), id=package_id)
+    selected_package = get_object_or_404(
+        _get_public_package_queryset(), id=package_id)
     defaults = _get_profile_defaults(request.user)
     subtotal = _parse_decimal(
         draft.get('base_total', selected_package.base_price))
@@ -2579,14 +2680,17 @@ def package_payment(request):
                     total_price=grand_total,
                     payment_plan=payment_method,
                     deposit_amount=grand_total if payment_method == 'gcash' else deposit_amount,
-                    balance_due=Decimal('0.00') if payment_method == 'gcash' else balance_due,
+                    balance_due=Decimal(
+                        '0.00') if payment_method == 'gcash' else balance_due,
                     event_type=event_type,
                     event_date=request.POST.get('event_date'),
                     event_time=request.POST.get('event_time') or None,
                     venue=request.POST.get('venue', '').strip(),
                     contact_name=request.POST.get('contact_name', '').strip(),
-                    contact_phone=request.POST.get('contact_phone', '').strip(),
-                    contact_email=request.POST.get('contact_email', '').strip(),
+                    contact_phone=request.POST.get(
+                        'contact_phone', '').strip(),
+                    contact_email=request.POST.get(
+                        'contact_email', '').strip(),
                     selected_addons='\n'.join(
                         draft.get('selected_addon_labels', [])),
                     cake_flavor=draft.get('cake_flavor', ''),
@@ -2724,12 +2828,14 @@ def admin_dashboard(request):
 @login_required
 def admin_cakes(request):
     """List all cakes"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'supervisor', 'baker'})
+    access_denied = _require_admin_roles(
+        request, {'owner', 'admin', 'supervisor', 'baker'})
     if access_denied:
         return access_denied
 
     is_archived_view = _is_archived_admin_view(request)
-    cakes = Cake.objects.filter(is_archived=is_archived_view).order_by('-created_at')
+    cakes = Cake.objects.filter(
+        is_archived=is_archived_view).order_by('-created_at')
     return render(request, 'admin/cakes/list.html', {
         'cakes': cakes,
         'is_archived_view': is_archived_view,
@@ -2740,7 +2846,8 @@ def admin_cakes(request):
 @login_required
 def admin_cake_add(request):
     """Add a new cake with image upload"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'supervisor', 'baker'})
+    access_denied = _require_admin_roles(
+        request, {'owner', 'admin', 'supervisor', 'baker'})
     if access_denied:
         return access_denied
 
@@ -2750,7 +2857,8 @@ def admin_cake_add(request):
             name = request.POST.get('name')
             category = request.POST.get('category')
             if category not in CAKE_CATEGORY_VALUES:
-                messages.error(request, 'Selected cake category is not available.')
+                messages.error(
+                    request, 'Selected cake category is not available.')
                 return render(request, 'admin/cakes/add.html', {
                     'admin_menu': get_admin_menu(request),
                     'cake_categories': Cake.CAKE_CATEGORIES,
@@ -2800,7 +2908,8 @@ def admin_cake_add(request):
 @login_required
 def admin_cake_edit(request, cake_id):
     """Edit a cake with image upload"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'supervisor', 'baker'})
+    access_denied = _require_admin_roles(
+        request, {'owner', 'admin', 'supervisor', 'baker'})
     if access_denied:
         return access_denied
 
@@ -2812,7 +2921,8 @@ def admin_cake_edit(request, cake_id):
             cake.name = request.POST.get('name')
             category = request.POST.get('category')
             if category not in CAKE_CATEGORY_VALUES:
-                messages.error(request, 'Selected cake category is not available.')
+                messages.error(
+                    request, 'Selected cake category is not available.')
                 return render(request, 'admin/cakes/edit.html', {
                     'cake': cake,
                     'admin_menu': get_admin_menu(request),
@@ -2889,14 +2999,19 @@ def admin_cake_delete(request, cake_id):
 @login_required
 def admin_cake_orders(request):
     """List all cake orders"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'supervisor', 'baker'})
+    access_denied = _require_admin_roles(
+        request, {'owner', 'admin', 'manager', 'supervisor', 'baker'})
     if access_denied:
         return access_denied
 
     is_archived_view = _is_archived_admin_view(request)
-    orders = CakeOrder.objects.filter(is_archived=is_archived_view).order_by('-created_at')
+    orders_queryset = CakeOrder.objects.select_related('user', 'cake').filter(
+        is_archived=is_archived_view).order_by('-created_at')
+    orders, orders_pagination = _paginate_admin_queryset(
+        request, orders_queryset, 'page')
     return render(request, 'admin/orders/cake_orders.html', {
         'orders': orders,
+        'orders_pagination': orders_pagination,
         'is_archived_view': is_archived_view,
         'admin_menu': get_admin_menu(request)
     })
@@ -2905,16 +3020,21 @@ def admin_cake_orders(request):
 @login_required
 def admin_cake_order_view(request, order_id):
     """View order details"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'supervisor', 'baker', 'cashier'})
+    access_denied = _require_admin_roles(
+        request, {'owner', 'admin', 'manager', 'supervisor', 'baker', 'cashier'})
     if access_denied:
         return access_denied
 
     order = get_object_or_404(
-        CakeOrder.objects.select_related('user', 'cake').prefetch_related('payments'),
+        CakeOrder.objects.select_related(
+            'user', 'cake').prefetch_related('payments'),
         id=order_id,
     )
+    back_url = _get_safe_admin_return_url(request, 'admin_cake_orders')
     return render(request, 'admin/orders/cake_order_view.html', {
         'order': order,
+        'back_url': back_url,
+        'back_label': 'Back to Payments' if back_url.startswith(reverse('admin_payments')) else 'Back to Cake Orders',
         'admin_menu': get_admin_menu(request)
     })
 
@@ -2922,7 +3042,8 @@ def admin_cake_order_view(request, order_id):
 @login_required
 def admin_cake_order_update(request, order_id):
     """Update order status"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'supervisor', 'baker'})
+    access_denied = _require_admin_roles(
+        request, {'owner', 'admin', 'manager', 'supervisor', 'baker'})
     if access_denied:
         return access_denied
 
@@ -2946,14 +3067,15 @@ def admin_cake_order_update(request, order_id):
             )
             messages.success(
                 request, f'Order #{order.id} status updated to {order.get_order_status_display()}')
-    return redirect('admin_cake_orders')
+    return redirect(_get_safe_admin_return_url(request, 'admin_cake_orders'))
 
 
 @login_required
 @require_POST
 def admin_cake_order_delete(request, order_id):
     """Archive a cake order"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'supervisor'})
+    access_denied = _require_admin_roles(
+        request, {'owner', 'admin', 'manager', 'supervisor'})
     if access_denied:
         return access_denied
 
@@ -2967,8 +3089,9 @@ def admin_cake_order_delete(request, order_id):
         'cake_order',
         order_id_value,
     )
-    messages.success(request, f'Order #{order_id_value} archived successfully!')
-    return redirect('admin_cake_orders')
+    messages.success(
+        request, f'Order #{order_id_value} archived successfully!')
+    return redirect(_get_safe_admin_return_url(request, 'admin_cake_orders'))
 
 
 # ============================================
@@ -2978,12 +3101,14 @@ def admin_cake_order_delete(request, order_id):
 @login_required
 def admin_packages(request):
     """List all packages"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'supervisor', 'packager'})
+    access_denied = _require_admin_roles(
+        request, {'owner', 'admin', 'supervisor', 'packager'})
     if access_denied:
         return access_denied
 
     is_archived_view = _is_archived_admin_view(request)
-    packages = Package.objects.filter(is_archived=is_archived_view).prefetch_related('thumbnails').order_by('-created_at')
+    packages = Package.objects.filter(is_archived=is_archived_view).prefetch_related(
+        'thumbnails').order_by('-created_at')
     return render(request, 'admin/packages/list.html', {
         'packages': packages,
         'is_archived_view': is_archived_view,
@@ -2994,7 +3119,8 @@ def admin_packages(request):
 @login_required
 def admin_package_add(request):
     """Add a new package"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'supervisor', 'packager'})
+    access_denied = _require_admin_roles(
+        request, {'owner', 'admin', 'supervisor', 'packager'})
     if access_denied:
         return access_denied
 
@@ -3042,11 +3168,13 @@ def admin_package_add(request):
 @login_required
 def admin_package_edit(request, package_id):
     """Edit a package"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'supervisor', 'packager'})
+    access_denied = _require_admin_roles(
+        request, {'owner', 'admin', 'supervisor', 'packager'})
     if access_denied:
         return access_denied
 
-    package = get_object_or_404(Package.objects.prefetch_related('thumbnails'), id=package_id)
+    package = get_object_or_404(
+        Package.objects.prefetch_related('thumbnails'), id=package_id)
 
     if request.method == 'POST':
         try:
@@ -3077,7 +3205,8 @@ def admin_package_edit(request, package_id):
                 for slot_order in range(1, MAX_PACKAGE_THUMBNAILS + 1)
                 if request.POST.get(f'remove_thumbnail_{slot_order}') == 'on'
             }
-            _sync_package_thumbnails(package, request.FILES, thumbnail_removals)
+            _sync_package_thumbnails(
+                package, request.FILES, thumbnail_removals)
             _log_staff_activity(
                 request.user,
                 'package_updated',
@@ -3101,7 +3230,8 @@ def admin_package_edit(request, package_id):
 @login_required
 def admin_package_delete(request, package_id):
     """Archive a package"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'packager'})
+    access_denied = _require_admin_roles(
+        request, {'owner', 'admin', 'packager'})
     if access_denied:
         return access_denied
 
@@ -3127,14 +3257,19 @@ def admin_package_delete(request, package_id):
 @login_required
 def admin_package_orders(request):
     """List all package orders"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'supervisor', 'packager'})
+    access_denied = _require_admin_roles(
+        request, {'owner', 'admin', 'manager', 'supervisor', 'packager'})
     if access_denied:
         return access_denied
 
     is_archived_view = _is_archived_admin_view(request)
-    orders = PackageOrder.objects.filter(is_archived=is_archived_view).order_by('-created_at')
+    orders_queryset = PackageOrder.objects.select_related('user', 'package').filter(
+        is_archived=is_archived_view).order_by('-created_at')
+    orders, orders_pagination = _paginate_admin_queryset(
+        request, orders_queryset, 'page')
     return render(request, 'admin/orders/package_orders.html', {
         'orders': orders,
+        'orders_pagination': orders_pagination,
         'is_archived_view': is_archived_view,
         'admin_menu': get_admin_menu(request)
     })
@@ -3143,16 +3278,21 @@ def admin_package_orders(request):
 @login_required
 def admin_package_order_view(request, order_id):
     """View package order details"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'supervisor', 'packager', 'cashier'})
+    access_denied = _require_admin_roles(
+        request, {'owner', 'admin', 'manager', 'supervisor', 'packager', 'cashier'})
     if access_denied:
         return access_denied
 
     order = get_object_or_404(
-        PackageOrder.objects.select_related('user', 'package').prefetch_related('payments'),
+        PackageOrder.objects.select_related(
+            'user', 'package').prefetch_related('payments'),
         id=order_id,
     )
+    back_url = _get_safe_admin_return_url(request, 'admin_package_orders')
     return render(request, 'admin/orders/package_order_view.html', {
         'order': order,
+        'back_url': back_url,
+        'back_label': 'Back to Payments' if back_url.startswith(reverse('admin_payments')) else 'Back to Package Orders',
         'admin_menu': get_admin_menu(request)
     })
 
@@ -3160,7 +3300,8 @@ def admin_package_order_view(request, order_id):
 @login_required
 def admin_package_order_update(request, order_id):
     """Update package order status"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'supervisor', 'packager'})
+    access_denied = _require_admin_roles(
+        request, {'owner', 'admin', 'manager', 'supervisor', 'packager'})
     if access_denied:
         return access_denied
 
@@ -3174,7 +3315,8 @@ def admin_package_order_update(request, order_id):
             order.save()
             if new_status == 'cancelled':
                 _cancel_outstanding_balance_payments(order)
-            _create_order_status_notification(order, 'package', previous_status)
+            _create_order_status_notification(
+                order, 'package', previous_status)
             _log_staff_activity(
                 request.user,
                 'package_order_status_updated',
@@ -3184,14 +3326,15 @@ def admin_package_order_update(request, order_id):
             )
             messages.success(
                 request, f'Package Order #{order.id} status updated to {order.get_order_status_display()}')
-    return redirect('admin_package_orders')
+    return redirect(_get_safe_admin_return_url(request, 'admin_package_orders'))
 
 
 @login_required
 @require_POST
 def admin_package_order_delete(request, order_id):
     """Archive a package order"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'supervisor'})
+    access_denied = _require_admin_roles(
+        request, {'owner', 'admin', 'manager', 'supervisor'})
     if access_denied:
         return access_denied
 
@@ -3207,7 +3350,7 @@ def admin_package_order_delete(request, order_id):
     )
     messages.success(
         request, f'Package Order #{order_id_value} archived successfully!')
-    return redirect('admin_package_orders')
+    return redirect(_get_safe_admin_return_url(request, 'admin_package_orders'))
 
 
 # ============================================
@@ -3217,7 +3360,8 @@ def admin_package_order_delete(request, order_id):
 @login_required
 def admin_payments(request):
     """List all payments"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'supervisor', 'cashier'})
+    access_denied = _require_admin_roles(
+        request, {'owner', 'admin', 'manager', 'supervisor', 'cashier'})
     if access_denied:
         return access_denied
 
@@ -3241,14 +3385,31 @@ def admin_payments(request):
         payment_status='pending',
     )
     verified_payments = payments.filter(payment_status='paid')
-    rejected_payments = payments.filter(payment_status__in=['failed', 'cancelled'])
+    rejected_payments = payments.filter(
+        payment_status__in=['failed', 'cancelled'])
+    pending_payments_page, pending_payments_pagination = _paginate_admin_queryset(
+        request, pending_payments, 'review_page')
+    balance_payments_page, balance_payments_pagination = _paginate_admin_queryset(
+        request, balance_payments, 'balance_page')
+    verified_payments_page, verified_payments_pagination = _paginate_admin_queryset(
+        request, verified_payments, 'verified_page')
+    rejected_payments_page, rejected_payments_pagination = _paginate_admin_queryset(
+        request, rejected_payments, 'rejected_page')
 
     return render(request, 'admin/payments/list.html', {
         'payments': payments,
         'pending_payments': pending_payments,
+        'pending_payments_page': pending_payments_page,
+        'pending_payments_pagination': pending_payments_pagination,
         'balance_payments': balance_payments,
+        'balance_payments_page': balance_payments_page,
+        'balance_payments_pagination': balance_payments_pagination,
         'verified_payments': verified_payments,
+        'verified_payments_page': verified_payments_page,
+        'verified_payments_pagination': verified_payments_pagination,
         'rejected_payments': rejected_payments,
+        'rejected_payments_page': rejected_payments_page,
+        'rejected_payments_pagination': rejected_payments_pagination,
         'is_archived_view': is_archived_view,
         'admin_menu': get_admin_menu(request)
     })
@@ -3257,7 +3418,8 @@ def admin_payments(request):
 @login_required
 def admin_payment_verify(request, payment_id):
     """Verify/Approve/Reject a payment"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'supervisor', 'cashier'})
+    access_denied = _require_admin_roles(
+        request, {'owner', 'admin', 'manager', 'supervisor', 'cashier'})
     if access_denied:
         return access_denied
 
@@ -3300,7 +3462,7 @@ def admin_payment_verify(request, payment_id):
                 payment.id,
             )
 
-    return redirect('admin_payments')
+    return redirect(_get_safe_admin_return_url(request, 'admin_payments'))
 
 
 @login_required
@@ -3316,7 +3478,7 @@ def admin_payment_delete(request, payment_id):
     if payment.payment_status not in ['paid', 'failed', 'cancelled']:
         messages.error(
             request, 'Only verified or rejected payments can be archived.')
-        return redirect('admin_payments')
+        return redirect(_get_safe_admin_return_url(request, 'admin_payments'))
 
     payment_id_value = payment.id
     _archive_model_instance(payment)
@@ -3327,14 +3489,16 @@ def admin_payment_delete(request, payment_id):
         'payment',
         payment_id_value,
     )
-    messages.success(request, f'Payment #{payment_id_value} archived successfully!')
-    return redirect('admin_payments')
+    messages.success(
+        request, f'Payment #{payment_id_value} archived successfully!')
+    return redirect(_get_safe_admin_return_url(request, 'admin_payments'))
 
 
 @login_required
 def admin_payments_export(request, file_format):
     """Export paid sales records to XLSX or PDF."""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'supervisor', 'cashier'})
+    access_denied = _require_admin_roles(
+        request, {'owner', 'admin', 'manager', 'supervisor', 'cashier'})
     if access_denied:
         return access_denied
 
@@ -3354,7 +3518,8 @@ def admin_payments_export(request, file_format):
             from openpyxl import Workbook
             from openpyxl.styles import Font
         except ImportError:
-            messages.error(request, 'XLSX export is not available until openpyxl is installed.')
+            messages.error(
+                request, 'XLSX export is not available until openpyxl is installed.')
             return redirect('admin_payments')
 
         workbook = Workbook()
@@ -3392,7 +3557,8 @@ def admin_payments_export(request, file_format):
         response = HttpResponse(
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
-        response['Content-Disposition'] = f'attachment; filename="{_build_sales_export_filename("xlsx")}"'
+        response[
+            'Content-Disposition'] = f'attachment; filename="{_build_sales_export_filename("xlsx")}"'
         workbook.save(response)
         return response
 
@@ -3401,7 +3567,8 @@ def admin_payments_export(request, file_format):
             from reportlab.lib.pagesizes import landscape, letter
             from reportlab.pdfgen import canvas
         except ImportError:
-            messages.error(request, 'PDF export is not available until reportlab is installed.')
+            messages.error(
+                request, 'PDF export is not available until reportlab is installed.')
             return redirect('admin_payments')
 
         buffer = BytesIO()
@@ -3413,7 +3580,8 @@ def admin_payments_export(request, file_format):
         pdf.drawString(40, y_position, 'Hanilies Cakeshoppe Sales Report')
         y_position -= 20
         pdf.setFont('Helvetica', 10)
-        pdf.drawString(40, y_position, f'Generated: {timezone.localtime(timezone.now()).strftime("%Y-%m-%d %H:%M")}')
+        pdf.drawString(
+            40, y_position, f'Generated: {timezone.localtime(timezone.now()).strftime("%Y-%m-%d %H:%M")}')
         y_position -= 28
 
         pdf.setFont('Helvetica-Bold', 9)
@@ -3443,19 +3611,22 @@ def admin_payments_export(request, file_format):
                 pdf.setFont('Helvetica', 8)
 
             pdf.drawString(40, y_position, f'#{row["payment_id"]}')
-            pdf.drawString(95, y_position, f'{row["order_type"]} #{row["order_id"]}')
+            pdf.drawString(
+                95, y_position, f'{row["order_type"]} #{row["order_id"]}')
             pdf.drawString(165, y_position, row['customer_name'][:28])
             pdf.drawString(330, y_position, row['payment_purpose'][:14])
             pdf.drawString(410, y_position, row['payment_method'][:10])
             pdf.drawString(475, y_position, f'PHP {row["amount"]}')
-            pdf.drawString(550, y_position, timezone.localtime(row['paid_at']).strftime('%Y-%m-%d'))
+            pdf.drawString(550, y_position, timezone.localtime(
+                row['paid_at']).strftime('%Y-%m-%d'))
             y_position -= 16
 
         pdf.save()
         pdf_bytes = buffer.getvalue()
         buffer.close()
         response = HttpResponse(pdf_bytes, content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="{_build_sales_export_filename("pdf")}"'
+        response[
+            'Content-Disposition'] = f'attachment; filename="{_build_sales_export_filename("pdf")}"'
         return response
 
     messages.error(request, 'Unsupported export format requested.')
@@ -3465,7 +3636,8 @@ def admin_payments_export(request, file_format):
 @login_required
 def admin_refunds(request):
     """List customer cancellation and refund requests."""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'supervisor', 'cashier'})
+    access_denied = _require_admin_roles(
+        request, {'owner', 'admin', 'manager', 'supervisor', 'cashier'})
     if access_denied:
         return access_denied
 
@@ -3493,9 +3665,11 @@ def admin_refund_update(request, refund_id):
     action = request.POST.get('action')
 
     if action in ['approve', 'reject']:
-        access_denied = _require_admin_roles(request, {'owner', 'admin', 'manager', 'supervisor'})
+        access_denied = _require_admin_roles(
+            request, {'owner', 'admin', 'manager', 'supervisor'})
     else:
-        access_denied = _require_admin_roles(request, {'owner', 'admin', 'cashier'})
+        access_denied = _require_admin_roles(
+            request, {'owner', 'admin', 'cashier'})
     if access_denied:
         return access_denied
 
@@ -3507,11 +3681,13 @@ def admin_refund_update(request, refund_id):
             custom_penalty = _quantize_amount(request.POST.get('penalty_fee'))
             refundable_base = _get_paid_or_pending_gcash_total(order)
             refund_request.penalty_fee = min(refundable_base, custom_penalty)
-            refund_request.refundable_amount = _quantize_amount(refundable_base - refund_request.penalty_fee)
+            refund_request.refundable_amount = _quantize_amount(
+                refundable_base - refund_request.penalty_fee)
         refund_request.status = 'approved'
         refund_request.approved_by = request.user
         refund_request.reviewed_at = timezone.now()
-        refund_request.internal_note = request.POST.get('internal_note', refund_request.internal_note).strip()
+        refund_request.internal_note = request.POST.get(
+            'internal_note', refund_request.internal_note).strip()
         refund_request.save()
 
         previous_status = order.order_status
@@ -3527,12 +3703,14 @@ def admin_refund_update(request, refund_id):
             'refund_request',
             refund_request.id,
         )
-        messages.success(request, f'Refund request #{refund_request.id} approved successfully.')
+        messages.success(
+            request, f'Refund request #{refund_request.id} approved successfully.')
     elif action == 'reject':
         refund_request.status = 'rejected'
         refund_request.approved_by = request.user
         refund_request.reviewed_at = timezone.now()
-        refund_request.internal_note = request.POST.get('internal_note', refund_request.internal_note).strip()
+        refund_request.internal_note = request.POST.get(
+            'internal_note', refund_request.internal_note).strip()
         refund_request.save()
         _create_refund_status_notification(refund_request)
         _log_staff_activity(
@@ -3542,7 +3720,8 @@ def admin_refund_update(request, refund_id):
             'refund_request',
             refund_request.id,
         )
-        messages.success(request, f'Refund request #{refund_request.id} rejected successfully.')
+        messages.success(
+            request, f'Refund request #{refund_request.id} rejected successfully.')
     elif action == 'process':
         if refund_request.status not in ['approved', 'processing']:
             messages.error(request, 'Only approved refunds can be processed.')
@@ -3551,8 +3730,10 @@ def admin_refund_update(request, refund_id):
         refund_request.status = 'processed'
         refund_request.processed_by = request.user
         refund_request.processed_at = timezone.now()
-        refund_request.refund_reference_number = request.POST.get('refund_reference_number', '').strip()
-        refund_request.internal_note = request.POST.get('internal_note', refund_request.internal_note).strip()
+        refund_request.refund_reference_number = request.POST.get(
+            'refund_reference_number', '').strip()
+        refund_request.internal_note = request.POST.get(
+            'internal_note', refund_request.internal_note).strip()
         refund_request.save()
         _create_refund_status_notification(refund_request)
         _log_staff_activity(
@@ -3562,7 +3743,8 @@ def admin_refund_update(request, refund_id):
             'refund_request',
             refund_request.id,
         )
-        messages.success(request, f'Refund request #{refund_request.id} processed successfully.')
+        messages.success(
+            request, f'Refund request #{refund_request.id} processed successfully.')
 
     return redirect('admin_refunds')
 
@@ -3575,7 +3757,8 @@ def admin_activity_logs(request):
         return access_denied
 
     is_archived_view = _is_archived_admin_view(request)
-    activity_logs = ActivityLog.objects.select_related('actor').filter(is_archived=is_archived_view)[:100]
+    activity_logs = ActivityLog.objects.select_related(
+        'actor').filter(is_archived=is_archived_view)[:100]
     return render(request, 'admin/activity_logs.html', {
         'activity_logs': activity_logs,
         'is_archived_view': is_archived_view,
@@ -3609,7 +3792,8 @@ def admin_users(request):
         return access_denied
 
     is_archived_view = _is_archived_admin_view(request)
-    users = User.objects.filter(is_active=not is_archived_view).order_by('-date_joined')
+    users = User.objects.filter(
+        is_active=not is_archived_view).order_by('-date_joined')
     return render(request, 'admin/users/list.html', {
         'users': users,
         'is_archived_view': is_archived_view,
@@ -3657,7 +3841,8 @@ def admin_user_add(request):
                 first_name=first_name,
                 last_name=last_name,
             )
-            _assign_user_role(new_user, role_value, phone=phone, address=address)
+            _assign_user_role(new_user, role_value,
+                              phone=phone, address=address)
 
             _log_staff_activity(
                 request.user,
@@ -3667,7 +3852,8 @@ def admin_user_add(request):
                 new_user.id,
             )
 
-            messages.success(request, f'User "{new_user.username}" created successfully!')
+            messages.success(
+                request, f'User "{new_user.username}" created successfully!')
             return redirect('admin_users')
 
     return render(request, 'admin/users/add.html', {
@@ -3761,7 +3947,8 @@ def admin_user_role(request, user_id):
             edit_user,
             new_role,
             phone=getattr(getattr(edit_user, 'profile', None), 'phone', ''),
-            address=getattr(getattr(edit_user, 'profile', None), 'address', ''),
+            address=getattr(
+                getattr(edit_user, 'profile', None), 'address', ''),
         )
 
         _log_staff_activity(
