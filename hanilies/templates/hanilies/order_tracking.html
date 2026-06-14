@@ -211,9 +211,9 @@
                                     <div class="small text-muted mb-2">Uploaded Payment Proof</div>
                                     <div class="image-zoom-frame rounded-4 overflow-hidden">
                                         <img src="{{ selected_payment.proof_image.url }}" alt="Payment proof for order {{ selected_order.id }}" class="img-fluid w-100 rounded-4" style="height: 240px; object-fit: cover;">
-                                        <button type="button" class="image-zoom-trigger" data-zoom-src="{{ selected_payment.proof_image.url }}" data-zoom-title="Payment Proof for Order #{{ selected_order.id }}">
+                                        <a class="image-zoom-trigger" href="{{ selected_payment.proof_image.url }}" target="_blank" rel="noopener" data-zoom-src="{{ selected_payment.proof_image.url }}" data-zoom-title="Payment Proof for Order #{{ selected_order.id }}">
                                             <i class="fas fa-search-plus"></i> Zoom
-                                        </button>
+                                        </a>
                                     </div>
                                 </div>
                             </div>

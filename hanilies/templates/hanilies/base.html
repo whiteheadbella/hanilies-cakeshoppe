@@ -186,35 +186,77 @@
             var imageZoomModalCounter = document.getElementById('imageZoomModalCounter');
             var imageZoomModalPrev = document.getElementById('imageZoomModalPrev');
             var imageZoomModalNext = document.getElementById('imageZoomModalNext');
-            var activeZoomImages = [];
+            var activeZoomItems = [];
             var activeZoomIndex = 0;
 
-            function renderZoomImage() {
-                var imageCount = activeZoomImages.length || 1;
-                var activeImage = activeZoomImages[activeZoomIndex] || '';
+            function buildZoomItemsFromTrigger(trigger) {
+                var zoomImages = (trigger.dataset.zoomImages || '').split('|').filter(Boolean);
+                if (zoomImages.length) {
+                    return zoomImages.map(function (imageSrc) {
+                        return {
+                            src: imageSrc,
+                            title: trigger.dataset.zoomTitle || 'Image Preview',
+                        };
+                    });
+                }
 
-                imageZoomModalPreview.src = activeImage;
-                imageZoomModalPreview.alt = imageZoomModalLabel.textContent || 'Zoomed product preview';
+                var zoomGallery = trigger.dataset.zoomGallery;
+                if (zoomGallery) {
+                    var galleryTriggers = Array.from(document.querySelectorAll('.image-zoom-trigger[data-zoom-gallery="' + zoomGallery + '"]'));
+                    var galleryItems = galleryTriggers
+                        .map(function (galleryTrigger) {
+                            return {
+                                src: galleryTrigger.dataset.zoomSrc || '',
+                                title: galleryTrigger.dataset.zoomTitle || 'Image Preview',
+                            };
+                        })
+                        .filter(function (item) {
+                            return Boolean(item.src);
+                        });
+
+                    if (galleryItems.length) {
+                        activeZoomIndex = Math.max(galleryTriggers.indexOf(trigger), 0);
+                        return galleryItems;
+                    }
+                }
+
+                if (trigger.dataset.zoomSrc) {
+                    return [{
+                        src: trigger.dataset.zoomSrc,
+                        title: trigger.dataset.zoomTitle || 'Image Preview',
+                    }];
+                }
+
+                return [];
+            }
+
+            function renderZoomImage() {
+                var imageCount = activeZoomItems.length || 1;
+                var activeItem = activeZoomItems[activeZoomIndex] || { src: '', title: 'Image Preview' };
+
+                imageZoomModalLabel.textContent = activeItem.title || 'Image Preview';
+                imageZoomModalPreview.src = activeItem.src || '';
+                imageZoomModalPreview.alt = activeItem.title || 'Zoomed product preview';
                 imageZoomModalCounter.textContent = (activeZoomIndex + 1) + ' / ' + imageCount;
                 imageZoomModalPrev.disabled = imageCount <= 1;
                 imageZoomModalNext.disabled = imageCount <= 1;
             }
 
             imageZoomModalPrev.addEventListener('click', function () {
-                if (activeZoomImages.length <= 1) {
+                if (activeZoomItems.length <= 1) {
                     return;
                 }
 
-                activeZoomIndex = (activeZoomIndex - 1 + activeZoomImages.length) % activeZoomImages.length;
+                activeZoomIndex = (activeZoomIndex - 1 + activeZoomItems.length) % activeZoomItems.length;
                 renderZoomImage();
             });
 
             imageZoomModalNext.addEventListener('click', function () {
-                if (activeZoomImages.length <= 1) {
+                if (activeZoomItems.length <= 1) {
                     return;
                 }
 
-                activeZoomIndex = (activeZoomIndex + 1) % activeZoomImages.length;
+                activeZoomIndex = (activeZoomIndex + 1) % activeZoomItems.length;
                 renderZoomImage();
             });
 
@@ -225,15 +267,14 @@
                 }
 
                 event.preventDefault();
-                imageZoomModalLabel.textContent = trigger.dataset.zoomTitle || 'Image Preview';
-                activeZoomImages = (trigger.dataset.zoomImages || trigger.dataset.zoomSrc || '')
-                    .split('|')
-                    .filter(Boolean);
-                if (!activeZoomImages.length && trigger.dataset.zoomSrc) {
-                    activeZoomImages = [trigger.dataset.zoomSrc];
+                activeZoomItems = buildZoomItemsFromTrigger(trigger);
+                if (!activeZoomItems.length) {
+                    return;
                 }
-                activeZoomIndex = parseInt(trigger.dataset.zoomStartIndex || '0', 10);
-                if (Number.isNaN(activeZoomIndex) || activeZoomIndex < 0 || activeZoomIndex >= activeZoomImages.length) {
+                if (!trigger.dataset.zoomGallery) {
+                    activeZoomIndex = parseInt(trigger.dataset.zoomStartIndex || '0', 10);
+                }
+                if (Number.isNaN(activeZoomIndex) || activeZoomIndex < 0 || activeZoomIndex >= activeZoomItems.length) {
                     activeZoomIndex = 0;
                 }
                 renderZoomImage();
@@ -241,7 +282,7 @@
             });
 
             imageZoomModalElement.addEventListener('hidden.bs.modal', function () {
-                activeZoomImages = [];
+                activeZoomItems = [];
                 activeZoomIndex = 0;
                 imageZoomModalPreview.src = '';
                 imageZoomModalPreview.alt = 'Zoomed product preview';

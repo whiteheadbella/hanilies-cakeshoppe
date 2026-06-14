@@ -227,9 +227,9 @@
                                             <div class="col-md-4 text-center">
                                                 <div class="image-zoom-frame d-inline-block rounded-4">
                                                     <img id="cake-gcash-qr-image" src="{{ gcash_preview.qr_code_data_uri }}" alt="GCash payment QR" class="img-fluid bg-white border rounded p-2" style="max-width: 220px;">
-                                                    <button type="button" id="cake-gcash-qr-zoom" class="image-zoom-trigger" data-zoom-src="{{ gcash_preview.qr_code_data_uri }}" data-zoom-title="GCash QR Code">
+                                                    <a id="cake-gcash-qr-zoom" class="image-zoom-trigger" href="{{ gcash_preview.qr_code_data_uri }}" target="_blank" rel="noopener" data-zoom-src="{{ gcash_preview.qr_code_data_uri }}" data-zoom-title="GCash QR Code">
                                                         <i class="fas fa-search-plus"></i> Zoom
-                                                    </button>
+                                                    </a>
                                                 </div>
                                             </div>
                                             <div class="col-md-8">
@@ -457,6 +457,10 @@
     };
     let cakeQrRefreshTimer;
     let cakeReviewReady = false;
+
+    if (cakeOrderForm) {
+        cakeOrderForm.enctype = 'multipart/form-data';
+    }
 
     function getCakeTotals() {
         const quantity = Math.max(parseInt(quantityInput.value || '1', 10), 1);

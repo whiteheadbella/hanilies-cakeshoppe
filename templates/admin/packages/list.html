@@ -6,11 +6,16 @@
 
 {% block content %}
 <div class="module-card">
-    <div class="module-header">
-        <h2><i class="fas fa-list"></i> All Packages</h2>
-        <a href="{% url 'admin_package_add' %}" class="btn-primary" style="text-decoration: none;">
-            <i class="fas fa-plus"></i> Add New Package
-        </a>
+    <div class="module-header" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <h2><i class="fas fa-list"></i> {% if is_archived_view %}Archived Packages{% else %}All Packages{% endif %}</h2>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <a href="{% if is_archived_view %}{% url 'admin_packages' %}{% else %}{% url 'admin_packages' %}?archived=1{% endif %}" class="btn-primary" style="text-decoration: none; background: {% if is_archived_view %}linear-gradient(135deg, #0f766e, #14b8a6){% else %}linear-gradient(135deg, #6b7280, #9ca3af){% endif %};">
+                <i class="fas fa-box-archive"></i> {% if is_archived_view %}Back to Active{% else %}View Archived{% endif %}
+            </a>
+            <a href="{% url 'admin_package_add' %}" class="btn-primary" style="text-decoration: none;">
+                <i class="fas fa-plus"></i> Add New Package
+            </a>
+        </div>
     </div>
     
     <div class="table-responsive">
@@ -66,9 +71,11 @@
                         <a href="{% url 'admin_package_edit' package.id %}" style="color: #FF69B4; margin-right: 10px;">
                             <i class="fas fa-edit"></i> Edit
                         </a>
-                        <a href="{% url 'admin_package_delete' package.id %}" style="color: #dc2626;" onclick="return confirm('Delete this package?')">
-                            <i class="fas fa-trash"></i> Delete
+                        {% if not is_archived_view %}
+                        <a href="{% url 'admin_package_delete' package.id %}" style="color: #dc2626;" onclick="return confirm('Archive this package?')">
+                            <i class="fas fa-box-archive"></i> Archive
                         </a>
+                        {% endif %}
                     </td>
                 </tr>
                 {% empty %}

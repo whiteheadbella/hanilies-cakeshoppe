@@ -72,7 +72,7 @@
                         <img src="{{ item.image_url }}" class="card-img-top" alt="{{ item.name }}">
                         <span class="badge bg-dark position-absolute top-0 start-0 m-3">{{ item.match_score }}% Match</span>
                         <span class="badge bg-gold-pink position-absolute top-0 end-0 m-3">{{ item.badge }}</span>
-                        <button type="button" class="image-zoom-trigger" data-zoom-src="{{ item.image_url }}" data-zoom-title="{{ item.name }}">
+                        <button type="button" class="image-zoom-trigger" data-zoom-src="{{ item.image_url }}" data-zoom-title="{{ item.name }}" data-zoom-gallery="home-recommended-cakes">
                             <i class="fas fa-search-plus"></i> Zoom
                         </button>
                     </div>
@@ -137,7 +137,7 @@
                         <img src="{{ item.image_url }}" class="card-img-top" alt="{{ item.name }}">
                         <span class="badge bg-dark position-absolute top-0 start-0 m-3">{{ item.match_score }}% Match</span>
                         <span class="badge bg-gold-pink position-absolute top-0 end-0 m-3">{{ item.badge }}</span>
-                        <button type="button" class="image-zoom-trigger" data-zoom-src="{{ item.image_url }}" data-zoom-title="{{ item.name }}">
+                        <button type="button" class="image-zoom-trigger" data-zoom-src="{{ item.image_url }}" data-zoom-title="{{ item.name }}" data-zoom-gallery="home-recommended-packages">
                             <i class="fas fa-search-plus"></i> Zoom
                         </button>
                     </div>
@@ -180,7 +180,7 @@
                 <div class="card h-100 border-0 shadow-sm">
                     <div class="image-zoom-frame">
                         <img src="{{ cake.image_url }}" class="card-img-top" alt="{{ cake.name }}">
-                        <button type="button" class="image-zoom-trigger" data-zoom-src="{{ cake.image_url }}" data-zoom-title="{{ cake.name }}">
+                        <button type="button" class="image-zoom-trigger" data-zoom-src="{{ cake.image_url }}" data-zoom-title="{{ cake.name }}" data-zoom-gallery="home-featured-cakes">
                             <i class="fas fa-search-plus"></i> Zoom
                         </button>
                     </div>
@@ -207,7 +207,7 @@
                 <div class="card h-100 border-0 shadow-sm">
                     <div class="image-zoom-frame">
                         <img src="{% if package.image %}{{ package.image.url }}{% else %}{% static 'images/bg.png' %}{% endif %}" class="card-img-top" alt="{{ package.name }}">
-                        <button type="button" class="image-zoom-trigger" data-zoom-src="{% if package.image %}{{ package.image.url }}{% else %}{% static 'images/bg.png' %}{% endif %}" data-zoom-title="{{ package.name }}">
+                        <button type="button" class="image-zoom-trigger" data-zoom-src="{% if package.image %}{{ package.image.url }}{% else %}{% static 'images/bg.png' %}{% endif %}" data-zoom-title="{{ package.name }}" data-zoom-gallery="home-featured-packages">
                             <i class="fas fa-search-plus"></i> Zoom
                         </button>
                     </div>

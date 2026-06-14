@@ -318,6 +318,10 @@
         gcash: '{{ payment_plan_labels.gcash|escapejs }}',
     };
     let packageReviewReady = false;
+    
+        if (packagePaymentForm) {
+            packagePaymentForm.enctype = 'multipart/form-data';
+        }
 
     function getPackagePaymentBreakdown() {
         const selectedPlan = document.querySelector('.package-payment-radio:checked').value;

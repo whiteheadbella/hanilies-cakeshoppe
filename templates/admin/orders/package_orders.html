@@ -6,8 +6,11 @@
 
 {% block content %}
 <div class="module-card">
-    <div class="module-header">
-        <h2><i class="fas fa-list"></i> All Package Orders</h2>
+    <div class="module-header" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <h2><i class="fas fa-list"></i> {% if is_archived_view %}Archived Package Orders{% else %}All Package Orders{% endif %}</h2>
+        <a href="{% if is_archived_view %}{% url 'admin_package_orders' %}{% else %}{% url 'admin_package_orders' %}?archived=1{% endif %}" class="btn-primary" style="text-decoration: none; background: {% if is_archived_view %}linear-gradient(135deg, #0f766e, #14b8a6){% else %}linear-gradient(135deg, #6b7280, #9ca3af){% endif %};">
+            <i class="fas fa-box-archive"></i> {% if is_archived_view %}Back to Active{% else %}View Archived{% endif %}
+        </a>
     </div>
     <table class="module-table">
         <thead>
@@ -46,7 +49,7 @@
                                 <option value="completed" {% if order.order_status == 'completed' %}selected{% endif %}>Completed</option>
                                 <option value="cancelled" {% if order.order_status == 'cancelled' %}selected{% endif %}>Cancelled</option>
                                 {% if request.user.is_superuser or request.user.profile.role == 'owner' or request.user.profile.role == 'admin' or request.user.profile.role == 'manager' %}
-                                <option value="delete">Delete Order</option>
+                                <option value="delete">Archive Order</option>
                                 {% endif %}
                             </select>
                             <button type="submit" style="border: none; border-radius: 20px; padding: 4px 10px; background: linear-gradient(135deg, #FF69B4, #D4AF37); color: white; font-size: 0.8rem; font-weight: 600; cursor: pointer;">
@@ -74,7 +77,7 @@ function submitPackageOrderAction(form) {
 
     if (selectedValue === 'delete') {
         const orderLabel = form.dataset.orderLabel || 'this order';
-        const confirmed = window.confirm(`Delete ${orderLabel}? This cannot be undone.`);
+        const confirmed = window.confirm(`Archive ${orderLabel}? You can still retrieve it from the archived view.`);
 
         if (!confirmed) {
             actionField.value = currentValue;

@@ -45,7 +45,7 @@
                 {% if cake.image %}
                 <div class="image-zoom-frame">
                     <img src="{{ cake.image.url }}" class="card-img-top" alt="{{ cake.name }}" style="height: 240px; object-fit: cover;">
-                    <button type="button" class="image-zoom-trigger" data-zoom-src="{{ cake.image.url }}" data-zoom-title="{{ cake.name }}">
+                    <button type="button" class="image-zoom-trigger" data-zoom-src="{{ cake.image.url }}" data-zoom-title="{{ cake.name }}" data-zoom-gallery="cakes-catalog">
                         <i class="fas fa-search-plus"></i> Zoom
                     </button>
                 </div>

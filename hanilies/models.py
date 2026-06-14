@@ -76,6 +76,8 @@ class Cake(models.Model):
     image = models.ImageField(
         upload_to='cakes/', blank=True, null=True)  # Already there
     is_active = models.BooleanField(default=True)
+    is_archived = models.BooleanField(default=False)
+    archived_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -138,6 +140,8 @@ class CakeOrder(models.Model):
     contact_phone = models.CharField(max_length=20, default='')
     contact_email = models.EmailField(default='')
 
+    is_archived = models.BooleanField(default=False)
+    archived_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -193,6 +197,8 @@ class Package(models.Model):
     image = models.ImageField(upload_to='packages/', blank=True, null=True)
     status = models.CharField(max_length=20, default='active', choices=[
                               ('active', 'Active'), ('inactive', 'Inactive')])
+    is_archived = models.BooleanField(default=False)
+    archived_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -295,6 +301,8 @@ class PackageOrder(models.Model):
     cake_filling = models.CharField(max_length=50, blank=True)
     cake_message = models.CharField(max_length=200, blank=True)
 
+    is_archived = models.BooleanField(default=False)
+    archived_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -357,6 +365,8 @@ class Payment(models.Model):
     notes = models.TextField(blank=True)
     paid_at = models.DateTimeField(null=True, blank=True)
 
+    is_archived = models.BooleanField(default=False)
+    archived_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -444,6 +454,8 @@ class ActivityLog(models.Model):
     target_type = models.CharField(max_length=50, blank=True)
     target_id = models.PositiveIntegerField(null=True, blank=True)
     description = models.TextField()
+    is_archived = models.BooleanField(default=False)
+    archived_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
