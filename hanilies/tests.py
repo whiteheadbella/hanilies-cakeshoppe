@@ -209,7 +209,7 @@ class CakeOrderViewUnitTests(TestCase):
         )
         self.client.login(username='cake-tester', password='TestPass123!')
 
-    def _cake_delivery_date(self, days_ahead=2):
+    def _cake_delivery_date(self, days_ahead=3):
         return (timezone.localdate() + timedelta(days=days_ahead)).isoformat()
 
     def test_cake_customize_post_creates_order_customization_and_payment(self):
@@ -510,7 +510,7 @@ class PackageFlowUnitTests(TestCase):
         )
         self.client.login(username='package-tester', password='TestPass123!')
 
-    def _package_event_date(self, days_ahead=7):
+    def _package_event_date(self, days_ahead=3):
         return (timezone.localdate() + timedelta(days=days_ahead)).isoformat()
 
     def test_package_order_post_stores_selected_addons_in_session_draft(self):
@@ -751,7 +751,7 @@ class PackageFlowUnitTests(TestCase):
 
         response = self.client.post(reverse('package_payment'), {
             'event_type': 'kids_birthday',
-            'event_date': (timezone.localdate() + timedelta(days=3)).isoformat(),
+            'event_date': (timezone.localdate() + timedelta(days=2)).isoformat(),
             'event_time': '14:30',
             'venue': 'Clarin Gymnasium',
             'contact_name': 'Package Tester',
