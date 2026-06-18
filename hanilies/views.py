@@ -87,6 +87,11 @@ PUBLIC_EVENT_TYPES = [
 ]
 PUBLIC_EVENT_TYPE_VALUES = {value for value, _ in PUBLIC_EVENT_TYPES}
 
+CAKE_ORDER_MIN_LEAD_DAYS = 2
+CAKE_ORDER_MAX_LEAD_DAYS = 180
+PACKAGE_ORDER_MIN_LEAD_DAYS = 7
+PACKAGE_ORDER_MAX_LEAD_DAYS = 365
+
 PACKAGE_ADDON_OPTIONS = {
     'brownies': {'label': 'Chocofudge Brownies', 'price': Decimal('300.00')},
     'cupcakes': {'label': 'Themed Cupcakes', 'price': Decimal('350.00')},
@@ -755,6 +760,43 @@ def _parse_delivery_datetime(date_value):
     if timezone.is_naive(delivery_datetime):
         return timezone.make_aware(delivery_datetime)
     return delivery_datetime
+
+
+def _build_order_window(minimum_lead_days, maximum_lead_days, today=None):
+    base_date = today or timezone.localdate()
+    earliest_date = base_date + timedelta(days=minimum_lead_days)
+    latest_date = base_date + timedelta(days=maximum_lead_days)
+    return {
+        'min': earliest_date.isoformat(),
+        'max': latest_date.isoformat(),
+        'earliest_date': earliest_date,
+        'latest_date': latest_date,
+    }
+
+
+def _validate_order_window(date_value, label, minimum_lead_days, maximum_lead_days, today=None):
+    if not date_value:
+        return None, f'Please select a {label.lower()}.'
+
+    try:
+        selected_date = datetime.strptime(date_value, '%Y-%m-%d').date()
+    except ValueError:
+        return None, f'Please enter a valid {label.lower()}.'
+
+    window = _build_order_window(
+        minimum_lead_days, maximum_lead_days, today=today)
+    earliest_date = window['earliest_date']
+    latest_date = window['latest_date']
+
+    if selected_date < earliest_date or selected_date > latest_date:
+        return None, (
+            f'{label} must be between '
+            f'{earliest_date.strftime("%B %d, %Y")} and '
+            f'{latest_date.strftime("%B %d, %Y")}. '
+            f'Please choose a date within the current order period.'
+        )
+
+    return selected_date, None
 
 
 def _format_structured_delivery_address(street_address, barangay, city, province, landmark=''):
@@ -2416,12 +2458,18 @@ def cake_customize(request):
     selected_cake = get_object_or_404(
         cake_queryset, id=selected_cake_id) if selected_cake_id else cake_queryset.order_by('name').first()
     defaults = _get_profile_defaults(request.user)
+    defaults.setdefault('delivery_date', '')
+    cake_order_window = _build_order_window(
+        CAKE_ORDER_MIN_LEAD_DAYS,
+        CAKE_ORDER_MAX_LEAD_DAYS,
+    )
 
     if request.method == 'POST':
         defaults.update({
             'contact_name': request.POST.get('contact_name', '').strip(),
             'contact_phone': request.POST.get('contact_phone', '').strip(),
             'contact_email': request.POST.get('contact_email', '').strip(),
+            'delivery_date': request.POST.get('delivery_date', '').strip(),
             'delivery_street_address': request.POST.get('delivery_street_address', '').strip(),
             'delivery_barangay': request.POST.get('delivery_barangay', '').strip(),
             'delivery_city': request.POST.get('delivery_city', '').strip(),
@@ -2436,6 +2484,7 @@ def cake_customize(request):
         deposit_amount, balance_due = _calculate_deposit_breakdown(total_price)
         reference_number = request.POST.get('reference_number', '').strip()
         proof_image = request.FILES.get('proof_image')
+        delivery_date_value = request.POST.get('delivery_date', '').strip()
 
         if payment_method not in PAYMENT_PLAN_LABELS:
             payment_method = 'cod'
@@ -2446,12 +2495,20 @@ def cake_customize(request):
             request.POST.get('delivery_city'),
             request.POST.get('delivery_landmark'),
         )
+        _, delivery_date_error = _validate_order_window(
+            delivery_date_value,
+            'Pickup / delivery date',
+            CAKE_ORDER_MIN_LEAD_DAYS,
+            CAKE_ORDER_MAX_LEAD_DAYS,
+        )
         normalized_reference, payment_error = _validate_checkout_payment_submission(
             reference_number,
             proof_image,
         )
         if address_error:
             messages.error(request, address_error)
+        elif delivery_date_error:
+            messages.error(request, delivery_date_error)
         elif payment_error:
             messages.error(request, payment_error)
         else:
@@ -2476,8 +2533,7 @@ def cake_customize(request):
                     'message_on_cake', '').strip(),
                 special_instructions=request.POST.get(
                     'special_instructions', '').strip(),
-                delivery_date=_parse_delivery_datetime(
-                    request.POST.get('delivery_date')),
+                delivery_date=_parse_delivery_datetime(delivery_date_value),
                 delivery_address=delivery_address_data['delivery_address'],
                 contact_name=request.POST.get('contact_name', '').strip(),
                 contact_phone=request.POST.get('contact_phone', '').strip(),
@@ -2517,6 +2573,7 @@ def cake_customize(request):
         'payment_plan_labels': PAYMENT_PLAN_LABELS,
         'default_deposit_amount': base_deposit_amount,
         'defaults': defaults,
+        'cake_order_window': cake_order_window,
         'delivery_area_choices': DELIVERY_SERVICE_AREA_CHOICES,
         'gcash_account': get_gcash_profile(),
         'gcash_preview': _build_checkout_gcash_preview(
@@ -2652,6 +2709,18 @@ def package_payment(request):
     custom_total = _parse_decimal(draft.get('cake_custom_total', '0.00'))
     grand_total = subtotal + custom_total
     deposit_amount, balance_due = _calculate_deposit_breakdown(grand_total)
+    package_order_window = _build_order_window(
+        PACKAGE_ORDER_MIN_LEAD_DAYS,
+        PACKAGE_ORDER_MAX_LEAD_DAYS,
+    )
+    form_values = {
+        'event_date': '',
+        'event_time': '',
+        'venue': defaults.get('delivery_address', ''),
+        'contact_name': defaults.get('contact_name', ''),
+        'contact_phone': defaults.get('contact_phone', ''),
+        'contact_email': defaults.get('contact_email', ''),
+    }
 
     if request.method == 'POST':
         event_type = request.POST.get(
@@ -2659,6 +2728,14 @@ def package_payment(request):
         payment_method = request.POST.get('payment_method', 'cod')
         reference_number = request.POST.get('reference_number', '').strip()
         proof_image = request.FILES.get('proof_image')
+        form_values.update({
+            'event_date': request.POST.get('event_date', '').strip(),
+            'event_time': request.POST.get('event_time', '').strip(),
+            'venue': request.POST.get('venue', '').strip(),
+            'contact_name': request.POST.get('contact_name', '').strip(),
+            'contact_phone': request.POST.get('contact_phone', '').strip(),
+            'contact_email': request.POST.get('contact_email', '').strip(),
+        })
 
         if payment_method not in PAYMENT_PLAN_LABELS:
             payment_method = 'cod'
@@ -2671,7 +2748,15 @@ def package_payment(request):
                 reference_number,
                 proof_image,
             )
-            if payment_error:
+            _, event_date_error = _validate_order_window(
+                form_values['event_date'],
+                'Event date',
+                PACKAGE_ORDER_MIN_LEAD_DAYS,
+                PACKAGE_ORDER_MAX_LEAD_DAYS,
+            )
+            if event_date_error:
+                messages.error(request, event_date_error)
+            elif payment_error:
                 messages.error(request, payment_error)
             else:
                 package_order = PackageOrder.objects.create(
@@ -2683,14 +2768,12 @@ def package_payment(request):
                     balance_due=Decimal(
                         '0.00') if payment_method == 'gcash' else balance_due,
                     event_type=event_type,
-                    event_date=request.POST.get('event_date'),
-                    event_time=request.POST.get('event_time') or None,
-                    venue=request.POST.get('venue', '').strip(),
-                    contact_name=request.POST.get('contact_name', '').strip(),
-                    contact_phone=request.POST.get(
-                        'contact_phone', '').strip(),
-                    contact_email=request.POST.get(
-                        'contact_email', '').strip(),
+                    event_date=form_values['event_date'],
+                    event_time=form_values['event_time'] or None,
+                    venue=form_values['venue'],
+                    contact_name=form_values['contact_name'],
+                    contact_phone=form_values['contact_phone'],
+                    contact_email=form_values['contact_email'],
                     selected_addons='\n'.join(
                         draft.get('selected_addon_labels', [])),
                     cake_flavor=draft.get('cake_flavor', ''),
@@ -2722,6 +2805,8 @@ def package_payment(request):
         'draft': draft,
         'payment_plan_labels': PAYMENT_PLAN_LABELS,
         'defaults': defaults,
+        'form_values': form_values,
+        'package_order_window': package_order_window,
         'subtotal': subtotal,
         'custom_total': custom_total,
         'grand_total': grand_total,

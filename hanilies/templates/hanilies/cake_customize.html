@@ -141,7 +141,8 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-semibold">Pickup / Delivery Date</label>
-                                <input type="date" class="form-control" name="delivery_date" id="delivery_date" required>
+                                <input type="date" class="form-control" name="delivery_date" id="delivery_date" value="{{ defaults.delivery_date }}" min="{{ cake_order_window.min }}" max="{{ cake_order_window.max }}" required>
+                                <div class="small text-muted mt-1">Choose a date from {{ cake_order_window.min }} to {{ cake_order_window.max }}.</div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-semibold">House No. / Street</label>
@@ -638,8 +639,9 @@
     cakeOrderForm.addEventListener('input', resetCakeReviewState);
     cakeOrderForm.addEventListener('change', resetCakeReviewState);
 
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('delivery_date').setAttribute('min', today);
+    const deliveryDateInput = document.getElementById('delivery_date');
+    deliveryDateInput.setAttribute('min', '{{ cake_order_window.min }}');
+    deliveryDateInput.setAttribute('max', '{{ cake_order_window.max }}');
     updateCakeSummary();
     updatePaymentSummary();
 </script>

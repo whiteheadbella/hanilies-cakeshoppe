@@ -49,15 +49,16 @@
                         <div class="row g-3 mb-4">
                             <div class="col-md-6">
                                 <label class="form-label fw-semibold">Event Date</label>
-                                <input type="date" class="form-control" name="event_date" id="event_date" required>
+                                <input type="date" class="form-control" name="event_date" id="event_date" value="{{ form_values.event_date }}" min="{{ package_order_window.min }}" max="{{ package_order_window.max }}" required>
+                                <div class="small text-muted mt-1">Choose a date from {{ package_order_window.min }} to {{ package_order_window.max }}.</div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-semibold">Event Time</label>
-                                <input type="time" class="form-control" name="event_time" required>
+                                <input type="time" class="form-control" name="event_time" value="{{ form_values.event_time }}" required>
                             </div>
                             <div class="col-12">
                                 <label class="form-label fw-semibold">Venue / Event Address</label>
-                                <textarea class="form-control" name="venue" rows="2" required>{{ defaults.delivery_address }}</textarea>
+                                <textarea class="form-control" name="venue" rows="2" required>{{ form_values.venue }}</textarea>
                             </div>
                         </div>
 
@@ -65,15 +66,15 @@
                         <div class="row g-3 mb-4">
                             <div class="col-md-4">
                                 <label class="form-label fw-semibold">Contact Name</label>
-                                <input type="text" class="form-control" name="contact_name" value="{{ defaults.contact_name }}" required>
+                                <input type="text" class="form-control" name="contact_name" value="{{ form_values.contact_name }}" required>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label fw-semibold">Phone Number</label>
-                                <input type="text" class="form-control" name="contact_phone" value="{{ defaults.contact_phone }}" required>
+                                <input type="text" class="form-control" name="contact_phone" value="{{ form_values.contact_phone }}" required>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label fw-semibold">Email Address</label>
-                                <input type="email" class="form-control" name="contact_email" value="{{ defaults.contact_email }}" required>
+                                <input type="email" class="form-control" name="contact_email" value="{{ form_values.contact_email }}" required>
                             </div>
                         </div>
 
@@ -415,7 +416,9 @@
     });
     packagePaymentForm.addEventListener('input', resetPackageReviewState);
     packagePaymentForm.addEventListener('change', resetPackageReviewState);
-    document.getElementById('event_date').setAttribute('min', new Date().toISOString().split('T')[0]);
+    const eventDateInput = document.getElementById('event_date');
+    eventDateInput.setAttribute('min', '{{ package_order_window.min }}');
+    eventDateInput.setAttribute('max', '{{ package_order_window.max }}');
     updatePackagePaymentFields();
 </script>
 {% endblock %}

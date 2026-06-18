@@ -195,6 +195,9 @@ class CakeOrderViewUnitTests(TestCase):
         )
         self.client.login(username='cake-tester', password='TestPass123!')
 
+    def _cake_delivery_date(self, days_ahead=2):
+        return (timezone.localdate() + timedelta(days=days_ahead)).isoformat()
+
     def test_cake_customize_post_creates_order_customization_and_payment(self):
         response = self.client.post(reverse('cake_customize'), {
             'cake_id': str(self.cake.id),
@@ -212,7 +215,7 @@ class CakeOrderViewUnitTests(TestCase):
             'color_palette': 'Pink and Gold',
             'message_on_cake': 'Happy Birthday Ella',
             'special_instructions': 'Add gold accents.',
-            'delivery_date': '2026-06-20',
+            'delivery_date': self._cake_delivery_date(),
             'delivery_street_address': '123 Rizal Street',
             'delivery_barangay': 'Poblacion 1',
             'delivery_city': 'Oroquieta City',
@@ -241,7 +244,7 @@ class CakeOrderViewUnitTests(TestCase):
             '123 Rizal Street, Brgy. Poblacion 1, Oroquieta City, Misamis Occidental (Landmark: Near Plaza Burgos)',
         )
         self.assertEqual(
-            cake_order.delivery_date.date().isoformat(), '2026-06-20')
+            cake_order.delivery_date.date().isoformat(), self._cake_delivery_date())
         self.assertEqual(customization.additional_decorations, 'Fresh Flowers')
         self.assertEqual(deposit_payment.payment_method, 'gcash')
         self.assertEqual(deposit_payment.payment_status, 'verifying')
@@ -280,7 +283,7 @@ class CakeOrderViewUnitTests(TestCase):
             'cake_id': str(self.cake.id),
             'quantity': '1',
             'payment_method': 'gcash',
-            'delivery_date': '2026-06-20',
+            'delivery_date': self._cake_delivery_date(),
             'delivery_street_address': '123 Rizal Street',
             'delivery_barangay': 'Poblacion 1',
             'delivery_city': 'Oroquieta City',
@@ -309,7 +312,7 @@ class CakeOrderViewUnitTests(TestCase):
             'payment_method': 'cod',
             'reference_number': 'dep-cake-001',
             'proof_image': build_test_image_upload('duplicate-proof.jpg'),
-            'delivery_date': '2026-06-20',
+            'delivery_date': self._cake_delivery_date(),
             'delivery_street_address': '123 Rizal Street',
             'delivery_barangay': 'Poblacion 1',
             'delivery_city': 'Oroquieta City',
@@ -332,7 +335,7 @@ class CakeOrderViewUnitTests(TestCase):
             'payment_method': 'cod',
             'reference_number': 'DEP-CAKE-002',
             'proof_image': SimpleUploadedFile('not-an-image.jpg', b'not-an-image', content_type='image/jpeg'),
-            'delivery_date': '2026-06-20',
+            'delivery_date': self._cake_delivery_date(),
             'delivery_street_address': '123 Rizal Street',
             'delivery_barangay': 'Poblacion 1',
             'delivery_city': 'Oroquieta City',
@@ -355,7 +358,7 @@ class CakeOrderViewUnitTests(TestCase):
             'payment_method': 'cod',
             'reference_number': 'DEP-CAKE-003',
             'proof_image': build_test_image_upload('service-area-proof.jpg'),
-            'delivery_date': '2026-06-20',
+            'delivery_date': self._cake_delivery_date(),
             'delivery_street_address': '123 Rizal Street',
             'delivery_barangay': 'Poblacion 1',
             'delivery_city': 'Cebu City',
@@ -367,6 +370,28 @@ class CakeOrderViewUnitTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(
             response, 'We currently deliver only within the listed service areas.')
+        self.assertEqual(CakeOrder.objects.count(), 0)
+        self.assertEqual(Payment.objects.count(), 0)
+
+    def test_cake_customize_rejects_delivery_date_outside_order_period(self):
+        response = self.client.post(reverse('cake_customize'), {
+            'cake_id': str(self.cake.id),
+            'quantity': '1',
+            'payment_method': 'cod',
+            'reference_number': 'DEP-CAKE-004',
+            'proof_image': build_test_image_upload('window-proof.jpg'),
+            'delivery_date': (timezone.localdate() + timedelta(days=1)).isoformat(),
+            'delivery_street_address': '123 Rizal Street',
+            'delivery_barangay': 'Poblacion 1',
+            'delivery_city': 'Oroquieta City',
+            'contact_name': 'Cake Tester',
+            'contact_phone': '09123456789',
+            'contact_email': 'cake@example.com',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response, 'Please choose a date within the current order period.')
         self.assertEqual(CakeOrder.objects.count(), 0)
         self.assertEqual(Payment.objects.count(), 0)
 
@@ -417,6 +442,9 @@ class PackageFlowUnitTests(TestCase):
             status='active',
         )
         self.client.login(username='package-tester', password='TestPass123!')
+
+    def _package_event_date(self, days_ahead=7):
+        return (timezone.localdate() + timedelta(days=days_ahead)).isoformat()
 
     def test_package_order_post_stores_selected_addons_in_session_draft(self):
         response = self.client.post(reverse('package_order'), {
@@ -512,7 +540,7 @@ class PackageFlowUnitTests(TestCase):
 
         response = self.client.post(reverse('package_payment'), {
             'event_type': 'kids_birthday',
-            'event_date': '2026-07-01',
+            'event_date': self._package_event_date(),
             'event_time': '14:30',
             'venue': 'Clarin Gymnasium',
             'contact_name': 'Package Tester',
@@ -560,7 +588,7 @@ class PackageFlowUnitTests(TestCase):
 
         response = self.client.post(reverse('package_payment'), {
             'event_type': 'kids_birthday',
-            'event_date': '2026-07-01',
+            'event_date': self._package_event_date(),
             'event_time': '14:30',
             'venue': 'Clarin Gymnasium',
             'contact_name': 'Package Tester',
@@ -594,7 +622,7 @@ class PackageFlowUnitTests(TestCase):
 
         response = self.client.post(reverse('package_payment'), {
             'event_type': 'kids_birthday',
-            'event_date': '2026-07-01',
+            'event_date': self._package_event_date(),
             'event_time': '14:30',
             'venue': 'Clarin Gymnasium',
             'contact_name': 'Package Tester',
@@ -625,7 +653,7 @@ class PackageFlowUnitTests(TestCase):
 
         response = self.client.post(reverse('package_payment'), {
             'event_type': 'kids_birthday',
-            'event_date': '2026-07-01',
+            'event_date': self._package_event_date(),
             'event_time': '14:30',
             'venue': 'Clarin Gymnasium',
             'contact_name': 'Package Tester',
@@ -639,6 +667,37 @@ class PackageFlowUnitTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(
             response, 'The uploaded payment proof must be a valid image file.')
+        self.assertEqual(PackageOrder.objects.count(), 0)
+        self.assertEqual(Payment.objects.count(), 0)
+        self.assertIn('package_order_draft', self.client.session)
+
+    def test_package_payment_rejects_event_date_outside_order_period(self):
+        session = self.client.session
+        session['package_order_draft'] = {
+            'package_id': str(self.package.id),
+            'event_type': 'kids_birthday',
+            'selected_addon_labels': [],
+            'base_total': '6500.00',
+            'cake_custom_total': '0.00',
+        }
+        session.save()
+
+        response = self.client.post(reverse('package_payment'), {
+            'event_type': 'kids_birthday',
+            'event_date': (timezone.localdate() + timedelta(days=3)).isoformat(),
+            'event_time': '14:30',
+            'venue': 'Clarin Gymnasium',
+            'contact_name': 'Package Tester',
+            'contact_phone': '09999999999',
+            'contact_email': 'package@example.com',
+            'payment_method': 'cod',
+            'reference_number': 'DEP-PACKAGE-003',
+            'proof_image': build_test_image_upload('package-window-proof.jpg'),
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response, 'Please choose a date within the current order period.')
         self.assertEqual(PackageOrder.objects.count(), 0)
         self.assertEqual(Payment.objects.count(), 0)
         self.assertIn('package_order_draft', self.client.session)
