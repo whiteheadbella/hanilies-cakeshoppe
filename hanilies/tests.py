@@ -6,7 +6,7 @@ from pathlib import Path
 import shutil
 import tempfile
 from unittest.mock import patch
-from PIL import Image
+from PIL import Image, ImageDraw
 from django.contrib.messages import get_messages
 from django.contrib.auth.models import User
 from django.core import mail
@@ -26,9 +26,23 @@ from .views import CAKE_DECORATION_OPTIONS, _get_selected_option_labels, _parse_
 TEST_MEDIA_ROOT = tempfile.mkdtemp()
 
 
-def build_test_image_upload(name='proof.jpg', image_format='JPEG', content_type='image/jpeg'):
+def build_test_image_upload(name='proof.jpg', image_format='JPEG', content_type='image/jpeg', reference_number='HANI-TEST-001', amount='1350.00', include_receipt_text=True):
     image_bytes = BytesIO()
-    Image.new('RGB', (20, 20), color=(255, 105, 180)).save(
+    image = Image.new('RGB', (1200, 700), color='white')
+    if include_receipt_text:
+        draw = ImageDraw.Draw(image)
+        receipt_lines = [
+            'GCash',
+            f'Reference No: {reference_number}',
+            f'Amount: P{amount}',
+            'Transaction Successful',
+            'Paid to Hanilies Cakeshoppe',
+        ]
+        y_position = 40
+        for line in receipt_lines:
+            draw.text((40, y_position), line, fill='black')
+            y_position += 28
+    image.save(
         image_bytes,
         format=image_format,
     )
@@ -205,7 +219,7 @@ class CakeOrderViewUnitTests(TestCase):
             'decorations': ['fresh_flowers'],
             'payment_method': 'cod',
             'reference_number': 'DEP-CAKE-001',
-            'proof_image': build_test_image_upload('cake-proof.jpg'),
+            'proof_image': build_test_image_upload('cake-proof.jpg', reference_number='DEP-CAKE-001', amount='1350.00'),
             'theme': 'Birthday',
             'size': '8 inches',
             'shape': 'Round',
@@ -311,7 +325,7 @@ class CakeOrderViewUnitTests(TestCase):
             'quantity': '1',
             'payment_method': 'cod',
             'reference_number': 'dep-cake-001',
-            'proof_image': build_test_image_upload('duplicate-proof.jpg'),
+            'proof_image': build_test_image_upload('duplicate-proof.jpg', reference_number='DEP-CAKE-001', amount='600.00'),
             'delivery_date': self._cake_delivery_date(),
             'delivery_street_address': '123 Rizal Street',
             'delivery_barangay': 'Poblacion 1',
@@ -357,7 +371,7 @@ class CakeOrderViewUnitTests(TestCase):
             'quantity': '1',
             'payment_method': 'cod',
             'reference_number': 'DEP-CAKE-003',
-            'proof_image': build_test_image_upload('service-area-proof.jpg'),
+            'proof_image': build_test_image_upload('service-area-proof.jpg', reference_number='DEP-CAKE-003', amount='600.00'),
             'delivery_date': self._cake_delivery_date(),
             'delivery_street_address': '123 Rizal Street',
             'delivery_barangay': 'Poblacion 1',
@@ -379,7 +393,7 @@ class CakeOrderViewUnitTests(TestCase):
             'quantity': '1',
             'payment_method': 'cod',
             'reference_number': 'DEP-CAKE-004',
-            'proof_image': build_test_image_upload('window-proof.jpg'),
+            'proof_image': build_test_image_upload('window-proof.jpg', reference_number='DEP-CAKE-004', amount='600.00'),
             'delivery_date': (timezone.localdate() + timedelta(days=1)).isoformat(),
             'delivery_street_address': '123 Rizal Street',
             'delivery_barangay': 'Poblacion 1',
@@ -392,6 +406,33 @@ class CakeOrderViewUnitTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(
             response, 'Please choose a date within the current order period.')
+        self.assertEqual(CakeOrder.objects.count(), 0)
+        self.assertEqual(Payment.objects.count(), 0)
+
+    def test_cake_customize_rejects_random_image_as_payment_proof(self):
+        response = self.client.post(reverse('cake_customize'), {
+            'cake_id': str(self.cake.id),
+            'quantity': '1',
+            'payment_method': 'cod',
+            'reference_number': 'DEP-CAKE-005',
+            'proof_image': build_test_image_upload(
+                'random-proof.jpg',
+                reference_number='DEP-CAKE-005',
+                amount='600.00',
+                include_receipt_text=False,
+            ),
+            'delivery_date': self._cake_delivery_date(),
+            'delivery_street_address': '123 Rizal Street',
+            'delivery_barangay': 'Poblacion 1',
+            'delivery_city': 'Oroquieta City',
+            'contact_name': 'Cake Tester',
+            'contact_phone': '09123456789',
+            'contact_email': 'cake@example.com',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response, 'Please upload a clearer GCash screenshot.')
         self.assertEqual(CakeOrder.objects.count(), 0)
         self.assertEqual(Payment.objects.count(), 0)
 
@@ -548,7 +589,7 @@ class PackageFlowUnitTests(TestCase):
             'contact_email': 'package@example.com',
             'payment_method': 'cod',
             'reference_number': 'DEP-PACKAGE-001',
-            'proof_image': build_test_image_upload('package-proof.jpg'),
+            'proof_image': build_test_image_upload('package-proof.jpg', reference_number='DEP-PACKAGE-001', amount='3650.00'),
         })
 
         self.assertEqual(response.status_code, 302)
@@ -630,7 +671,7 @@ class PackageFlowUnitTests(TestCase):
             'contact_email': 'package@example.com',
             'payment_method': 'cod',
             'reference_number': 'dep-package-001',
-            'proof_image': build_test_image_upload('duplicate-package-proof.jpg'),
+            'proof_image': build_test_image_upload('duplicate-package-proof.jpg', reference_number='DEP-PACKAGE-001', amount='3250.00'),
         })
 
         self.assertEqual(response.status_code, 200)
@@ -692,12 +733,48 @@ class PackageFlowUnitTests(TestCase):
             'contact_email': 'package@example.com',
             'payment_method': 'cod',
             'reference_number': 'DEP-PACKAGE-003',
-            'proof_image': build_test_image_upload('package-window-proof.jpg'),
+            'proof_image': build_test_image_upload('package-window-proof.jpg', reference_number='DEP-PACKAGE-003', amount='3250.00'),
         })
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(
             response, 'Please choose a date within the current order period.')
+        self.assertEqual(PackageOrder.objects.count(), 0)
+        self.assertEqual(Payment.objects.count(), 0)
+        self.assertIn('package_order_draft', self.client.session)
+
+    def test_package_payment_rejects_random_image_as_payment_proof(self):
+        session = self.client.session
+        session['package_order_draft'] = {
+            'package_id': str(self.package.id),
+            'event_type': 'kids_birthday',
+            'selected_addon_labels': [],
+            'base_total': '6500.00',
+            'cake_custom_total': '0.00',
+        }
+        session.save()
+
+        response = self.client.post(reverse('package_payment'), {
+            'event_type': 'kids_birthday',
+            'event_date': self._package_event_date(),
+            'event_time': '14:30',
+            'venue': 'Clarin Gymnasium',
+            'contact_name': 'Package Tester',
+            'contact_phone': '09999999999',
+            'contact_email': 'package@example.com',
+            'payment_method': 'cod',
+            'reference_number': 'DEP-PACKAGE-004',
+            'proof_image': build_test_image_upload(
+                'random-package-proof.jpg',
+                reference_number='DEP-PACKAGE-004',
+                amount='3250.00',
+                include_receipt_text=False,
+            ),
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response, 'Please upload a clearer GCash screenshot.')
         self.assertEqual(PackageOrder.objects.count(), 0)
         self.assertEqual(Payment.objects.count(), 0)
         self.assertIn('package_order_draft', self.client.session)
@@ -779,7 +856,7 @@ class OrderingIntegrationTests(TestCase):
             'quantity': '1',
             'payment_method': 'cod',
             'reference_number': 'TRACK-CAKE-001',
-            'proof_image': build_test_image_upload('tracking-cake.jpg'),
+            'proof_image': build_test_image_upload('tracking-cake.jpg', reference_number='TRACK-CAKE-001', amount='490.00'),
             'theme': 'Birthday',
             'size': '6 inches',
             'shape': 'Round',
@@ -857,7 +934,7 @@ class OrderingIntegrationTests(TestCase):
             'contact_email': 'integration@example.com',
             'payment_method': 'cod',
             'reference_number': 'TRACK-PACKAGE-001',
-            'proof_image': build_test_image_upload('tracking-package.jpg'),
+            'proof_image': build_test_image_upload('tracking-package.jpg', reference_number='TRACK-PACKAGE-001', amount='4225.00'),
         })
 
         self.assertEqual(final_step.status_code, 302)
@@ -1533,6 +1610,33 @@ class SecurityValidationTests(TestCase):
             reference_number='SUP-VERIFY-001',
         )
         self.client.login(username='supervisor-user', password='TestPass123!')
+
+        response = self.client.post(reverse('admin_payment_verify', args=[payment.id]), {
+            'action': 'approve',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        payment.refresh_from_db()
+        self.assertEqual(payment.payment_status, 'paid')
+
+    def test_cashier_can_verify_payment_from_review_queue(self):
+        order = CakeOrder.objects.create(
+            user=self.viewer,
+            cake=self.cake,
+            quantity=1,
+            total_price=Decimal('999.00'),
+            contact_name='Viewer User',
+            contact_phone='09123456789',
+            contact_email='viewer@example.com',
+        )
+        payment = Payment.objects.create(
+            amount=Decimal('999.00'),
+            payment_method='gcash',
+            payment_status='verifying',
+            cake_order=order,
+            reference_number='CASHIER-VERIFY-001',
+        )
+        self.client.login(username='cashier-user', password='TestPass123!')
 
         response = self.client.post(reverse('admin_payment_verify', args=[payment.id]), {
             'action': 'approve',

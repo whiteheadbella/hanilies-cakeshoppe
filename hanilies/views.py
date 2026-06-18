@@ -27,6 +27,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_POST
 from PIL import Image, UnidentifiedImageError
+from rapidocr_onnxruntime import RapidOCR
 from .models import UserProfile, Notification, Cake, CakeOrder, CakeCustomization, Package, PackageOrder, PackageThumbnail, Payment, RefundRequest, ActivityLog
 from .payment_qr import build_gcash_checkout_details, get_gcash_profile
 
@@ -240,6 +241,19 @@ PAYMENT_PROOF_ALLOWED_CONTENT_TYPES = {
     'image/png',
     'image/webp',
 }
+PAYMENT_PROOF_RECEIPT_KEYWORDS = {
+    'gcash',
+    'reference',
+    'transaction',
+    'amount',
+    'paid',
+    'sent',
+    'successful',
+    'receipt',
+}
+PAYMENT_PROOF_MIN_KEYWORD_MATCHES = 3
+PAYMENT_PROOF_AMOUNT_TOLERANCE = Decimal('1.00')
+PAYMENT_PROOF_OCR_ENGINE = None
 ADMIN_MENU_ITEMS = [
     {'name': 'Dashboard', 'url': 'admin_dashboard',
         'icon': 'tachometer-alt', 'roles': STAFF_ROLE_VALUES},
@@ -279,7 +293,93 @@ def _normalize_reference_number(reference_number):
     return re.sub(r'\s+', '', str(reference_number or '')).upper()
 
 
-def _validate_checkout_payment_submission(reference_number, proof_image):
+def _normalize_ocr_token(value):
+    return re.sub(r'[^A-Z0-9]', '', str(value or '').upper())
+
+
+def _format_currency_label(value):
+    return format(_quantize_amount(value), '.2f')
+
+
+def _get_payment_proof_ocr_engine():
+    global PAYMENT_PROOF_OCR_ENGINE
+    if PAYMENT_PROOF_OCR_ENGINE is None:
+        PAYMENT_PROOF_OCR_ENGINE = RapidOCR()
+    return PAYMENT_PROOF_OCR_ENGINE
+
+
+def _extract_payment_proof_text(proof_image):
+    try:
+        proof_image.seek(0)
+        proof_bytes = proof_image.read()
+        if not proof_bytes:
+            return ''
+
+        ocr_results, _ = _get_payment_proof_ocr_engine()(proof_bytes)
+        if not ocr_results:
+            return ''
+
+        text_fragments = []
+        for row in ocr_results:
+            if len(row) < 2:
+                continue
+            text_fragment = str(row[1] or '').strip()
+            if text_fragment:
+                text_fragments.append(text_fragment)
+        return '\n'.join(text_fragments)
+    except Exception:
+        return ''
+    finally:
+        try:
+            proof_image.seek(0)
+        except (AttributeError, OSError, ValueError):
+            pass
+
+
+def _extract_amount_candidates_from_text(ocr_text):
+    normalized_text = str(ocr_text or '').replace(',', '')
+    amount_matches = set()
+    for match in re.findall(r'\d+(?:\.\d{1,2})?', normalized_text):
+        try:
+            amount_matches.add(_quantize_amount(match))
+        except (InvalidOperation, TypeError, ValueError):
+            continue
+    return amount_matches
+
+
+def _validate_payment_proof_ocr(reference_number, proof_image, expected_amount):
+    ocr_text = _extract_payment_proof_text(proof_image)
+    if not ocr_text:
+        return 'We could not read the uploaded proof of payment. Please upload a clearer GCash screenshot.'
+
+    lowered_text = ocr_text.lower()
+    normalized_ocr_text = _normalize_ocr_token(ocr_text)
+    normalized_reference = _normalize_ocr_token(reference_number)
+    expected_amount_value = _quantize_amount(expected_amount)
+
+    if 'gcash' not in lowered_text:
+        return 'The uploaded image does not appear to be a GCash payment screenshot.'
+
+    if normalized_reference not in normalized_ocr_text:
+        return 'The GCash reference number does not appear in the uploaded proof. Please upload the correct payment screenshot.'
+
+    matched_keywords = sum(
+        1 for keyword in PAYMENT_PROOF_RECEIPT_KEYWORDS if keyword in lowered_text
+    )
+    if matched_keywords < PAYMENT_PROOF_MIN_KEYWORD_MATCHES:
+        return 'The uploaded image does not contain enough GCash payment details. Please upload the actual receipt or confirmation screenshot.'
+
+    amount_candidates = _extract_amount_candidates_from_text(ocr_text)
+    if not any(abs(candidate - expected_amount_value) <= PAYMENT_PROOF_AMOUNT_TOLERANCE for candidate in amount_candidates):
+        return (
+            'The uploaded proof does not show the expected GCash payment amount of '
+            f'P{_format_currency_label(expected_amount_value)}. Please upload the correct receipt screenshot.'
+        )
+
+    return None
+
+
+def _validate_checkout_payment_submission(reference_number, proof_image, expected_amount):
     normalized_reference = _normalize_reference_number(reference_number)
     if not normalized_reference or proof_image is None:
         return None, 'A GCash reference number and proof of payment are required to place the order.'
@@ -312,6 +412,14 @@ def _validate_checkout_payment_submission(reference_number, proof_image):
 
     if image_format not in PAYMENT_PROOF_ALLOWED_FORMATS:
         return None, 'The uploaded payment proof must be a JPG, PNG, or WEBP image.'
+
+    ocr_error = _validate_payment_proof_ocr(
+        normalized_reference,
+        proof_image,
+        expected_amount,
+    )
+    if ocr_error:
+        return None, ocr_error
 
     return normalized_reference, None
 
@@ -2485,9 +2593,11 @@ def cake_customize(request):
         reference_number = request.POST.get('reference_number', '').strip()
         proof_image = request.FILES.get('proof_image')
         delivery_date_value = request.POST.get('delivery_date', '').strip()
+        expected_payment_amount = total_price if payment_method == 'gcash' else deposit_amount
 
         if payment_method not in PAYMENT_PLAN_LABELS:
             payment_method = 'cod'
+            expected_payment_amount = deposit_amount
 
         delivery_address_data, address_error = _validate_structured_delivery_address(
             request.POST.get('delivery_street_address'),
@@ -2504,6 +2614,7 @@ def cake_customize(request):
         normalized_reference, payment_error = _validate_checkout_payment_submission(
             reference_number,
             proof_image,
+            expected_payment_amount,
         )
         if address_error:
             messages.error(request, address_error)
@@ -2728,6 +2839,7 @@ def package_payment(request):
         payment_method = request.POST.get('payment_method', 'cod')
         reference_number = request.POST.get('reference_number', '').strip()
         proof_image = request.FILES.get('proof_image')
+        expected_payment_amount = grand_total if payment_method == 'gcash' else deposit_amount
         form_values.update({
             'event_date': request.POST.get('event_date', '').strip(),
             'event_time': request.POST.get('event_time', '').strip(),
@@ -2739,6 +2851,7 @@ def package_payment(request):
 
         if payment_method not in PAYMENT_PLAN_LABELS:
             payment_method = 'cod'
+            expected_payment_amount = deposit_amount
 
         if event_type not in PUBLIC_EVENT_TYPE_VALUES:
             messages.error(
