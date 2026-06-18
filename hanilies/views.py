@@ -27,7 +27,10 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_POST
 from PIL import Image, UnidentifiedImageError
-from rapidocr_onnxruntime import RapidOCR
+try:
+    from rapidocr_onnxruntime import RapidOCR
+except Exception:
+    RapidOCR = None
 from .models import UserProfile, Notification, Cake, CakeOrder, CakeCustomization, Package, PackageOrder, PackageThumbnail, Payment, RefundRequest, ActivityLog
 from .payment_qr import build_gcash_checkout_details, get_gcash_profile
 
@@ -254,6 +257,7 @@ PAYMENT_PROOF_RECEIPT_KEYWORDS = {
 PAYMENT_PROOF_MIN_KEYWORD_MATCHES = 3
 PAYMENT_PROOF_AMOUNT_TOLERANCE = Decimal('1.00')
 PAYMENT_PROOF_OCR_ENGINE = None
+PAYMENT_PROOF_OCR_UNAVAILABLE = False
 ADMIN_MENU_ITEMS = [
     {'name': 'Dashboard', 'url': 'admin_dashboard',
         'icon': 'tachometer-alt', 'roles': STAFF_ROLE_VALUES},
@@ -302,20 +306,33 @@ def _format_currency_label(value):
 
 
 def _get_payment_proof_ocr_engine():
-    global PAYMENT_PROOF_OCR_ENGINE
+    global PAYMENT_PROOF_OCR_ENGINE, PAYMENT_PROOF_OCR_UNAVAILABLE
+    if not getattr(settings, 'HANILIES_PAYMENT_PROOF_OCR_ENABLED', True):
+        PAYMENT_PROOF_OCR_UNAVAILABLE = True
+        return None
+    if RapidOCR is None:
+        PAYMENT_PROOF_OCR_UNAVAILABLE = True
+        return None
     if PAYMENT_PROOF_OCR_ENGINE is None:
-        PAYMENT_PROOF_OCR_ENGINE = RapidOCR()
+        try:
+            PAYMENT_PROOF_OCR_ENGINE = RapidOCR()
+        except Exception:
+            PAYMENT_PROOF_OCR_UNAVAILABLE = True
+            return None
     return PAYMENT_PROOF_OCR_ENGINE
 
 
 def _extract_payment_proof_text(proof_image):
     try:
+        ocr_engine = _get_payment_proof_ocr_engine()
+        if ocr_engine is None:
+            return None
         proof_image.seek(0)
         proof_bytes = proof_image.read()
         if not proof_bytes:
             return ''
 
-        ocr_results, _ = _get_payment_proof_ocr_engine()(proof_bytes)
+        ocr_results, _ = ocr_engine(proof_bytes)
         if not ocr_results:
             return ''
 
@@ -349,6 +366,8 @@ def _extract_amount_candidates_from_text(ocr_text):
 
 def _validate_payment_proof_ocr(reference_number, proof_image, expected_amount):
     ocr_text = _extract_payment_proof_text(proof_image)
+    if ocr_text is None:
+        return None
     if not ocr_text:
         return 'We could not read the uploaded proof of payment. Please upload a clearer GCash screenshot.'
 
@@ -2860,6 +2879,7 @@ def package_payment(request):
             normalized_reference, payment_error = _validate_checkout_payment_submission(
                 reference_number,
                 proof_image,
+                expected_payment_amount,
             )
             _, event_date_error = _validate_order_window(
                 form_values['event_date'],
@@ -2978,7 +2998,7 @@ def admin_dashboard(request):
     role = getattr(request.user, 'profile', None)
     admin_menu = get_admin_menu(request)
     today = timezone.localdate()
-    start_of_week = today - timedelta(days=today.weekday())
+    start_of_week = today - timedelta(days=6)
     start_of_month = today.replace(day=1)
     total_sales_today = Payment.objects.filter(
         payment_status='paid',

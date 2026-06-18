@@ -6,11 +6,13 @@ services:
     startCommand: python manage.py migrate && python manage.py sync_repo_media && python manage.py loaddata catalog_seed && gunicorn config.wsgi:application
     envVars:
       - key: PYTHON_VERSION
-        value: 3.14.3
+        value: 3.13.1
       - key: DEBUG
         value: "False"
       - key: DEMO_BOT_REMOTE_ENABLED
         value: "True"
+      - key: HANILIES_PAYMENT_PROOF_OCR_ENABLED
+        value: "False"
       - key: SECRET_KEY
         generateValue: true
       - key: ALLOWED_HOSTS

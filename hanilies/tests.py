@@ -436,6 +436,32 @@ class CakeOrderViewUnitTests(TestCase):
         self.assertEqual(CakeOrder.objects.count(), 0)
         self.assertEqual(Payment.objects.count(), 0)
 
+    @override_settings(HANILIES_PAYMENT_PROOF_OCR_ENABLED=False)
+    def test_cake_customize_allows_manual_review_when_ocr_is_disabled(self):
+        response = self.client.post(reverse('cake_customize'), {
+            'cake_id': str(self.cake.id),
+            'quantity': '1',
+            'payment_method': 'cod',
+            'reference_number': 'DEP-CAKE-006',
+            'proof_image': build_test_image_upload(
+                'manual-review-proof.jpg',
+                reference_number='DEP-CAKE-006',
+                amount='600.00',
+                include_receipt_text=False,
+            ),
+            'delivery_date': self._cake_delivery_date(),
+            'delivery_street_address': '123 Rizal Street',
+            'delivery_barangay': 'Poblacion 1',
+            'delivery_city': 'Oroquieta City',
+            'contact_name': 'Cake Tester',
+            'contact_phone': '09123456789',
+            'contact_email': 'cake@example.com',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(CakeOrder.objects.count(), 1)
+        self.assertEqual(Payment.objects.count(), 2)
+
     def test_cakes_page_shows_special_occasions_label_for_custom_category(self):
         self.cake.image = 'cakes/catalog-main.jpg'
         self.cake.save(update_fields=['image'])
@@ -778,6 +804,41 @@ class PackageFlowUnitTests(TestCase):
         self.assertEqual(PackageOrder.objects.count(), 0)
         self.assertEqual(Payment.objects.count(), 0)
         self.assertIn('package_order_draft', self.client.session)
+
+    @override_settings(HANILIES_PAYMENT_PROOF_OCR_ENABLED=False)
+    def test_package_payment_allows_manual_review_when_ocr_is_disabled(self):
+        session = self.client.session
+        session['package_order_draft'] = {
+            'package_id': str(self.package.id),
+            'event_type': 'kids_birthday',
+            'selected_addon_labels': [],
+            'base_total': '6500.00',
+            'cake_custom_total': '0.00',
+        }
+        session.save()
+
+        response = self.client.post(reverse('package_payment'), {
+            'event_type': 'kids_birthday',
+            'event_date': self._package_event_date(),
+            'event_time': '14:30',
+            'venue': 'Clarin Gymnasium',
+            'contact_name': 'Package Tester',
+            'contact_phone': '09999999999',
+            'contact_email': 'package@example.com',
+            'payment_method': 'cod',
+            'reference_number': 'DEP-PACKAGE-005',
+            'proof_image': build_test_image_upload(
+                'manual-review-package-proof.jpg',
+                reference_number='DEP-PACKAGE-005',
+                amount='3250.00',
+                include_receipt_text=False,
+            ),
+        })
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(PackageOrder.objects.count(), 1)
+        self.assertEqual(Payment.objects.count(), 2)
+        self.assertNotIn('package_order_draft', self.client.session)
 
     def test_package_payment_get_renders_gcash_qr_preview(self):
         session = self.client.session

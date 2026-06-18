@@ -26,6 +26,7 @@ def _config_list(name, default=None):
         return default
     return [item.strip() for item in raw_value.split(',') if item.strip()]
 
+
 DEBUG = _config_flag('DEBUG', default=True)
 TESTING = 'test' in sys.argv
 
@@ -34,11 +35,13 @@ if not SECRET_KEY:
     if DEBUG:
         SECRET_KEY = 'hanilies-cakeshoppe-local-dev-secret-key-2024-only'
     else:
-        raise ImproperlyConfigured('SECRET_KEY must be set when DEBUG is False.')
+        raise ImproperlyConfigured(
+            'SECRET_KEY must be set when DEBUG is False.')
 
 ALLOWED_HOSTS = _config_list(
     'ALLOWED_HOSTS',
-    ['hanilies-cakeshoppe-non1.onrender.com', 'localhost', '127.0.0.1', '.onrender.com'],
+    ['hanilies-cakeshoppe-non1.onrender.com',
+        'localhost', '127.0.0.1', '.onrender.com'],
 )
 
 CSRF_TRUSTED_ORIGINS = _config_list(
@@ -147,7 +150,8 @@ CSRF_COOKIE_SECURE = _config_flag(
     default=not DEBUG and not TESTING,
 )
 SECURE_HSTS_SECONDS = int(
-    os.environ.get('SECURE_HSTS_SECONDS', '3600' if not DEBUG and not TESTING else '0')
+    os.environ.get('SECURE_HSTS_SECONDS',
+                   '3600' if not DEBUG and not TESTING else '0')
 )
 SECURE_HSTS_INCLUDE_SUBDOMAINS = _config_flag(
     'SECURE_HSTS_INCLUDE_SUBDOMAINS',
@@ -170,7 +174,12 @@ DEFAULT_FROM_EMAIL = os.environ.get(
     'noreply@hanilies.local',
 )
 
-DEMO_BOT_REMOTE_ENABLED = _config_flag('DEMO_BOT_REMOTE_ENABLED', default=False)
+DEMO_BOT_REMOTE_ENABLED = _config_flag(
+    'DEMO_BOT_REMOTE_ENABLED', default=False)
+HANILIES_PAYMENT_PROOF_OCR_ENABLED = _config_flag(
+    'HANILIES_PAYMENT_PROOF_OCR_ENABLED',
+    default=True,
+)
 
 HANILIES_GCASH_ACCOUNT_NAME = os.environ.get(
     'HANILIES_GCASH_ACCOUNT_NAME',

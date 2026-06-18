@@ -72,7 +72,7 @@ The project is designed to run locally with SQLite and can be deployed on Render
 Notes:
 
 - The repository standardizes on a local `venv/` virtual environment
-- `runtime.txt` and Render config currently target Python `3.14.3`
+- `runtime.txt` and Render config currently target Python `3.13.1`
 - Local development uses SQLite by default and does not require PostgreSQL
 
 ## Quick start
@@ -146,6 +146,7 @@ EMAIL_HOST_PASSWORD=your-app-password
 EMAIL_USE_TLS=True
 EMAIL_USE_SSL=False
 DEFAULT_FROM_EMAIL=Hanilies Cakeshoppe <your-email@example.com>
+HANILIES_PAYMENT_PROOF_OCR_ENABLED=True
 
 HANILIES_GCASH_ACCOUNT_NAME=Hanilies Cakeshoppe
 HANILIES_GCASH_ACCOUNT_NUMBER=
@@ -159,6 +160,7 @@ DEMO_BOT_REMOTE_ENABLED=False
 - In production, email defaults to SMTP unless explicitly overridden
 - Order and payment status updates can create both database notifications and email messages
 - Gmail SMTP should use an app password instead of the regular account password
+- Payment proof OCR can be disabled with `HANILIES_PAYMENT_PROOF_OCR_ENABLED=False` to fall back to manual admin review for uploaded receipts
 
 ## Useful commands
 
