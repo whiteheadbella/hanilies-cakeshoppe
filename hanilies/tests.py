@@ -386,6 +386,8 @@ class CakeOrderViewUnitTests(TestCase):
         self.assertEqual(CakeOrder.objects.count(), 0)
         self.assertEqual(CakeCustomization.objects.count(), 0)
         self.assertEqual(Payment.objects.count(), 0)
+        self.assertContains(response, 'value="gcash" checked')
+        self.assertContains(response, 'Full GCash Payment')
 
     def test_cake_customize_rejects_duplicate_reference_number(self):
         generated_reference = self._cake_checkout_reference()
@@ -806,6 +808,8 @@ class PackageFlowUnitTests(TestCase):
         self.assertEqual(PackageOrder.objects.count(), 0)
         self.assertEqual(Payment.objects.count(), 0)
         self.assertIn('package_order_draft', self.client.session)
+        self.assertContains(response, 'value="gcash" checked')
+        self.assertContains(response, 'Full GCash Payment')
 
     def test_package_payment_rejects_duplicate_reference_number(self):
         session = self.client.session

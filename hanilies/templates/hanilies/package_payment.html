@@ -82,7 +82,7 @@
                         <div class="row g-3 mb-4">
                             <div class="col-md-6">
                                 <label class="form-check border rounded p-3 h-100 payment-option">
-                                    <input class="form-check-input package-payment-radio" type="radio" name="payment_method" value="cod" checked>
+                                    <input class="form-check-input package-payment-radio" type="radio" name="payment_method" value="cod" {% if form_values.payment_method != 'gcash' %}checked{% endif %}>
                                     <span class="form-check-label ms-2">
                                         <strong>{{ payment_plan_labels.cod }}</strong><br>
                                         <span class="text-muted">Pay a 50% GCash deposit now, then settle the remaining balance on event day or pickup.</span>
@@ -91,7 +91,7 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-check border rounded p-3 h-100 payment-option">
-                                    <input class="form-check-input package-payment-radio" type="radio" name="payment_method" value="gcash">
+                                    <input class="form-check-input package-payment-radio" type="radio" name="payment_method" value="gcash" {% if form_values.payment_method == 'gcash' %}checked{% endif %}>
                                     <span class="form-check-label ms-2">
                                         <strong>{{ payment_plan_labels.gcash }}</strong><br>
                                         <span class="text-muted">Pay the full booking amount through GCash during checkout.</span>
@@ -216,7 +216,7 @@
                                     </div>
                                     <div class="col-md-6">
                                         <div class="fw-semibold text-muted">Payment Plan</div>
-                                        <div id="review-package-payment">{{ payment_plan_labels.cod }}</div>
+                                        <div id="review-package-payment">{% if form_values.payment_method == 'gcash' %}{{ payment_plan_labels.gcash }}{% else %}{{ payment_plan_labels.cod }}{% endif %}</div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="fw-semibold text-muted">GCash Reference</div>

@@ -194,7 +194,7 @@
                         <div class="row g-3 mb-4">
                             <div class="col-md-6">
                                 <label class="form-check border rounded p-3 h-100 payment-option">
-                                    <input class="form-check-input payment-radio" type="radio" name="payment_method" value="cod" checked>
+                                    <input class="form-check-input payment-radio" type="radio" name="payment_method" value="cod" {% if selected_payment_method != 'gcash' %}checked{% endif %}>
                                     <span class="form-check-label ms-2">
                                         <strong>{{ payment_plan_labels.cod }}</strong><br>
                                         <span class="text-muted">Pay a 50% GCash deposit now. The remaining balance will be collected during pickup or delivery.</span>
@@ -203,7 +203,7 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-check border rounded p-3 h-100 payment-option">
-                                    <input class="form-check-input payment-radio" type="radio" name="payment_method" value="gcash">
+                                    <input class="form-check-input payment-radio" type="radio" name="payment_method" value="gcash" {% if selected_payment_method == 'gcash' %}checked{% endif %}>
                                     <span class="form-check-label ms-2">
                                         <strong>{{ payment_plan_labels.gcash }}</strong><br>
                                         <span class="text-muted">Settle the whole order amount through GCash during checkout.</span>
@@ -324,7 +324,7 @@
                                     </div>
                                     <div class="col-md-6">
                                         <div class="fw-semibold text-muted">Payment Plan</div>
-                                        <div id="review-cake-payment">{{ payment_plan_labels.cod }}</div>
+                                        <div id="review-cake-payment">{% if selected_payment_method == 'gcash' %}{{ payment_plan_labels.gcash }}{% else %}{{ payment_plan_labels.cod }}{% endif %}</div>
                                     </div>
                                     <div class="col-md-3">
                                         <div class="fw-semibold text-muted">Pay Now</div>
@@ -407,7 +407,7 @@
                     </div>
                     <div class="mb-3">
                         <div class="small text-muted">Payment</div>
-                        <div id="summary-payment">Cash on Delivery</div>
+                            <div id="summary-payment">{% if selected_payment_method == 'gcash' %}{{ payment_plan_labels.gcash }}{% else %}{{ payment_plan_labels.cod }}{% endif %}</div>
                     </div>
                     <hr>
                     <div class="d-flex justify-content-between mb-2">

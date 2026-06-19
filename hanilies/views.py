@@ -2729,6 +2729,7 @@ def cake_customize(request):
     defaults = _get_profile_defaults(request.user)
     defaults.setdefault('delivery_date', '')
     cake_order_window = build_cake_booking_window()
+    selected_payment_method = 'cod'
 
     cake_flow_key = _get_checkout_flow_key('cake', selected_cake.id)
     cake_checkout_meta = _get_or_create_checkout_meta(
@@ -2761,6 +2762,8 @@ def cake_customize(request):
         if payment_method not in PAYMENT_PLAN_LABELS:
             payment_method = 'cod'
             expected_payment_amount = deposit_amount
+
+        selected_payment_method = payment_method
 
         delivery_address_data, address_error = _validate_structured_delivery_address(
             request.POST.get('delivery_street_address'),
@@ -2848,6 +2851,7 @@ def cake_customize(request):
         'decoration_options': CAKE_DECORATION_OPTIONS,
         'theme_options': CAKE_THEME_OPTIONS,
         'payment_plan_labels': PAYMENT_PLAN_LABELS,
+        'selected_payment_method': selected_payment_method,
         'default_deposit_amount': base_deposit_amount,
         'defaults': defaults,
         'cake_order_window': cake_order_window,
@@ -3000,6 +3004,7 @@ def package_payment(request):
         'contact_name': defaults.get('contact_name', ''),
         'contact_phone': defaults.get('contact_phone', ''),
         'contact_email': defaults.get('contact_email', ''),
+        'payment_method': 'cod',
     }
 
     if request.method == 'POST':
@@ -3017,11 +3022,13 @@ def package_payment(request):
             'contact_name': request.POST.get('contact_name', '').strip(),
             'contact_phone': request.POST.get('contact_phone', '').strip(),
             'contact_email': request.POST.get('contact_email', '').strip(),
+            'payment_method': payment_method,
         })
 
         if payment_method not in PAYMENT_PLAN_LABELS:
             payment_method = 'cod'
             expected_payment_amount = deposit_amount
+            form_values['payment_method'] = payment_method
 
         if event_type not in PUBLIC_EVENT_TYPE_VALUES:
             messages.error(
