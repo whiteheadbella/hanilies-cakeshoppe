@@ -40,7 +40,8 @@ def _clean_numeric(value):
 
 
 def _sanitize_emv_text(value, fallback, max_length):
-    normalized = re.sub(r'[^A-Z0-9 .,&/\-]', '', str(value or '').upper()).strip()
+    normalized = re.sub(r'[^A-Z0-9 .,&/\-]', '',
+                        str(value or '').upper()).strip()
     if not normalized:
         normalized = fallback
     return normalized[:max_length]
@@ -75,11 +76,11 @@ def build_gcash_payment_reference(amount, order_label, reference_seed=''):
     return f'HANI-{digest[:10]}'
 
 
-def build_gcash_instruction_payload(amount, order_label, reference_seed=''):
+def build_gcash_instruction_payload(amount, order_label, reference_seed='', payment_reference=''):
     normalized_amount = _normalize_amount(amount)
     profile = get_gcash_profile()
     cleaned_label = (order_label or 'Order payment').strip() or 'Order payment'
-    payment_reference = build_gcash_payment_reference(
+    payment_reference = str(payment_reference or '').strip().upper() or build_gcash_payment_reference(
         normalized_amount,
         cleaned_label,
         reference_seed,
@@ -98,7 +99,8 @@ def build_gcash_instruction_payload(amount, order_label, reference_seed=''):
     merchant_category_code = _clean_numeric(
         getattr(settings, 'HANILIES_GCASH_MERCHANT_CATEGORY_CODE', '5462'),
     ) or '5462'
-    qr_gui = str(getattr(settings, 'HANILIES_GCASH_QR_GUI', 'ph.ppmi.qrph')).strip() or 'ph.ppmi.qrph'
+    qr_gui = str(getattr(settings, 'HANILIES_GCASH_QR_GUI',
+                 'ph.ppmi.qrph')).strip() or 'ph.ppmi.qrph'
     account_number = _clean_numeric(profile['account_number'])
     purpose_label = _sanitize_emv_text(cleaned_label, 'ORDER PAYMENT', 25)
 
@@ -144,10 +146,10 @@ def generate_qr_code_data_uri(payload):
     return f'data:image/png;base64,{encoded}'
 
 
-def build_gcash_checkout_details(amount, order_label, reference_seed=''):
+def build_gcash_checkout_details(amount, order_label, reference_seed='', payment_reference=''):
     normalized_amount = _normalize_amount(amount)
     profile = get_gcash_profile()
-    payment_reference = build_gcash_payment_reference(
+    payment_reference = str(payment_reference or '').strip().upper() or build_gcash_payment_reference(
         normalized_amount,
         order_label,
         reference_seed,
@@ -156,6 +158,7 @@ def build_gcash_checkout_details(amount, order_label, reference_seed=''):
         normalized_amount,
         order_label,
         reference_seed,
+        payment_reference=payment_reference,
     )
 
     return {

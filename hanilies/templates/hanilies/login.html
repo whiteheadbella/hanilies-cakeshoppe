@@ -14,6 +14,14 @@
                     <p class="mb-0 small">Login to your account</p>
                 </div>
                 <div class="card-body p-5">
+                    {% if messages %}
+                    {% for message in messages %}
+                    <div class="alert alert-{{ message.tags|default:'info' }} mb-4" role="alert">
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+
                     <form method="POST" action="{% url 'login' %}">
                         {% csrf_token %}
                         <div class="mb-4">
@@ -47,7 +55,7 @@
 
                     <div class="text-center mt-4">
                         <p class="mb-2">Don't have an account? <a href="{% url 'register' %}" class="text-gold-pink text-decoration-none fw-bold">Register here</a></p>
-                        <a href="#" class="text-muted text-decoration-none small">Forgot password?</a>
+                        <a href="{% url 'password_reset' %}" class="text-muted text-decoration-none small">Forgot Password?</a>
                     </div>
                 </div>
             </div>

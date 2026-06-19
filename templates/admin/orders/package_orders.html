@@ -40,24 +40,27 @@
                         <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                             {% csrf_token %}
                             <input type="hidden" name="status" value="{{ order.order_status }}">
+                            {% if order.allowed_status_updates or order.can_archive %}
                             <select name="action"
                                     class="form-control"
                                     data-current-value="{{ order.order_status }}"
                                     style="width: auto; display: inline-block; padding: 4px 8px; font-size: 0.8rem;">
-                                <option value="pending" {% if order.order_status == 'pending' %}selected{% endif %}>Pending</option>
-                                <option value="confirmed" {% if order.order_status == 'confirmed' %}selected{% endif %}>Confirmed</option>
-                                <option value="preparing" {% if order.order_status == 'preparing' %}selected{% endif %}>Preparing</option>
-                                <option value="ready_for_pickup" {% if order.order_status == 'ready_for_pickup' %}selected{% endif %}>Ready for Pickup</option>
-                                <option value="out_for_delivery" {% if order.order_status == 'out_for_delivery' %}selected{% endif %}>Out for Delivery</option>
-                                <option value="completed" {% if order.order_status == 'completed' %}selected{% endif %}>Completed</option>
-                                <option value="cancelled" {% if order.order_status == 'cancelled' %}selected{% endif %}>Cancelled</option>
-                                {% if request.user.is_superuser or request.user.profile.role == 'owner' or request.user.profile.role == 'admin' or request.user.profile.role == 'manager' %}
+                                <option value="{{ order.order_status }}" selected>{{ order.get_order_status_display }} (Current)</option>
+                                {% for status_value, status_label in order.allowed_status_updates %}
+                                {% if status_value != order.order_status %}
+                                <option value="{{ status_value }}">{{ status_label }}</option>
+                                {% endif %}
+                                {% endfor %}
+                                {% if order.can_archive %}
                                 <option value="delete">Archive Order</option>
                                 {% endif %}
                             </select>
                             <button type="submit" style="border: none; border-radius: 20px; padding: 4px 10px; background: linear-gradient(135deg, #FF69B4, #D4AF37); color: white; font-size: 0.8rem; font-weight: 600; cursor: pointer;">
                                 Apply
                             </button>
+                            {% else %}
+                            <span class="text-muted small">No status actions available</span>
+                            {% endif %}
                         </div>
                     </form>
                 </td>

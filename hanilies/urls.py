@@ -14,6 +14,12 @@ urlpatterns = [
 
     # Authentication
     path('login/', views.login_view, name='login'),
+    path('forgot-password/',
+         views.HaniliesPasswordResetRequestView.as_view(), name='password_reset'),
+    path('forgot-password/done/',
+         views.HaniliesPasswordResetDoneView.as_view(), name='password_reset_done'),
+    path('reset/<uidb64>/<token>/',
+         views.HaniliesPasswordResetConfirmView.as_view(), name='password_reset_confirm'),
     path('register/', views.register_view, name='register'),
     path('logout/', views.logout_view, name='logout'),
 
@@ -23,6 +29,8 @@ urlpatterns = [
     path('update-preferences/', views.update_preferences,
          name='update_preferences'),
     path('order-tracking/', views.order_tracking, name='order_tracking'),
+    path('order-tracking/<str:order_type>/<int:order_id>/payments/<int:payment_id>/resubmit/',
+         views.resubmit_payment_proof, name='resubmit_payment_proof'),
     path('order-cancel/<str:order_type>/<int:order_id>/',
          views.request_order_cancellation, name='request_order_cancellation'),
 
@@ -82,7 +90,7 @@ urlpatterns = [
     path('admin-panel/activity-logs/delete/<int:log_id>/',
          views.admin_activity_log_delete, name='admin_activity_log_delete'),
     path('admin-panel/users/', views.admin_users, name='admin_users'),
-     path('admin-panel/users/add/', views.admin_user_add, name='admin_user_add'),
+    path('admin-panel/users/add/', views.admin_user_add, name='admin_user_add'),
     path('admin-panel/users/edit/<int:user_id>/',
          views.admin_user_edit, name='admin_user_edit'),
     path('admin-panel/users/delete/<int:user_id>/',

@@ -102,13 +102,26 @@
 
                         <div id="package-gcash-fields" class="border rounded p-3 mb-4">
                             <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold">Order Number</label>
+                                    <input type="text" class="form-control" value="{{ checkout_order_number }}" readonly>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold">Amount Due</label>
+                                    <input type="text" class="form-control" id="package-payment-amount-display" value="{{ gcash_preview.amount_label }}" readonly>
+                                    <input type="hidden" name="payment_amount" id="package-payment-amount" value="{{ gcash_preview.amount }}">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold">Payment Reference Number</label>
+                                    <input type="text" class="form-control" value="{{ checkout_payment_reference }}" readonly>
+                                </div>
                                 <div class="col-md-6">
                                     <label class="form-label fw-semibold">GCash Reference Number</label>
-                                    <input type="text" class="form-control" name="reference_number" placeholder="Paste the GCash reference number">
+                                    <input type="text" class="form-control" name="reference_number" placeholder="Enter the exact payment reference number shown above">
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label fw-semibold">Proof of Payment</label>
-                                    <input type="file" class="form-control" name="proof_image" accept="image/*">
+                                    <input type="file" class="form-control" name="proof_image" accept="image/jpeg,image/png">
                                 </div>
                                 <div class="col-12">
                                     <div class="alert alert-light border mb-0">
@@ -311,8 +324,12 @@
     const packageConfirmButton = document.getElementById('package-confirm-button');
     const packageReferenceInput = packagePaymentForm.querySelector('input[name="reference_number"]');
     const packageProofInput = packagePaymentForm.querySelector('input[name="proof_image"]');
+    const packagePaymentAmountInput = document.getElementById('package-payment-amount');
+    const packagePaymentAmountDisplay = document.getElementById('package-payment-amount-display');
     const packagePaymentQrPreviewUrl = '{{ payment_qr_preview_url }}';
     const packageOrderLabel = '{{ package.name|escapejs }} package booking';
+    const packageGeneratedOrderNumber = '{{ checkout_order_number|escapejs }}';
+    const packageGeneratedPaymentReference = '{{ checkout_payment_reference|escapejs }}';
     const packageGrandTotal = parseFloat('{{ grand_total }}');
     const paymentPlanLabels = {
         cod: '{{ payment_plan_labels.cod|escapejs }}',
@@ -340,6 +357,7 @@
             const params = new URLSearchParams({
                 amount: dueNow.toFixed(2),
                 order_label: packageOrderLabel,
+                payment_reference: packageGeneratedPaymentReference,
             });
             const response = await fetch(`${packagePaymentQrPreviewUrl}?${params.toString()}`, {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' },
@@ -351,6 +369,8 @@
             const payload = await response.json();
             packageGcashQrImage.src = payload.qr_code_data_uri;
             packageGcashQrZoom.dataset.zoomSrc = payload.qr_code_data_uri;
+            packagePaymentAmountInput.value = payload.amount;
+            packagePaymentAmountDisplay.value = payload.amount_label;
         } catch (error) {
             console.warn('Unable to refresh the package GCash QR preview.', error);
         }
@@ -361,6 +381,8 @@
         packageGcashFields.classList.remove('d-none');
         packageReferenceInput.required = true;
         packageProofInput.required = true;
+        packagePaymentAmountInput.value = dueNow.toFixed(2);
+        packagePaymentAmountDisplay.value = `P${dueNow.toFixed(2)}`;
         document.getElementById('summary-package-deposit').textContent = `P${dueNow.toFixed(2)}`;
         document.getElementById('summary-package-balance').textContent = `P${balanceDue.toFixed(2)}`;
         document.getElementById('review-package-payment').textContent = paymentPlanLabels[selectedPlan];
@@ -387,7 +409,7 @@
         document.getElementById('review-package-contact-phone').textContent = packagePaymentForm.querySelector('input[name="contact_phone"]').value.trim() || 'Not provided';
         document.getElementById('review-package-contact-email').textContent = packagePaymentForm.querySelector('input[name="contact_email"]').value.trim() || 'Not provided';
         document.getElementById('review-package-payment').textContent = paymentPlanLabels[selectedPlan];
-        document.getElementById('review-package-reference').textContent = packageReferenceInput.value.trim() || 'Missing reference number';
+        document.getElementById('review-package-reference').textContent = packageGeneratedPaymentReference;
         document.getElementById('review-package-proof').textContent = packageProofInput.files[0]?.name || 'Missing proof of payment';
         document.getElementById('review-package-deposit').textContent = `P${dueNow.toFixed(2)}`;
         document.getElementById('review-package-balance').textContent = `P${balanceDue.toFixed(2)}`;

@@ -214,13 +214,26 @@
 
                         <div id="gcash-fields" class="border rounded p-3 mb-4">
                             <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold">Order Number</label>
+                                    <input type="text" class="form-control" value="{{ checkout_order_number }}" readonly>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold">Amount Due</label>
+                                    <input type="text" class="form-control" id="cake-payment-amount-display" value="{{ gcash_preview.amount_label }}" readonly>
+                                    <input type="hidden" name="payment_amount" id="cake-payment-amount" value="{{ gcash_preview.amount }}">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold">Payment Reference Number</label>
+                                    <input type="text" class="form-control" value="{{ checkout_payment_reference }}" readonly>
+                                </div>
                                 <div class="col-md-6">
                                     <label class="form-label fw-semibold">GCash Reference Number</label>
-                                    <input type="text" class="form-control" name="reference_number" placeholder="Paste the GCash reference number">
+                                    <input type="text" class="form-control" name="reference_number" placeholder="Enter the exact payment reference number shown above">
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label fw-semibold">Proof of Payment</label>
-                                    <input type="file" class="form-control" name="proof_image" accept="image/*">
+                                    <input type="file" class="form-control" name="proof_image" accept="image/jpeg,image/png">
                                 </div>
                                 <div class="col-12">
                                     <div class="alert alert-light border mb-0">
@@ -445,6 +458,8 @@
     const cakeConfirmButton = document.getElementById('cake-confirm-button');
     const cakeReferenceInput = cakeOrderForm.querySelector('input[name="reference_number"]');
     const cakeProofInput = cakeOrderForm.querySelector('input[name="proof_image"]');
+    const cakePaymentAmountInput = document.getElementById('cake-payment-amount');
+    const cakePaymentAmountDisplay = document.getElementById('cake-payment-amount-display');
     const cakeDesignReferenceInput = cakeOrderForm.querySelector('input[name="design_reference"]');
     const cakeStreetAddressInput = cakeOrderForm.querySelector('input[name="delivery_street_address"]');
     const cakeBarangayInput = cakeOrderForm.querySelector('input[name="delivery_barangay"]');
@@ -452,6 +467,8 @@
     const cakeLandmarkInput = cakeOrderForm.querySelector('input[name="delivery_landmark"]');
     const paymentQrPreviewUrl = '{{ payment_qr_preview_url }}';
     const cakeOrderLabel = '{{ cake.name|escapejs }} cake order';
+    const cakeGeneratedOrderNumber = '{{ checkout_order_number|escapejs }}';
+    const cakeGeneratedPaymentReference = '{{ checkout_payment_reference|escapejs }}';
     const paymentPlanLabels = {
         cod: '{{ payment_plan_labels.cod|escapejs }}',
         gcash: '{{ payment_plan_labels.gcash|escapejs }}',
@@ -510,6 +527,7 @@
             const params = new URLSearchParams({
                 amount: total.toFixed(2),
                 order_label: cakeOrderLabel,
+                payment_reference: cakeGeneratedPaymentReference,
             });
             const response = await fetch(`${paymentQrPreviewUrl}?${params.toString()}`, {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' },
@@ -521,6 +539,8 @@
             const payload = await response.json();
             cakeGcashQrImage.src = payload.qr_code_data_uri;
             cakeGcashQrZoom.dataset.zoomSrc = payload.qr_code_data_uri;
+            cakePaymentAmountInput.value = payload.amount;
+            cakePaymentAmountDisplay.value = payload.amount_label;
         } catch (error) {
             console.warn('Unable to refresh the cake GCash QR preview.', error);
         }
@@ -537,6 +557,8 @@
         gcashFields.classList.remove('d-none');
         cakeReferenceInput.required = true;
         cakeProofInput.required = true;
+        cakePaymentAmountInput.value = dueNow.toFixed(2);
+        cakePaymentAmountDisplay.value = `P${dueNow.toFixed(2)}`;
         scheduleCakeQrRefresh(dueNow);
     }
 
@@ -594,7 +616,7 @@
         document.getElementById('review-cake-payment').textContent = paymentPlanLabels[selectedPlan];
         document.getElementById('review-cake-deposit').textContent = `P${dueNow.toFixed(2)}`;
         document.getElementById('review-cake-balance').textContent = `P${balanceDue.toFixed(2)}`;
-        document.getElementById('review-cake-reference').textContent = cakeReferenceInput.value.trim() || 'Missing reference number';
+        document.getElementById('review-cake-reference').textContent = cakeGeneratedPaymentReference;
         document.getElementById('review-cake-proof').textContent = cakeProofInput.files[0]?.name || 'Missing proof of payment';
         document.getElementById('review-cake-address').textContent = formatCakeDeliveryAddress();
         document.getElementById('review-cake-contact-name').textContent = cakeOrderForm.querySelector('input[name="contact_name"]').value.trim() || 'Not provided';

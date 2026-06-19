@@ -15,9 +15,10 @@ from django.http import HttpResponse, JsonResponse
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
+from django.contrib.auth.views import PasswordResetConfirmView, PasswordResetDoneView, PasswordResetView
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
 from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from django.core.exceptions import PermissionDenied
@@ -27,15 +28,23 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_POST
 from PIL import Image, UnidentifiedImageError
-try:
-    from rapidocr_onnxruntime import RapidOCR
-except Exception:
-    RapidOCR = None
+from .forms import (
+    CAKE_ORDER_MAX_LEAD_DAYS,
+    CAKE_ORDER_MIN_LEAD_DAYS,
+    CakeBookingDateForm,
+    HaniliesPasswordResetForm,
+    HaniliesSetPasswordForm,
+    PACKAGE_ORDER_MIN_LEAD_DAYS,
+    PackageBookingDateForm,
+    build_cake_booking_window,
+    build_package_booking_window,
+)
 from .models import UserProfile, Notification, Cake, CakeOrder, CakeCustomization, Package, PackageOrder, PackageThumbnail, Payment, RefundRequest, ActivityLog
 from .payment_qr import build_gcash_checkout_details, get_gcash_profile
 
 
 PACKAGE_ORDER_SESSION_KEY = 'package_order_draft'
+CHECKOUT_META_SESSION_KEY = 'checkout_payment_meta'
 DEMO_SCENARIOS = {'login', 'cake', 'package', 'full', 'custom'}
 DEMO_SCRIPT_STEPS = [
     ('home', 'Homepage Welcome'),
@@ -91,11 +100,6 @@ PUBLIC_EVENT_TYPES = [
 ]
 PUBLIC_EVENT_TYPE_VALUES = {value for value, _ in PUBLIC_EVENT_TYPES}
 
-CAKE_ORDER_MIN_LEAD_DAYS = 3
-CAKE_ORDER_MAX_LEAD_DAYS = 180
-PACKAGE_ORDER_MIN_LEAD_DAYS = 3
-PACKAGE_ORDER_MAX_LEAD_DAYS = 365
-
 PACKAGE_ADDON_OPTIONS = {
     'brownies': {'label': 'Chocofudge Brownies', 'price': Decimal('300.00')},
     'cupcakes': {'label': 'Themed Cupcakes', 'price': Decimal('350.00')},
@@ -128,6 +132,10 @@ PACKAGE_CAKE_DECORATIONS = {
 
 ORDER_STATUS_NOTIFICATION_CONFIG = {
     'cake': {
+        'payment_retry': {
+            'headline': 'Your payment proof was rejected. Please resubmit a valid payment receipt to continue your cake order.',
+            'subject': 'Cake order awaiting payment resubmission',
+        },
         'confirmed': {
             'headline': 'Your cake order has been confirmed.',
             'subject': 'Cake order confirmed',
@@ -144,12 +152,16 @@ ORDER_STATUS_NOTIFICATION_CONFIG = {
             'headline': 'Your cake order is out for delivery.',
             'subject': 'Cake order out for delivery',
         },
-        'delivered': {
-            'headline': 'Your cake order has been marked as delivered.',
-            'subject': 'Cake order delivered',
+        'completed': {
+            'headline': 'Your cake order has been completed.',
+            'subject': 'Cake order completed',
         },
     },
     'package': {
+        'payment_retry': {
+            'headline': 'Your payment proof was rejected. Please resubmit a valid payment receipt to continue your package booking.',
+            'subject': 'Package booking awaiting payment resubmission',
+        },
         'confirmed': {
             'headline': 'Your package booking has been confirmed.',
             'subject': 'Package booking confirmed',
@@ -182,8 +194,8 @@ PAYMENT_STATUS_NOTIFICATION_CONFIG = {
         'headline': 'Your payment has been approved and recorded successfully.',
         'subject': 'Payment approved',
     },
-    'failed': {
-        'headline': 'Your payment could not be verified. Please review your payment details or contact Hanilies Cakeshoppe.',
+    'rejected': {
+        'headline': 'Your payment was rejected. Please review the payment details and upload a new proof of payment.',
         'subject': 'Payment verification update',
     },
 }
@@ -208,8 +220,16 @@ REFUND_STATUS_NOTIFICATION_CONFIG = {
 }
 
 DEPOSIT_RATE = Decimal('0.50')
+FULL_ACCESS_ROLE_VALUES = {'owner', 'admin', 'manager', 'supervisor'}
 STAFF_ROLE_VALUES = {'owner', 'admin', 'manager',
                      'supervisor', 'baker', 'packager', 'cashier'}
+USER_MANAGEMENT_ROLE_VALUES = FULL_ACCESS_ROLE_VALUES
+AUDIT_TRAIL_ROLE_VALUES = FULL_ACCESS_ROLE_VALUES
+PAYMENT_REVIEW_ROLE_VALUES = FULL_ACCESS_ROLE_VALUES | {'cashier'}
+CAKE_PRODUCT_ROLE_VALUES = FULL_ACCESS_ROLE_VALUES | {'cashier', 'baker'}
+PACKAGE_PRODUCT_ROLE_VALUES = FULL_ACCESS_ROLE_VALUES | {'cashier', 'packager'}
+CAKE_ORDER_ROLE_VALUES = FULL_ACCESS_ROLE_VALUES | {'cashier', 'baker'}
+PACKAGE_ORDER_ROLE_VALUES = FULL_ACCESS_ROLE_VALUES | {'cashier', 'packager'}
 PAYMENT_PLAN_LABELS = {
     'cod': '50% GCash Deposit + COD Balance',
     'gcash': 'Full GCash Payment',
@@ -238,45 +258,30 @@ DELIVERY_SERVICE_AREA_MAP = {
     for city, province in DELIVERY_SERVICE_AREA_CHOICES
 }
 PAYMENT_PROOF_MAX_BYTES = 5 * 1024 * 1024
-PAYMENT_PROOF_ALLOWED_FORMATS = {'JPEG', 'PNG', 'WEBP'}
+PAYMENT_PROOF_ALLOWED_FORMATS = {'JPEG', 'PNG'}
 PAYMENT_PROOF_ALLOWED_CONTENT_TYPES = {
     'image/jpeg',
     'image/png',
-    'image/webp',
 }
-PAYMENT_PROOF_RECEIPT_KEYWORDS = {
-    'gcash',
-    'reference',
-    'transaction',
-    'amount',
-    'paid',
-    'sent',
-    'successful',
-    'receipt',
-}
-PAYMENT_PROOF_MIN_KEYWORD_MATCHES = 3
-PAYMENT_PROOF_AMOUNT_TOLERANCE = Decimal('1.00')
-PAYMENT_PROOF_OCR_ENGINE = None
-PAYMENT_PROOF_OCR_UNAVAILABLE = False
 ADMIN_MENU_ITEMS = [
     {'name': 'Dashboard', 'url': 'admin_dashboard',
         'icon': 'tachometer-alt', 'roles': STAFF_ROLE_VALUES},
     {'name': 'Cakes', 'url': 'admin_cakes', 'icon': 'birthday-cake',
-        'roles': {'owner', 'admin', 'supervisor', 'baker'}},
+        'roles': CAKE_PRODUCT_ROLE_VALUES},
     {'name': 'Cake Orders', 'url': 'admin_cake_orders', 'icon': 'shopping-cart',
-        'roles': {'owner', 'admin', 'manager', 'supervisor', 'baker'}},
+        'roles': CAKE_ORDER_ROLE_VALUES},
     {'name': 'Packages', 'url': 'admin_packages', 'icon': 'gift',
-        'roles': {'owner', 'admin', 'supervisor', 'packager'}},
+        'roles': PACKAGE_PRODUCT_ROLE_VALUES},
     {'name': 'Package Orders', 'url': 'admin_package_orders', 'icon': 'calendar-check',
-        'roles': {'owner', 'admin', 'manager', 'supervisor', 'packager'}},
+        'roles': PACKAGE_ORDER_ROLE_VALUES},
     {'name': 'Payments', 'url': 'admin_payments', 'icon': 'credit-card',
-        'roles': {'owner', 'admin', 'manager', 'supervisor', 'cashier'}},
+        'roles': PAYMENT_REVIEW_ROLE_VALUES},
     {'name': 'Refunds', 'url': 'admin_refunds', 'icon': 'rotate-left',
-        'roles': {'owner', 'admin', 'manager', 'supervisor', 'cashier'}},
-    {'name': 'Users', 'url': 'admin_users',
-        'icon': 'users', 'roles': {'owner', 'admin'}},
+        'roles': PAYMENT_REVIEW_ROLE_VALUES},
+    {'name': 'Users', 'url': 'admin_users', 'icon': 'users',
+        'roles': USER_MANAGEMENT_ROLE_VALUES},
     {'name': 'Audit Trail', 'url': 'admin_activity_logs',
-        'icon': 'clipboard-list', 'roles': {'owner', 'admin'}},
+        'icon': 'clipboard-list', 'roles': AUDIT_TRAIL_ROLE_VALUES},
 ]
 
 ROLE_CHOICES = UserProfile.ROLE_CHOICES
@@ -297,124 +302,93 @@ def _normalize_reference_number(reference_number):
     return re.sub(r'\s+', '', str(reference_number or '')).upper()
 
 
-def _normalize_ocr_token(value):
-    return re.sub(r'[^A-Z0-9]', '', str(value or '').upper())
+def _normalize_generated_token(value):
+    return re.sub(r'[^A-Z0-9\-]', '', str(value or '').upper())
 
 
 def _format_currency_label(value):
     return format(_quantize_amount(value), '.2f')
 
 
-def _get_payment_proof_ocr_engine():
-    global PAYMENT_PROOF_OCR_ENGINE, PAYMENT_PROOF_OCR_UNAVAILABLE
-    if not getattr(settings, 'HANILIES_PAYMENT_PROOF_OCR_ENABLED', True):
-        PAYMENT_PROOF_OCR_UNAVAILABLE = True
-        return None
-    if RapidOCR is None:
-        PAYMENT_PROOF_OCR_UNAVAILABLE = True
-        return None
-    if PAYMENT_PROOF_OCR_ENGINE is None:
-        try:
-            PAYMENT_PROOF_OCR_ENGINE = RapidOCR()
-        except Exception:
-            PAYMENT_PROOF_OCR_UNAVAILABLE = True
-            return None
-    return PAYMENT_PROOF_OCR_ENGINE
+def _generate_checkout_nonce():
+    return os.urandom(6).hex().upper()
 
 
-def _extract_payment_proof_text(proof_image):
-    try:
-        ocr_engine = _get_payment_proof_ocr_engine()
-        if ocr_engine is None:
-            return None
-        proof_image.seek(0)
-        proof_bytes = proof_image.read()
-        if not proof_bytes:
-            return ''
-
-        ocr_results, _ = ocr_engine(proof_bytes)
-        if not ocr_results:
-            return ''
-
-        text_fragments = []
-        for row in ocr_results:
-            if len(row) < 2:
-                continue
-            text_fragment = str(row[1] or '').strip()
-            if text_fragment:
-                text_fragments.append(text_fragment)
-        return '\n'.join(text_fragments)
-    except Exception:
-        return ''
-    finally:
-        try:
-            proof_image.seek(0)
-        except (AttributeError, OSError, ValueError):
-            pass
+def _build_generated_order_number(order_kind, nonce):
+    prefix = 'CKO' if order_kind == 'cake' else 'PKO'
+    return f'{prefix}-{timezone.localdate().strftime("%Y%m%d")}-{nonce}'
 
 
-def _extract_amount_candidates_from_text(ocr_text):
-    normalized_text = str(ocr_text or '').replace(',', '')
-    amount_matches = set()
-    for match in re.findall(r'\d+(?:\.\d{1,2})?', normalized_text):
-        try:
-            amount_matches.add(_quantize_amount(match))
-        except (InvalidOperation, TypeError, ValueError):
-            continue
-    return amount_matches
+def _build_generated_payment_reference(nonce):
+    return f'HANI-{nonce}'
 
 
-def _validate_payment_proof_ocr(reference_number, proof_image, expected_amount):
-    ocr_text = _extract_payment_proof_text(proof_image)
-    if ocr_text is None:
-        return None
-    if not ocr_text:
-        return 'We could not read the uploaded proof of payment. Please upload a clearer GCash screenshot.'
-
-    lowered_text = ocr_text.lower()
-    normalized_ocr_text = _normalize_ocr_token(ocr_text)
-    normalized_reference = _normalize_ocr_token(reference_number)
-    expected_amount_value = _quantize_amount(expected_amount)
-
-    if 'gcash' not in lowered_text:
-        return 'The uploaded image does not appear to be a GCash payment screenshot.'
-
-    if normalized_reference not in normalized_ocr_text:
-        return 'The GCash reference number does not appear in the uploaded proof. Please upload the correct payment screenshot.'
-
-    matched_keywords = sum(
-        1 for keyword in PAYMENT_PROOF_RECEIPT_KEYWORDS if keyword in lowered_text
-    )
-    if matched_keywords < PAYMENT_PROOF_MIN_KEYWORD_MATCHES:
-        return 'The uploaded image does not contain enough GCash payment details. Please upload the actual receipt or confirmation screenshot.'
-
-    amount_candidates = _extract_amount_candidates_from_text(ocr_text)
-    if not any(abs(candidate - expected_amount_value) <= PAYMENT_PROOF_AMOUNT_TOLERANCE for candidate in amount_candidates):
-        return (
-            'The uploaded proof does not show the expected GCash payment amount of '
-            f'P{_format_currency_label(expected_amount_value)}. Please upload the correct receipt screenshot.'
-        )
-
-    return None
+def _get_checkout_flow_key(order_kind, identifier):
+    return f'{order_kind}:{identifier}'
 
 
-def _validate_checkout_payment_submission(reference_number, proof_image, expected_amount):
+def _get_checkout_meta_store(request):
+    return request.session.get(CHECKOUT_META_SESSION_KEY, {})
+
+
+def _set_checkout_meta_store(request, store):
+    request.session[CHECKOUT_META_SESSION_KEY] = store
+    request.session.modified = True
+
+
+def _get_or_create_checkout_meta(request, flow_key, order_kind):
+    store = _get_checkout_meta_store(request)
+    meta = store.get(flow_key)
+    if meta:
+        return meta
+
+    nonce = _generate_checkout_nonce()
+    meta = {
+        'order_kind': order_kind,
+        'order_number': _build_generated_order_number(order_kind, nonce),
+        'payment_reference': _build_generated_payment_reference(nonce),
+    }
+    store[flow_key] = meta
+    _set_checkout_meta_store(request, store)
+    return meta
+
+
+def _clear_checkout_meta(request, flow_key):
+    store = _get_checkout_meta_store(request)
+    if flow_key in store:
+        del store[flow_key]
+        _set_checkout_meta_store(request, store)
+
+
+def _validate_checkout_payment_submission(reference_number, proof_image, expected_amount, expected_reference_number, submitted_amount=None, exclude_payment_id=None):
     normalized_reference = _normalize_reference_number(reference_number)
-    if not normalized_reference or proof_image is None:
-        return None, 'A GCash reference number and proof of payment are required to place the order.'
+    normalized_expected_reference = _normalize_generated_token(
+        expected_reference_number)
+    submitted_amount_value = _quantize_amount(submitted_amount or '0.00')
 
-    if len(normalized_reference) < 6 or len(normalized_reference) > 100:
-        return None, 'Enter a valid GCash reference number before placing the order.'
+    if not normalized_reference:
+        return None, 'Reference number does not match this order.'
+    if proof_image is None:
+        return None, 'Please upload a proof of payment image.'
+    if normalized_reference != normalized_expected_reference:
+        return None, 'Reference number does not match this order.'
+    if submitted_amount_value != _quantize_amount(expected_amount):
+        return None, 'Amount paid does not match the required amount.'
 
-    if Payment.objects.filter(reference_number__iexact=normalized_reference).exists():
-        return None, 'That GCash reference number has already been used. Please check your payment details and try again.'
+    reference_queryset = Payment.objects.filter(
+        reference_number__iexact=normalized_expected_reference,
+    )
+    if exclude_payment_id is not None:
+        reference_queryset = reference_queryset.exclude(id=exclude_payment_id)
+    if reference_queryset.exists():
+        return None, 'Reference number does not match this order.'
 
     if getattr(proof_image, 'size', 0) > PAYMENT_PROOF_MAX_BYTES:
         return None, 'The uploaded payment proof must be 5 MB or smaller.'
 
     content_type = str(getattr(proof_image, 'content_type', '') or '').lower()
     if content_type and content_type not in PAYMENT_PROOF_ALLOWED_CONTENT_TYPES:
-        return None, 'The uploaded payment proof must be a JPG, PNG, or WEBP image.'
+        return None, 'Only JPG, JPEG, and PNG files are allowed.'
 
     try:
         proof_image.seek(0)
@@ -422,7 +396,7 @@ def _validate_checkout_payment_submission(reference_number, proof_image, expecte
             image.verify()
             image_format = (image.format or '').upper()
     except (UnidentifiedImageError, OSError, ValueError):
-        return None, 'The uploaded payment proof must be a valid image file.'
+        return None, 'Only JPG, JPEG, and PNG files are allowed.'
     finally:
         try:
             proof_image.seek(0)
@@ -430,17 +404,9 @@ def _validate_checkout_payment_submission(reference_number, proof_image, expecte
             pass
 
     if image_format not in PAYMENT_PROOF_ALLOWED_FORMATS:
-        return None, 'The uploaded payment proof must be a JPG, PNG, or WEBP image.'
+        return None, 'Only JPG, JPEG, and PNG files are allowed.'
 
-    ocr_error = _validate_payment_proof_ocr(
-        normalized_reference,
-        proof_image,
-        expected_amount,
-    )
-    if ocr_error:
-        return None, ocr_error
-
-    return normalized_reference, None
+    return normalized_expected_reference, None
 
 
 def _get_user_role_value(user):
@@ -573,10 +539,10 @@ def _build_cancellation_quote(order_type, order):
         }
 
     if order_type == 'cake':
-        if order.order_status in ['ready_for_pickup', 'out_for_delivery', 'delivered']:
+        if order.order_status in ['ready_for_pickup', 'out_for_delivery', 'completed']:
             return {
                 'allowed': False,
-                'reason': 'Cake orders can no longer be cancelled once they are ready for pickup, out for delivery, or delivered.',
+                'reason': 'Cake orders can no longer be cancelled once they are ready for pickup, out for delivery, or completed.',
                 'penalty_rate': Decimal('1.00'),
                 'penalty_fee': refundable_base,
                 'refundable_amount': Decimal('0.00'),
@@ -671,20 +637,23 @@ def _cancel_outstanding_balance_payments(order):
     ).update(payment_status='cancelled')
 
 
+def _get_payment_order_details(payment):
+    if payment.cake_order_id:
+        return payment.cake_order, 'cake'
+    if payment.package_order_id:
+        return payment.package_order, 'package'
+    return None, None
+
+
 def _sync_order_confirmation_from_payment(payment, actor=None):
     if payment.payment_status != 'paid' or payment.payment_purpose not in ['deposit', 'full']:
         return
 
-    if payment.cake_order_id:
-        order = payment.cake_order
-        order_type = 'cake'
-    elif payment.package_order_id:
-        order = payment.package_order
-        order_type = 'package'
-    else:
+    order, order_type = _get_payment_order_details(payment)
+    if order is None:
         return
 
-    if order.order_status != 'pending':
+    if order.order_status not in {'pending', 'payment_retry'}:
         return
 
     previous_status = order.order_status
@@ -700,6 +669,97 @@ def _sync_order_confirmation_from_payment(payment, actor=None):
             f'{order_type}_order',
             order.id,
         )
+
+
+def _sync_order_rejection_from_payment(payment, actor=None):
+    if payment.payment_status != 'rejected' or payment.payment_purpose not in ['deposit', 'full']:
+        return
+
+    order, order_type = _get_payment_order_details(payment)
+    if order is None or order.order_status == 'cancelled':
+        return
+
+    previous_status = order.order_status
+    order.order_status = 'payment_retry'
+    order.save(update_fields=['order_status', 'updated_at'])
+    _create_order_status_notification(order, order_type, previous_status)
+
+    if actor is not None:
+        _log_staff_activity(
+            actor,
+            'order_awaiting_payment_resubmission',
+            f'Marked {_get_order_label(order)} #{order.id} as awaiting payment resubmission after rejecting {payment.payment_purpose} payment #{payment.id}.',
+            f'{order_type}_order',
+            order.id,
+        )
+
+
+def _set_order_pending_after_resubmission(order):
+    previous_status = order.order_status
+    if previous_status != 'payment_retry':
+        return
+
+    order.order_status = 'pending'
+    order.save(update_fields=['order_status', 'updated_at'])
+
+
+def _is_full_access_user(user):
+    return _user_has_any_role(user, FULL_ACCESS_ROLE_VALUES)
+
+
+def _get_allowed_status_updates(user, order):
+    role_value = _get_user_role_value(user)
+    order_kind = _get_order_kind(order)
+
+    if order.order_status in {'completed', 'cancelled'}:
+        return []
+
+    if _is_full_access_user(user):
+        if order.order_status in {'pending', 'payment_retry'}:
+            return [('cancelled', 'Cancelled')]
+        return [
+            ('preparing', 'Preparing'),
+            ('ready_for_pickup', 'Ready for Pickup'),
+            ('out_for_delivery', 'Out for Delivery'),
+            ('completed', 'Completed'),
+            ('cancelled', 'Cancelled'),
+        ]
+
+    if role_value == 'cashier':
+        if order.order_status in {'confirmed', 'preparing', 'ready_for_pickup', 'out_for_delivery'}:
+            return [
+                ('ready_for_pickup', 'Ready for Pickup'),
+                ('out_for_delivery', 'Out for Delivery'),
+                ('completed', 'Completed'),
+            ]
+        return []
+
+    if role_value == 'baker' and order_kind == 'cake' and order.order_status == 'confirmed':
+        return [('preparing', 'Preparing')]
+
+    if role_value == 'packager' and order_kind == 'package' and order.order_status == 'confirmed':
+        return [('preparing', 'Preparing')]
+
+    return []
+
+
+def _can_view_order_for_role(user, order):
+    role_value = _get_user_role_value(user)
+    if role_value in FULL_ACCESS_ROLE_VALUES or role_value == 'cashier':
+        return True
+    if role_value == 'baker' and _get_order_kind(order) == 'cake':
+        return order.order_status in {'confirmed', 'preparing', 'ready_for_pickup', 'out_for_delivery', 'completed'}
+    if role_value == 'packager' and _get_order_kind(order) == 'package':
+        return order.order_status in {'confirmed', 'preparing', 'ready_for_pickup', 'out_for_delivery', 'completed'}
+    return False
+
+
+def _decorate_admin_orders_with_actions(orders, request):
+    for order in orders:
+        order.allowed_status_updates = _get_allowed_status_updates(
+            request.user, order)
+        order.can_archive = _is_full_access_user(request.user)
+    return orders
 
 
 def _create_checkout_payments(order, selected_plan, reference_number, proof_image):
@@ -887,43 +947,6 @@ def _parse_delivery_datetime(date_value):
     if timezone.is_naive(delivery_datetime):
         return timezone.make_aware(delivery_datetime)
     return delivery_datetime
-
-
-def _build_order_window(minimum_lead_days, maximum_lead_days, today=None):
-    base_date = today or timezone.localdate()
-    earliest_date = base_date + timedelta(days=minimum_lead_days)
-    latest_date = base_date + timedelta(days=maximum_lead_days)
-    return {
-        'min': earliest_date.isoformat(),
-        'max': latest_date.isoformat(),
-        'earliest_date': earliest_date,
-        'latest_date': latest_date,
-    }
-
-
-def _validate_order_window(date_value, label, minimum_lead_days, maximum_lead_days, today=None):
-    if not date_value:
-        return None, f'Please select a {label.lower()}.'
-
-    try:
-        selected_date = datetime.strptime(date_value, '%Y-%m-%d').date()
-    except ValueError:
-        return None, f'Please enter a valid {label.lower()}.'
-
-    window = _build_order_window(
-        minimum_lead_days, maximum_lead_days, today=today)
-    earliest_date = window['earliest_date']
-    latest_date = window['latest_date']
-
-    if selected_date < earliest_date or selected_date > latest_date:
-        return None, (
-            f'{label} must be between '
-            f'{earliest_date.strftime("%B %d, %Y")} and '
-            f'{latest_date.strftime("%B %d, %Y")}. '
-            f'Please choose a date within the current order period.'
-        )
-
-    return selected_date, None
 
 
 def _format_structured_delivery_address(street_address, barangay, city, province, landmark=''):
@@ -1244,6 +1267,60 @@ def _log_staff_activity(actor, action, description, target_type='', target_id=No
     )
 
 
+class HaniliesPasswordResetRequestView(PasswordResetView):
+    template_name = 'registration/password_reset_form.html'
+    email_template_name = 'registration/password_reset_email.txt'
+    subject_template_name = 'registration/password_reset_subject.txt'
+    form_class = HaniliesPasswordResetForm
+    success_url = reverse_lazy('password_reset_done')
+
+    def form_valid(self, form):
+        matching_users = list(form.get_users(form.cleaned_data['email']))
+
+        for user in matching_users:
+            _log_staff_activity(
+                user,
+                'Password reset requested',
+                'Password reset instructions were requested for this account.',
+                target_type='User',
+                target_id=user.id,
+            )
+
+        return super().form_valid(form)
+
+
+class HaniliesPasswordResetDoneView(PasswordResetDoneView):
+    template_name = 'registration/password_reset_done.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['confirmation_message'] = (
+            'Password reset instructions have been sent if the email is registered.'
+        )
+        return context
+
+
+class HaniliesPasswordResetConfirmView(PasswordResetConfirmView):
+    template_name = 'registration/password_reset_confirm.html'
+    form_class = HaniliesSetPasswordForm
+    success_url = reverse_lazy('login')
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        _log_staff_activity(
+            form.user,
+            'Password reset completed',
+            'Password was successfully reset using the password reset link.',
+            target_type='User',
+            target_id=form.user.id,
+        )
+        messages.success(
+            self.request,
+            'Password successfully reset. You may now log in.',
+        )
+        return response
+
+
 def _get_payment_qr_reference_seed(request=None):
     if request is None:
         return 'public-preview'
@@ -1252,20 +1329,22 @@ def _get_payment_qr_reference_seed(request=None):
     return f'user:{request.user.pk}|session:{request.session.session_key}'
 
 
-def _build_checkout_gcash_preview(request, amount, order_label):
+def _build_checkout_gcash_preview(request, amount, order_label, payment_reference=''):
     reference_seed = _get_payment_qr_reference_seed(request)
     return build_gcash_checkout_details(
         amount,
         order_label,
         reference_seed=reference_seed,
+        payment_reference=payment_reference,
     )
 
 
-def _build_payment_qr_response(amount, order_label, reference_seed=''):
+def _build_payment_qr_response(amount, order_label, reference_seed='', payment_reference=''):
     preview = build_gcash_checkout_details(
         amount,
         order_label,
         reference_seed=reference_seed,
+        payment_reference=payment_reference,
     )
     return {
         'amount': preview['amount'],
@@ -1291,6 +1370,7 @@ def payment_qr_preview(request):
             amount,
             order_label,
             reference_seed=_get_payment_qr_reference_seed(request),
+            payment_reference=request.GET.get('payment_reference', '').strip(),
         )
     )
 
@@ -1832,7 +1912,10 @@ def stop_demo_bot(request):
 def _build_tracking_steps(order_kind, order_status):
     if order_kind == 'package':
         flow = [
-            ('pending', 'Order Placed', 'Your package order has been received.'),
+            ('pending', 'Pending Approval',
+             'Your package order has been received and is awaiting payment approval.'),
+            ('payment_retry', 'Awaiting Payment Resubmission',
+             'Please upload a new valid proof of payment so your package booking can continue.'),
             ('confirmed', 'Order Confirmed',
              'Your event package order and details are confirmed.'),
             ('preparing', 'Preparation Ongoing',
@@ -1845,7 +1928,10 @@ def _build_tracking_steps(order_kind, order_status):
         ]
     else:
         flow = [
-            ('pending', 'Order Placed', 'Your cake order has been received.'),
+            ('pending', 'Pending Approval',
+             'Your cake order has been received and is awaiting payment approval.'),
+            ('payment_retry', 'Awaiting Payment Resubmission',
+             'Please upload a new valid proof of payment so your cake order can continue.'),
             ('confirmed', 'Order Confirmed', 'Your cake order is confirmed.'),
             ('preparing', 'Preparing Cake',
              'The baking team is preparing your order.'),
@@ -1853,7 +1939,7 @@ def _build_tracking_steps(order_kind, order_status):
              'Your cake is ready for pickup or release.'),
             ('out_for_delivery', 'Out for Delivery',
              'Your order is already on the way.'),
-            ('delivered', 'Delivered', 'Your order has been delivered.'),
+            ('completed', 'Completed', 'Your order has been completed.'),
         ]
 
     reached = True
@@ -2528,6 +2614,62 @@ def order_tracking(request):
 
 @login_required
 @require_POST
+def resubmit_payment_proof(request, order_type, order_id, payment_id):
+    if order_type == 'cake':
+        order = get_object_or_404(
+            _get_customer_cake_orders_queryset(request.user), id=order_id)
+    elif order_type == 'package':
+        order = get_object_or_404(
+            _get_customer_package_orders_queryset(request.user), id=order_id)
+    else:
+        raise PermissionDenied
+
+    payment = get_object_or_404(
+        _get_order_payments_queryset(order),
+        id=payment_id,
+        payment_method='gcash',
+        payment_purpose__in=['deposit', 'full'],
+    )
+    tracking_url = f"{reverse('order_tracking')}?type={order_type}&id={order.id}"
+
+    if payment.payment_status != 'rejected' or order.order_status != 'payment_retry':
+        messages.error(request, 'This payment is not awaiting resubmission.')
+        return redirect(tracking_url)
+
+    reference_number = request.POST.get('reference_number', '').strip()
+    submitted_amount = request.POST.get('payment_amount', '').strip()
+    proof_image = request.FILES.get('proof_image')
+    normalized_reference, payment_error = _validate_checkout_payment_submission(
+        reference_number,
+        proof_image,
+        payment.amount,
+        payment.reference_number,
+        submitted_amount=submitted_amount,
+        exclude_payment_id=payment.id,
+    )
+    if payment_error:
+        messages.error(request, payment_error)
+        return redirect(tracking_url)
+
+    previous_status = payment.payment_status
+    if payment.proof_image:
+        payment.proof_image.delete(save=False)
+    payment.proof_image = proof_image
+    payment.payment_status = 'verifying'
+    payment.paid_at = None
+    payment.notes = 'Customer resubmitted proof of payment for review.'
+    payment.save(update_fields=['proof_image', 'payment_status',
+                 'paid_at', 'notes', 'updated_at'])
+    _create_payment_status_notification(payment, previous_status)
+    _set_order_pending_after_resubmission(order)
+
+    messages.success(
+        request, 'Payment submitted successfully. Please wait for verification.')
+    return redirect(tracking_url)
+
+
+@login_required
+@require_POST
 def request_order_cancellation(request, order_type, order_id):
     if order_type == 'cake':
         order = get_object_or_404(CakeOrder, id=order_id, user=request.user)
@@ -2586,10 +2728,11 @@ def cake_customize(request):
         cake_queryset, id=selected_cake_id) if selected_cake_id else cake_queryset.order_by('name').first()
     defaults = _get_profile_defaults(request.user)
     defaults.setdefault('delivery_date', '')
-    cake_order_window = _build_order_window(
-        CAKE_ORDER_MIN_LEAD_DAYS,
-        CAKE_ORDER_MAX_LEAD_DAYS,
-    )
+    cake_order_window = build_cake_booking_window()
+
+    cake_flow_key = _get_checkout_flow_key('cake', selected_cake.id)
+    cake_checkout_meta = _get_or_create_checkout_meta(
+        request, cake_flow_key, 'cake')
 
     if request.method == 'POST':
         defaults.update({
@@ -2610,6 +2753,7 @@ def cake_customize(request):
         payment_method = request.POST.get('payment_method', 'cod')
         deposit_amount, balance_due = _calculate_deposit_breakdown(total_price)
         reference_number = request.POST.get('reference_number', '').strip()
+        submitted_amount = request.POST.get('payment_amount', '').strip()
         proof_image = request.FILES.get('proof_image')
         delivery_date_value = request.POST.get('delivery_date', '').strip()
         expected_payment_amount = total_price if payment_method == 'gcash' else deposit_amount
@@ -2624,21 +2768,21 @@ def cake_customize(request):
             request.POST.get('delivery_city'),
             request.POST.get('delivery_landmark'),
         )
-        _, delivery_date_error = _validate_order_window(
-            delivery_date_value,
-            'Pickup / delivery date',
-            CAKE_ORDER_MIN_LEAD_DAYS,
-            CAKE_ORDER_MAX_LEAD_DAYS,
-        )
+        delivery_date_form = CakeBookingDateForm({
+            'delivery_date': delivery_date_value,
+        })
         normalized_reference, payment_error = _validate_checkout_payment_submission(
             reference_number,
             proof_image,
             expected_payment_amount,
+            cake_checkout_meta['payment_reference'],
+            submitted_amount=submitted_amount,
         )
         if address_error:
             messages.error(request, address_error)
-        elif delivery_date_error:
-            messages.error(request, delivery_date_error)
+        elif not delivery_date_form.is_valid():
+            messages.error(request, delivery_date_form.non_field_errors()[
+                           0] if delivery_date_form.non_field_errors() else delivery_date_form.errors['delivery_date'][0])
         elif payment_error:
             messages.error(request, payment_error)
         else:
@@ -2647,6 +2791,7 @@ def cake_customize(request):
                 cake=selected_cake,
                 quantity=quantity,
                 total_price=total_price,
+                order_number=cake_checkout_meta['order_number'],
                 payment_plan=payment_method,
                 deposit_amount=total_price if payment_method == 'gcash' else deposit_amount,
                 balance_due=Decimal(
@@ -2663,7 +2808,8 @@ def cake_customize(request):
                     'message_on_cake', '').strip(),
                 special_instructions=request.POST.get(
                     'special_instructions', '').strip(),
-                delivery_date=_parse_delivery_datetime(delivery_date_value),
+                delivery_date=_parse_delivery_datetime(
+                    delivery_date_form.cleaned_data['delivery_date'].isoformat()),
                 delivery_address=delivery_address_data['delivery_address'],
                 contact_name=request.POST.get('contact_name', '').strip(),
                 contact_phone=request.POST.get('contact_phone', '').strip(),
@@ -2684,11 +2830,12 @@ def cake_customize(request):
                 normalized_reference,
                 proof_image,
             )
+            _clear_checkout_meta(request, cake_flow_key)
             messages.success(
                 request,
                 (
-                    f'Cake order #{cake_order.id} was placed successfully. '
-                    f'Your {_get_payment_plan_label(payment_method).lower()} is now waiting for payment review.'
+                    f'Cake order {cake_order.order_number} was placed successfully. '
+                    'Payment submitted successfully. Please wait for verification.'
                 ),
             )
             return redirect(f"{reverse('order_tracking')}?type=cake&id={cake_order.id}")
@@ -2710,7 +2857,10 @@ def cake_customize(request):
             request,
             base_deposit_amount,
             cake_order_label,
+            payment_reference=cake_checkout_meta['payment_reference'],
         ),
+        'checkout_order_number': cake_checkout_meta['order_number'],
+        'checkout_payment_reference': cake_checkout_meta['payment_reference'],
         'payment_qr_preview_url': reverse('payment_qr_preview'),
     }
     return render(request, 'hanilies/cake_customize.html', context)
@@ -2839,10 +2989,10 @@ def package_payment(request):
     custom_total = _parse_decimal(draft.get('cake_custom_total', '0.00'))
     grand_total = subtotal + custom_total
     deposit_amount, balance_due = _calculate_deposit_breakdown(grand_total)
-    package_order_window = _build_order_window(
-        PACKAGE_ORDER_MIN_LEAD_DAYS,
-        PACKAGE_ORDER_MAX_LEAD_DAYS,
-    )
+    package_flow_key = _get_checkout_flow_key('package', package_id)
+    package_checkout_meta = _get_or_create_checkout_meta(
+        request, package_flow_key, 'package')
+    package_order_window = build_package_booking_window()
     form_values = {
         'event_date': '',
         'event_time': '',
@@ -2857,6 +3007,7 @@ def package_payment(request):
             'event_type', draft.get('event_type', selected_package.package_type))
         payment_method = request.POST.get('payment_method', 'cod')
         reference_number = request.POST.get('reference_number', '').strip()
+        submitted_amount = request.POST.get('payment_amount', '').strip()
         proof_image = request.FILES.get('proof_image')
         expected_payment_amount = grand_total if payment_method == 'gcash' else deposit_amount
         form_values.update({
@@ -2880,15 +3031,15 @@ def package_payment(request):
                 reference_number,
                 proof_image,
                 expected_payment_amount,
+                package_checkout_meta['payment_reference'],
+                submitted_amount=submitted_amount,
             )
-            _, event_date_error = _validate_order_window(
-                form_values['event_date'],
-                'Event date',
-                PACKAGE_ORDER_MIN_LEAD_DAYS,
-                PACKAGE_ORDER_MAX_LEAD_DAYS,
-            )
-            if event_date_error:
-                messages.error(request, event_date_error)
+            event_date_form = PackageBookingDateForm({
+                'event_date': form_values['event_date'],
+            })
+            if not event_date_form.is_valid():
+                messages.error(request, event_date_form.non_field_errors()[
+                               0] if event_date_form.non_field_errors() else event_date_form.errors['event_date'][0])
             elif payment_error:
                 messages.error(request, payment_error)
             else:
@@ -2896,12 +3047,13 @@ def package_payment(request):
                     user=request.user,
                     package=selected_package,
                     total_price=grand_total,
+                    order_number=package_checkout_meta['order_number'],
                     payment_plan=payment_method,
                     deposit_amount=grand_total if payment_method == 'gcash' else deposit_amount,
                     balance_due=Decimal(
                         '0.00') if payment_method == 'gcash' else balance_due,
                     event_type=event_type,
-                    event_date=form_values['event_date'],
+                    event_date=event_date_form.cleaned_data['event_date'],
                     event_time=form_values['event_time'] or None,
                     venue=form_values['venue'],
                     contact_name=form_values['contact_name'],
@@ -2922,12 +3074,13 @@ def package_payment(request):
                     proof_image,
                 )
 
+                _clear_checkout_meta(request, package_flow_key)
                 _clear_package_draft(request)
                 messages.success(
                     request,
                     (
-                        f'Package order #{package_order.id} was placed successfully. '
-                        f'Your {_get_payment_plan_label(payment_method).lower()} is now waiting for payment review.'
+                        f'Package order {package_order.order_number} was placed successfully. '
+                        'Payment submitted successfully. Please wait for verification.'
                     ),
                 )
                 return redirect(f"{reverse('order_tracking')}?type=package&id={package_order.id}")
@@ -2950,7 +3103,10 @@ def package_payment(request):
             request,
             deposit_amount,
             package_order_label,
+            payment_reference=package_checkout_meta['payment_reference'],
         ),
+        'checkout_order_number': package_checkout_meta['order_number'],
+        'checkout_payment_reference': package_checkout_meta['payment_reference'],
         'payment_qr_preview_url': reverse('payment_qr_preview'),
     }
     return render(request, 'hanilies/package_payment.html', context)
@@ -3047,7 +3203,7 @@ def admin_dashboard(request):
 def admin_cakes(request):
     """List all cakes"""
     access_denied = _require_admin_roles(
-        request, {'owner', 'admin', 'supervisor', 'baker'})
+        request, CAKE_PRODUCT_ROLE_VALUES)
     if access_denied:
         return access_denied
 
@@ -3065,7 +3221,7 @@ def admin_cakes(request):
 def admin_cake_add(request):
     """Add a new cake with image upload"""
     access_denied = _require_admin_roles(
-        request, {'owner', 'admin', 'supervisor', 'baker'})
+        request, CAKE_PRODUCT_ROLE_VALUES)
     if access_denied:
         return access_denied
 
@@ -3127,7 +3283,7 @@ def admin_cake_add(request):
 def admin_cake_edit(request, cake_id):
     """Edit a cake with image upload"""
     access_denied = _require_admin_roles(
-        request, {'owner', 'admin', 'supervisor', 'baker'})
+        request, CAKE_PRODUCT_ROLE_VALUES)
     if access_denied:
         return access_denied
 
@@ -3192,7 +3348,7 @@ def admin_cake_edit(request, cake_id):
 @login_required
 def admin_cake_delete(request, cake_id):
     """Archive a cake"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin', 'baker'})
+    access_denied = _require_admin_roles(request, CAKE_PRODUCT_ROLE_VALUES)
     if access_denied:
         return access_denied
 
@@ -3218,15 +3374,19 @@ def admin_cake_delete(request, cake_id):
 def admin_cake_orders(request):
     """List all cake orders"""
     access_denied = _require_admin_roles(
-        request, {'owner', 'admin', 'manager', 'supervisor', 'baker'})
+        request, CAKE_ORDER_ROLE_VALUES)
     if access_denied:
         return access_denied
 
     is_archived_view = _is_archived_admin_view(request)
     orders_queryset = CakeOrder.objects.select_related('user', 'cake').filter(
         is_archived=is_archived_view).order_by('-created_at')
+    if _get_user_role_value(request.user) == 'baker':
+        orders_queryset = orders_queryset.filter(order_status__in=[
+                                                 'confirmed', 'preparing', 'ready_for_pickup', 'out_for_delivery', 'completed'])
     orders, orders_pagination = _paginate_admin_queryset(
         request, orders_queryset, 'page')
+    _decorate_admin_orders_with_actions(orders, request)
     return render(request, 'admin/orders/cake_orders.html', {
         'orders': orders,
         'orders_pagination': orders_pagination,
@@ -3239,7 +3399,7 @@ def admin_cake_orders(request):
 def admin_cake_order_view(request, order_id):
     """View order details"""
     access_denied = _require_admin_roles(
-        request, {'owner', 'admin', 'manager', 'supervisor', 'baker', 'cashier'})
+        request, CAKE_ORDER_ROLE_VALUES)
     if access_denied:
         return access_denied
 
@@ -3248,6 +3408,9 @@ def admin_cake_order_view(request, order_id):
             'user', 'cake').prefetch_related('payments'),
         id=order_id,
     )
+    if not _can_view_order_for_role(request.user, order):
+        messages.error(request, 'Permission denied')
+        return redirect('admin_cake_orders')
     back_url = _get_safe_admin_return_url(request, 'admin_cake_orders')
     return render(request, 'admin/orders/cake_order_view.html', {
         'order': order,
@@ -3261,18 +3424,27 @@ def admin_cake_order_view(request, order_id):
 def admin_cake_order_update(request, order_id):
     """Update order status"""
     access_denied = _require_admin_roles(
-        request, {'owner', 'admin', 'manager', 'supervisor', 'baker'})
+        request, CAKE_ORDER_ROLE_VALUES)
     if access_denied:
         return access_denied
 
     if request.method == 'POST':
         order = get_object_or_404(CakeOrder, id=order_id)
+        if not _can_view_order_for_role(request.user, order):
+            messages.error(request, 'Permission denied')
+            return redirect(_get_safe_admin_return_url(request, 'admin_cake_orders'))
         previous_status = order.order_status
         new_status = request.POST.get('status')
+        allowed_statuses = {value for value,
+                            _ in _get_allowed_status_updates(request.user, order)}
 
         if new_status and new_status != previous_status:
+            if new_status not in allowed_statuses:
+                messages.error(
+                    request, 'You are not allowed to apply that status change.')
+                return redirect(_get_safe_admin_return_url(request, 'admin_cake_orders'))
             order.order_status = new_status
-            order.save()
+            order.save(update_fields=['order_status', 'updated_at'])
             if new_status == 'cancelled':
                 _cancel_outstanding_balance_payments(order)
             _create_order_status_notification(order, 'cake', previous_status)
@@ -3293,7 +3465,7 @@ def admin_cake_order_update(request, order_id):
 def admin_cake_order_delete(request, order_id):
     """Archive a cake order"""
     access_denied = _require_admin_roles(
-        request, {'owner', 'admin', 'manager', 'supervisor'})
+        request, FULL_ACCESS_ROLE_VALUES)
     if access_denied:
         return access_denied
 
@@ -3320,7 +3492,7 @@ def admin_cake_order_delete(request, order_id):
 def admin_packages(request):
     """List all packages"""
     access_denied = _require_admin_roles(
-        request, {'owner', 'admin', 'supervisor', 'packager'})
+        request, PACKAGE_PRODUCT_ROLE_VALUES)
     if access_denied:
         return access_denied
 
@@ -3338,7 +3510,7 @@ def admin_packages(request):
 def admin_package_add(request):
     """Add a new package"""
     access_denied = _require_admin_roles(
-        request, {'owner', 'admin', 'supervisor', 'packager'})
+        request, PACKAGE_PRODUCT_ROLE_VALUES)
     if access_denied:
         return access_denied
 
@@ -3387,7 +3559,7 @@ def admin_package_add(request):
 def admin_package_edit(request, package_id):
     """Edit a package"""
     access_denied = _require_admin_roles(
-        request, {'owner', 'admin', 'supervisor', 'packager'})
+        request, PACKAGE_PRODUCT_ROLE_VALUES)
     if access_denied:
         return access_denied
 
@@ -3449,7 +3621,7 @@ def admin_package_edit(request, package_id):
 def admin_package_delete(request, package_id):
     """Archive a package"""
     access_denied = _require_admin_roles(
-        request, {'owner', 'admin', 'packager'})
+        request, PACKAGE_PRODUCT_ROLE_VALUES)
     if access_denied:
         return access_denied
 
@@ -3476,15 +3648,19 @@ def admin_package_delete(request, package_id):
 def admin_package_orders(request):
     """List all package orders"""
     access_denied = _require_admin_roles(
-        request, {'owner', 'admin', 'manager', 'supervisor', 'packager'})
+        request, PACKAGE_ORDER_ROLE_VALUES)
     if access_denied:
         return access_denied
 
     is_archived_view = _is_archived_admin_view(request)
     orders_queryset = PackageOrder.objects.select_related('user', 'package').filter(
         is_archived=is_archived_view).order_by('-created_at')
+    if _get_user_role_value(request.user) == 'packager':
+        orders_queryset = orders_queryset.filter(order_status__in=[
+                                                 'confirmed', 'preparing', 'ready_for_pickup', 'out_for_delivery', 'completed'])
     orders, orders_pagination = _paginate_admin_queryset(
         request, orders_queryset, 'page')
+    _decorate_admin_orders_with_actions(orders, request)
     return render(request, 'admin/orders/package_orders.html', {
         'orders': orders,
         'orders_pagination': orders_pagination,
@@ -3497,7 +3673,7 @@ def admin_package_orders(request):
 def admin_package_order_view(request, order_id):
     """View package order details"""
     access_denied = _require_admin_roles(
-        request, {'owner', 'admin', 'manager', 'supervisor', 'packager', 'cashier'})
+        request, PACKAGE_ORDER_ROLE_VALUES)
     if access_denied:
         return access_denied
 
@@ -3506,6 +3682,9 @@ def admin_package_order_view(request, order_id):
             'user', 'package').prefetch_related('payments'),
         id=order_id,
     )
+    if not _can_view_order_for_role(request.user, order):
+        messages.error(request, 'Permission denied')
+        return redirect('admin_package_orders')
     back_url = _get_safe_admin_return_url(request, 'admin_package_orders')
     return render(request, 'admin/orders/package_order_view.html', {
         'order': order,
@@ -3519,18 +3698,27 @@ def admin_package_order_view(request, order_id):
 def admin_package_order_update(request, order_id):
     """Update package order status"""
     access_denied = _require_admin_roles(
-        request, {'owner', 'admin', 'manager', 'supervisor', 'packager'})
+        request, PACKAGE_ORDER_ROLE_VALUES)
     if access_denied:
         return access_denied
 
     if request.method == 'POST':
         order = get_object_or_404(PackageOrder, id=order_id)
+        if not _can_view_order_for_role(request.user, order):
+            messages.error(request, 'Permission denied')
+            return redirect(_get_safe_admin_return_url(request, 'admin_package_orders'))
         previous_status = order.order_status
         new_status = request.POST.get('status')
+        allowed_statuses = {value for value,
+                            _ in _get_allowed_status_updates(request.user, order)}
 
         if new_status and new_status != previous_status:
+            if new_status not in allowed_statuses:
+                messages.error(
+                    request, 'You are not allowed to apply that status change.')
+                return redirect(_get_safe_admin_return_url(request, 'admin_package_orders'))
             order.order_status = new_status
-            order.save()
+            order.save(update_fields=['order_status', 'updated_at'])
             if new_status == 'cancelled':
                 _cancel_outstanding_balance_payments(order)
             _create_order_status_notification(
@@ -3552,7 +3740,7 @@ def admin_package_order_update(request, order_id):
 def admin_package_order_delete(request, order_id):
     """Archive a package order"""
     access_denied = _require_admin_roles(
-        request, {'owner', 'admin', 'manager', 'supervisor'})
+        request, FULL_ACCESS_ROLE_VALUES)
     if access_denied:
         return access_denied
 
@@ -3579,7 +3767,7 @@ def admin_package_order_delete(request, order_id):
 def admin_payments(request):
     """List all payments"""
     access_denied = _require_admin_roles(
-        request, {'owner', 'admin', 'manager', 'supervisor', 'cashier'})
+        request, PAYMENT_REVIEW_ROLE_VALUES)
     if access_denied:
         return access_denied
 
@@ -3604,7 +3792,7 @@ def admin_payments(request):
     )
     verified_payments = payments.filter(payment_status='paid')
     rejected_payments = payments.filter(
-        payment_status__in=['failed', 'cancelled'])
+        payment_status__in=['rejected', 'cancelled'])
     pending_payments_page, pending_payments_pagination = _paginate_admin_queryset(
         request, pending_payments, 'review_page')
     balance_payments_page, balance_payments_pagination = _paginate_admin_queryset(
@@ -3628,6 +3816,7 @@ def admin_payments(request):
         'rejected_payments': rejected_payments,
         'rejected_payments_page': rejected_payments_page,
         'rejected_payments_pagination': rejected_payments_pagination,
+        'can_export_sales': _is_full_access_user(request.user),
         'is_archived_view': is_archived_view,
         'admin_menu': get_admin_menu(request)
     })
@@ -3637,7 +3826,7 @@ def admin_payments(request):
 def admin_payment_verify(request, payment_id):
     """Verify/Approve/Reject a payment"""
     access_denied = _require_admin_roles(
-        request, {'owner', 'admin', 'manager', 'supervisor', 'cashier'})
+        request, PAYMENT_REVIEW_ROLE_VALUES)
     if access_denied:
         return access_denied
 
@@ -3653,7 +3842,7 @@ def admin_payment_verify(request, payment_id):
             messages.success(
                 request, f'Payment #{payment.id} has been approved!')
         elif action == 'reject':
-            payment.payment_status = 'failed'
+            payment.payment_status = 'rejected'
             payment.paid_at = None
             messages.warning(
                 request, f'Payment #{payment.id} has been rejected.')
@@ -3672,6 +3861,7 @@ def admin_payment_verify(request, payment_id):
         if previous_status != payment.payment_status:
             _create_payment_status_notification(payment, previous_status)
             _sync_order_confirmation_from_payment(payment, request.user)
+            _sync_order_rejection_from_payment(payment, request.user)
             _log_staff_activity(
                 request.user,
                 'payment_status_updated',
@@ -3687,13 +3877,13 @@ def admin_payment_verify(request, payment_id):
 @require_POST
 def admin_payment_delete(request, payment_id):
     """Archive a completed payment from the admin panel"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin'})
+    access_denied = _require_admin_roles(request, FULL_ACCESS_ROLE_VALUES)
     if access_denied:
         return access_denied
 
     payment = get_object_or_404(Payment, id=payment_id)
 
-    if payment.payment_status not in ['paid', 'failed', 'cancelled']:
+    if payment.payment_status not in ['paid', 'rejected', 'cancelled']:
         messages.error(
             request, 'Only verified or rejected payments can be archived.')
         return redirect(_get_safe_admin_return_url(request, 'admin_payments'))
@@ -3716,7 +3906,7 @@ def admin_payment_delete(request, payment_id):
 def admin_payments_export(request, file_format):
     """Export paid sales records to XLSX or PDF."""
     access_denied = _require_admin_roles(
-        request, {'owner', 'admin', 'manager', 'supervisor', 'cashier'})
+        request, FULL_ACCESS_ROLE_VALUES)
     if access_denied:
         return access_denied
 
@@ -3970,7 +4160,7 @@ def admin_refund_update(request, refund_id):
 @login_required
 def admin_activity_logs(request):
     """List recorded staff audit trail entries"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin'})
+    access_denied = _require_admin_roles(request, AUDIT_TRAIL_ROLE_VALUES)
     if access_denied:
         return access_denied
 
@@ -3988,7 +4178,7 @@ def admin_activity_logs(request):
 @require_POST
 def admin_activity_log_delete(request, log_id):
     """Archive an audit trail entry from the admin panel"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin'})
+    access_denied = _require_admin_roles(request, AUDIT_TRAIL_ROLE_VALUES)
     if access_denied:
         return access_denied
 
@@ -4005,7 +4195,7 @@ def admin_activity_log_delete(request, log_id):
 @login_required
 def admin_users(request):
     """List all users"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin'})
+    access_denied = _require_admin_roles(request, USER_MANAGEMENT_ROLE_VALUES)
     if access_denied:
         return access_denied
 
@@ -4022,7 +4212,7 @@ def admin_users(request):
 @login_required
 def admin_user_add(request):
     """Create a customer or staff account from the admin panel."""
-    access_denied = _require_admin_roles(request, {'owner', 'admin'})
+    access_denied = _require_admin_roles(request, USER_MANAGEMENT_ROLE_VALUES)
     if access_denied:
         return access_denied
 
@@ -4083,7 +4273,7 @@ def admin_user_add(request):
 @login_required
 def admin_user_edit(request, user_id):
     """Edit user profile"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin'})
+    access_denied = _require_admin_roles(request, USER_MANAGEMENT_ROLE_VALUES)
     if access_denied:
         return access_denied
 
@@ -4122,7 +4312,7 @@ def admin_user_edit(request, user_id):
 @require_POST
 def admin_user_delete(request, user_id):
     """Archive a user from the admin panel"""
-    access_denied = _require_admin_roles(request, {'owner', 'admin'})
+    access_denied = _require_admin_roles(request, USER_MANAGEMENT_ROLE_VALUES)
     if access_denied:
         return access_denied
 

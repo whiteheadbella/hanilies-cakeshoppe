@@ -10,12 +10,14 @@
     <div class="module-header" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
         <h2><i class="fas fa-clock"></i> Payments For Review <span class="badge" style="background: #fef3c7; color: #d97706; margin-left: 10px;">{{ pending_payments_page.paginator.count }}</span></h2>
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            {% if can_export_sales %}
             <a href="{% url 'admin_payments_export' 'xlsx' %}" class="btn-preview">
                 <i class="fas fa-file-excel"></i> Export Sales XLSX
             </a>
             <a href="{% url 'admin_payments_export' 'pdf' %}" class="btn-preview" style="background: #9f1239;">
                 <i class="fas fa-file-pdf"></i> Export Sales PDF
             </a>
+            {% endif %}
             <a href="{% if is_archived_view %}{% url 'admin_payments' %}{% else %}{% url 'admin_payments' %}?archived=1{% endif %}" class="btn-preview" style="background: {% if is_archived_view %}#0f766e{% else %}#6b7280{% endif %};">
                 <i class="fas fa-box-archive"></i> {% if is_archived_view %}Back to Active{% else %}View Archived{% endif %}
             </a>
@@ -51,7 +53,7 @@
                     </td>
                     <td>
                         {% if payment.payment_status == 'verifying' %}
-                            <span class="badge" style="background: #dbeafe; color: #1d4ed8;">Verifying</span>
+                            <span class="badge" style="background: #dbeafe; color: #1d4ed8;">Under Verification</span>
                         {% else %}
                             <span class="badge" style="background: #fef3c7; color: #d97706;">Pending</span>
                         {% endif %}
@@ -235,7 +237,7 @@
                     </td>
                     <td>{{ payment.paid_at|date:"Y-m-d H:i"|default:payment.created_at|date:"Y-m-d H:i" }}</td>
                     <td>
-                        {% if request.user.is_superuser or request.user.profile.role == 'owner' or request.user.profile.role == 'admin' %}
+                        {% if can_export_sales %}
                         {% if not is_archived_view %}
                         <form method="post" action="{% url 'admin_payment_delete' payment.id %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" style="display: inline;">
                             {% csrf_token %}
@@ -245,7 +247,7 @@
                         </form>
                         {% endif %}
                         {% else %}
-                        <span class="text-muted small">Owner/Admin only</span>
+                        <span class="text-muted small">Full-access staff only</span>
                         {% endif %}
                     </td>
                 </tr>
@@ -320,7 +322,7 @@
                     </td>
                     <td>{{ payment.created_at|date:"Y-m-d H:i" }}</td>
                     <td>
-                        {% if request.user.is_superuser or request.user.profile.role == 'owner' or request.user.profile.role == 'admin' %}
+                        {% if can_export_sales %}
                         {% if not is_archived_view %}
                         <form method="post" action="{% url 'admin_payment_delete' payment.id %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" style="display: inline;">
                             {% csrf_token %}
@@ -330,7 +332,7 @@
                         </form>
                         {% endif %}
                         {% else %}
-                        <span class="text-muted small">Owner/Admin only</span>
+                        <span class="text-muted small">Full-access staff only</span>
                         {% endif %}
                     </td>
                 </tr>

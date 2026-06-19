@@ -11,8 +11,6 @@ services:
         value: "False"
       - key: DEMO_BOT_REMOTE_ENABLED
         value: "True"
-      - key: HANILIES_PAYMENT_PROOF_OCR_ENABLED
-        value: "False"
       - key: SECRET_KEY
         generateValue: true
       - key: ALLOWED_HOSTS

@@ -7,11 +7,11 @@ class UserProfile(models.Model):
     ROLE_CHOICES = [
         ('owner', 'Owner - Full Access'),
         ('admin', 'Admin - All Management'),
-        ('manager', 'Manager - Orders & Customers'),
-        ('supervisor', 'Supervisor - Operations Oversight'),
+        ('manager', 'Manager - Full Management Access'),
+        ('supervisor', 'Supervisor - Full Management Access'),
         ('baker', 'Baker - Cake Management'),
         ('packager', 'Packager - Package Management'),
-        ('cashier', 'Cashier - Payments Only'),
+        ('cashier', 'Cashier - Payments and Products'),
         ('customer', 'Customer - Customer Portal'),
     ]
 
@@ -97,12 +97,13 @@ class CakeOrder(models.Model):
     ]
 
     ORDER_STATUS = [
-        ('pending', 'Pending'),
+        ('pending', 'Pending Admin Approval'),
+        ('payment_retry', 'Awaiting Payment Resubmission'),
         ('confirmed', 'Confirmed'),
         ('preparing', 'Preparing'),
         ('ready_for_pickup', 'Ready for Pickup'),
         ('out_for_delivery', 'Out for Delivery'),
-        ('delivered', 'Delivered'),
+        ('completed', 'Completed'),
         ('cancelled', 'Cancelled'),
     ]
 
@@ -139,6 +140,8 @@ class CakeOrder(models.Model):
     contact_name = models.CharField(max_length=100, default='')
     contact_phone = models.CharField(max_length=20, default='')
     contact_email = models.EmailField(default='')
+    order_number = models.CharField(
+        max_length=32, unique=True, null=True, blank=True)
 
     is_archived = models.BooleanField(default=False)
     archived_at = models.DateTimeField(null=True, blank=True)
@@ -253,7 +256,8 @@ class PackageOrder(models.Model):
     ]
 
     ORDER_STATUS = [
-        ('pending', 'Pending'),
+        ('pending', 'Pending Admin Approval'),
+        ('payment_retry', 'Awaiting Payment Resubmission'),
         ('confirmed', 'Confirmed'),
         ('preparing', 'Preparing'),
         ('ready_for_pickup', 'Ready for Pickup'),
@@ -300,6 +304,8 @@ class PackageOrder(models.Model):
     cake_frosting = models.CharField(max_length=50, blank=True)
     cake_filling = models.CharField(max_length=50, blank=True)
     cake_message = models.CharField(max_length=200, blank=True)
+    order_number = models.CharField(
+        max_length=32, unique=True, null=True, blank=True)
 
     is_archived = models.BooleanField(default=False)
     archived_at = models.DateTimeField(null=True, blank=True)
@@ -335,9 +341,9 @@ class Payment(models.Model):
 
     PAYMENT_STATUS = [
         ('pending', 'Pending'),
-        ('verifying', 'Verifying'),
+        ('verifying', 'Under Verification'),
         ('paid', 'Paid'),
-        ('failed', 'Failed'),
+        ('rejected', 'Rejected'),
         ('cancelled', 'Cancelled'),
     ]
 

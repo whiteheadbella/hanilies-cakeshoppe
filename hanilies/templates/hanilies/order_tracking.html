@@ -217,6 +217,32 @@
                         </div>
                     </div>
 
+                    {% if selected_payment and selected_payment.payment_status == 'rejected' and selected_order.order_status == 'payment_retry' %}
+                    <div class="alert alert-warning mt-3 mb-0">
+                        <div class="fw-semibold mb-2">Payment proof rejected</div>
+                        <p class="small mb-3">Payment rejected. Please upload the correct proof of payment.</p>
+                        <form method="post" action="{% url 'resubmit_payment_proof' selected_order_type selected_order.id selected_payment.id %}" enctype="multipart/form-data" class="row g-3">
+                            {% csrf_token %}
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">GCash Reference Number</label>
+                                <input type="text" class="form-control" name="reference_number" value="{{ selected_payment.reference_number|default:'' }}" maxlength="32" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Amount Due</label>
+                                <input type="text" class="form-control" value="P{{ selected_payment.amount }}" readonly>
+                                <input type="hidden" name="payment_amount" value="{{ selected_payment.amount }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">New Proof of Payment</label>
+                                <input type="file" class="form-control" name="proof_image" accept="image/jpeg,image/png" required>
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">Resubmit Payment Proof</button>
+                            </div>
+                        </form>
+                    </div>
+                    {% endif %}
+
                     {% if selected_payment.proof_image or selected_customization.design_reference %}
                     <div class="row g-3 mt-3">
                         {% if selected_payment.proof_image %}
