@@ -52,7 +52,7 @@
                                 {% endif %}
                                 {% endfor %}
                                 {% if order.can_archive %}
-                                <option value="delete">Archive Order</option>
+                                <option value="delete">{{ order.archive_action_label }}</option>
                                 {% endif %}
                             </select>
                             <button type="submit" style="border: none; border-radius: 20px; padding: 4px 10px; background: linear-gradient(135deg, #FF69B4, #D4AF37); color: white; font-size: 0.8rem; font-weight: 600; cursor: pointer;">
@@ -102,7 +102,12 @@ function submitOrderAction(form) {
 
     if (selectedValue === 'delete') {
         const orderLabel = form.dataset.orderLabel || 'this order';
-        const confirmed = window.confirm(`Archive ${orderLabel}? You can still retrieve it from the archived view.`);
+        const actionLabel = actionField.options[actionField.selectedIndex].text || 'Archive Order';
+        const verb = actionLabel.toLowerCase().includes('restore') ? 'Restore' : 'Archive';
+        const message = verb === 'Restore'
+            ? `Restore ${orderLabel}? It will return to the active view.`
+            : `Archive ${orderLabel}? You can still retrieve it from the archived view.`;
+        const confirmed = window.confirm(message);
 
         if (!confirmed) {
             actionField.value = currentValue;

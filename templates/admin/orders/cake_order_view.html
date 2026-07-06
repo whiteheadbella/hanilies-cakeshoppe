@@ -36,6 +36,26 @@
             <p><strong>Created:</strong> {{ order.created_at|date:"Y-m-d H:i" }}</p>
         </section>
 
+        <section class="preview-panel preview-panel-wide">
+            <h3>Design Reference</h3>
+            {% if order_customization.design_reference %}
+            <div class="order-preview-media-grid">
+                <article class="order-preview-media-card">
+                    <div class="order-preview-media-meta">Cake Design Reference</div>
+                    <div class="image-zoom-frame order-preview-media-frame">
+                        <img src="{{ order_customization.design_reference.url }}" alt="Cake design reference for order {{ order.id }}" class="order-preview-media-image">
+                        <button type="button" class="image-zoom-trigger" data-zoom-src="{{ order_customization.design_reference.url }}" data-zoom-title="Cake Design Reference for Order #{{ order.id }}">
+                            <i class="fas fa-search-plus"></i> Zoom
+                        </button>
+                    </div>
+                    <p class="order-preview-media-caption">Customer-uploaded design reference from the Order Details section.</p>
+                </article>
+            </div>
+            {% else %}
+            <p class="order-preview-media-note">No design reference image was uploaded for this cake order.</p>
+            {% endif %}
+        </section>
+
         <section class="preview-panel">
             <h3>Customization</h3>
             <p><strong>Theme:</strong> {{ order.theme|default:"-" }}</p>

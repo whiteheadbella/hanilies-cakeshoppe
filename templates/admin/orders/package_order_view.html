@@ -38,6 +38,26 @@
         </section>
 
         <section class="preview-panel">
+            <h3>Design Reference</h3>
+            {% if order.design_reference %}
+            <div class="order-preview-media-grid">
+                <article class="order-preview-media-card">
+                    <div class="order-preview-media-meta">Package Design Reference</div>
+                    <div class="image-zoom-frame order-preview-media-frame">
+                        <img src="{{ order.design_reference.url }}" alt="Design reference for package order {{ order.id }}" class="order-preview-media-image">
+                        <button type="button" class="image-zoom-trigger" data-zoom-src="{{ order.design_reference.url }}" data-zoom-title="Package Design Reference for Order #{{ order.id }}">
+                            <i class="fas fa-search-plus"></i> Zoom
+                        </button>
+                    </div>
+                    <p class="order-preview-media-caption">Customer-uploaded design reference from the package order details flow.</p>
+                </article>
+            </div>
+            {% else %}
+            <p class="order-preview-media-note">No design reference image was uploaded for this package order.</p>
+            {% endif %}
+        </section>
+
+        <section class="preview-panel">
             <h3>Package Customization</h3>
             <p><strong>Selected Add-ons:</strong> {{ order.selected_addons|linebreaksbr|default:"-" }}</p>
             <p><strong>Cake Flavor:</strong> {{ order.cake_flavor|default:"-" }}</p>

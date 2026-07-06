@@ -232,6 +232,18 @@ class DemoBotCommandUnitTests(TestCase):
 
 
 class CakeModelUnitTests(TestCase):
+    def test_product_code_is_generated_from_record_id(self):
+        cake = Cake.objects.create(
+            name='Code Cake',
+            category='birthday',
+            description='Generated code test.',
+            price=Decimal('900.00'),
+            stock=2,
+            is_active=True,
+        )
+
+        self.assertEqual(cake.product_code, f'CK-{cake.id:04d}')
+
     def test_image_url_uses_static_fallback_when_no_upload_exists(self):
         cake = Cake.objects.create(
             name='Fallback Cake',
@@ -243,6 +255,20 @@ class CakeModelUnitTests(TestCase):
         )
 
         self.assertEqual(cake.image_url(), '/static/images/bg.png')
+
+
+class PackageModelUnitTests(TestCase):
+    def test_product_code_is_generated_from_record_id(self):
+        package = Package.objects.create(
+            name='Code Package',
+            package_type='christening',
+            description='Generated code test.',
+            base_price=Decimal('2500.00'),
+            status='active',
+            features='Backdrop',
+        )
+
+        self.assertEqual(package.product_code, f'PKG-{package.id:04d}')
 
 
 class CakeOrderViewUnitTests(TestCase):
@@ -522,6 +548,68 @@ class CakeOrderViewUnitTests(TestCase):
         self.assertEqual(CakeOrder.objects.count(), 0)
         self.assertEqual(Payment.objects.count(), 0)
 
+    def test_cake_customize_uses_product_specific_option_prices(self):
+        self.cake.customization_options = {
+            'sizes': [
+                {'label': 'Deluxe 10 inches', 'price': '250.00'},
+            ],
+            'decorations': [
+                {'key': 'sugar_pearls', 'label': 'Sugar Pearls', 'price': '180.00'},
+            ],
+            'flavors': [
+                {'label': 'Chocolate', 'price': '0.00'},
+            ],
+            'shapes': [
+                {'label': 'Round', 'price': '0.00'},
+            ],
+            'frostings': [
+                {'label': 'Buttercream', 'price': '0.00'},
+            ],
+            'fillings': [
+                {'label': 'Chocolate Ganache', 'price': '0.00'},
+            ],
+        }
+        self.cake.save(update_fields=['customization_options'])
+
+        response = self.client.get(reverse('cake_customize'), {
+            'cake_id': str(self.cake.id),
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Deluxe 10 inches')
+        self.assertContains(response, 'Sugar Pearls')
+
+        generated_reference = response.context['checkout_payment_reference']
+        response = self.client.post(reverse('cake_customize'), {
+            'cake_id': str(self.cake.id),
+            'quantity': '1',
+            'decorations': ['sugar_pearls'],
+            'payment_method': 'cod',
+            'payment_amount': '815.00',
+            'reference_number': generated_reference,
+            'proof_image': build_test_image_upload('custom-cake-proof.jpg', reference_number=generated_reference, amount='815.00'),
+            'theme': 'Birthday',
+            'size': 'Deluxe 10 inches',
+            'shape': 'Round',
+            'flavor': 'Chocolate',
+            'frosting': 'Buttercream',
+            'filling': 'Chocolate Ganache',
+            'delivery_date': self._cake_delivery_date(),
+            'delivery_street_address': '123 Rizal Street',
+            'delivery_barangay': 'Poblacion 1',
+            'delivery_city': 'Oroquieta City',
+            'contact_name': 'Cake Tester',
+            'contact_phone': '09123456789',
+            'contact_email': 'cake@example.com',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        cake_order = CakeOrder.objects.get()
+        self.assertEqual(cake_order.total_price, Decimal('1630.00'))
+        self.assertEqual(cake_order.size, 'Deluxe 10 inches')
+        self.assertEqual(CakeCustomization.objects.get(
+        ).additional_decorations, 'Sugar Pearls')
+
     def test_cake_customize_get_uses_30_day_booking_window(self):
         response = self.client.get(reverse('cake_customize'))
 
@@ -753,6 +841,7 @@ class PackageFlowUnitTests(TestCase):
             'payment_method': 'cod',
             'payment_amount': '3650.00',
             'reference_number': generated_reference,
+            'design_reference': build_test_image_upload('package-design-reference.jpg'),
             'proof_image': build_test_image_upload('package-proof.jpg', reference_number=generated_reference, amount='3650.00'),
         })
 
@@ -771,6 +860,7 @@ class PackageFlowUnitTests(TestCase):
         self.assertEqual(package_order.balance_due, Decimal('3650.00'))
         self.assertEqual(package_order.selected_addons, 'Chocofudge Brownies')
         self.assertEqual(package_order.cake_message, 'Happy Birthday Mia')
+        self.assertTrue(bool(package_order.design_reference))
         self.assertEqual(deposit_payment.payment_method, 'gcash')
         self.assertEqual(deposit_payment.payment_status, 'verifying')
         self.assertEqual(deposit_payment.amount, Decimal('3650.00'))
@@ -916,6 +1006,74 @@ class PackageFlowUnitTests(TestCase):
         self.assertEqual(PackageOrder.objects.count(), 0)
         self.assertEqual(Payment.objects.count(), 0)
         self.assertIn('package_order_draft', self.client.session)
+
+    def test_package_order_uses_product_specific_addons(self):
+        self.package.customization_options = {
+            'addons': [
+                {'key': 'confetti_box', 'label': 'Confetti Box', 'price': '125.00'},
+            ],
+        }
+        self.package.save(update_fields=['customization_options'])
+
+        response = self.client.post(reverse('package_order'), {
+            'package_id': str(self.package.id),
+            'event_type': 'kids_birthday',
+            'selected_addons': ['confetti_box'],
+        })
+
+        self.assertEqual(response.status_code, 302)
+        draft = self.client.session['package_order_draft']
+        self.assertEqual(draft['selected_addon_labels'], ['Confetti Box'])
+        self.assertEqual(draft['addons_total'], '125.00')
+        self.assertEqual(draft['base_total'], '6625.00')
+
+    def test_package_cake_customize_uses_product_specific_option_prices(self):
+        self.package.customization_options = {
+            'cake_sizes': [
+                {'value': 'signature', 'label': 'Signature Upgrade', 'price': '250.00'},
+            ],
+            'cake_flavors': [
+                {'label': 'Cookies and Cream', 'price': '75.00'},
+            ],
+            'cake_shapes': [
+                {'label': 'Round', 'price': '0.00'},
+            ],
+            'cake_frostings': [
+                {'label': 'Buttercream', 'price': '0.00'},
+            ],
+            'cake_fillings': [
+                {'label': 'Chocolate Ganache', 'price': '0.00'},
+            ],
+            'cake_decorations': [
+                {'key': 'mini_macaroons', 'label': 'Mini Macaroons', 'price': '150.00'},
+            ],
+        }
+        self.package.save(update_fields=['customization_options'])
+
+        session = self.client.session
+        session['package_order_draft'] = {
+            'package_id': str(self.package.id),
+            'base_total': '6500.00',
+        }
+        session.save()
+
+        response = self.client.post(reverse('package_cake_customize'), {
+            'theme': 'Birthday',
+            'cake_size': 'signature',
+            'flavor': 'Cookies and Cream',
+            'frosting': 'Buttercream',
+            'filling': 'Chocolate Ganache',
+            'shape': 'Round',
+            'cake_decorations': ['mini_macaroons'],
+            'message_on_cake': 'Celebrate',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        draft = self.client.session['package_order_draft']
+        self.assertEqual(draft['cake_size_label'], 'Signature Upgrade')
+        self.assertEqual(draft['cake_flavor'], 'Cookies and Cream')
+        self.assertEqual(draft['cake_decoration_labels'], ['Mini Macaroons'])
+        self.assertEqual(draft['cake_custom_total'], '475.00')
 
     def test_package_payment_rejects_event_date_beyond_30_days(self):
         session = self.client.session
@@ -1428,6 +1586,17 @@ class SecurityValidationTests(TestCase):
 
     def test_admin_dashboard_includes_weekly_and_monthly_sales_totals(self):
         now = timezone.now()
+        if now.day > 10:
+            month_scoped_paid_at = now - timedelta(days=10)
+        else:
+            month_scoped_paid_at = now.replace(
+                day=1,
+                hour=12,
+                minute=0,
+                second=0,
+                microsecond=0,
+            )
+
         Payment.objects.create(
             amount=Decimal('900.00'),
             payment_method='gcash',
@@ -1444,7 +1613,7 @@ class SecurityValidationTests(TestCase):
             amount=Decimal('600.00'),
             payment_method='gcash',
             payment_status='paid',
-            paid_at=now - timedelta(days=10),
+            paid_at=month_scoped_paid_at,
         )
         Payment.objects.create(
             amount=Decimal('2000.00'),
@@ -1462,14 +1631,18 @@ class SecurityValidationTests(TestCase):
 
         response = self.client.get(reverse('admin_dashboard'))
 
+        expected_week_total = Decimal('1300.00')
+        if month_scoped_paid_at.date() >= timezone.localdate(now) - timedelta(days=6):
+            expected_week_total += Decimal('600.00')
+
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            response.context['total_sales_week'], Decimal('1300.00'))
+            response.context['total_sales_week'], expected_week_total)
         self.assertEqual(
             response.context['total_sales_month'], Decimal('1900.00'))
         self.assertContains(response, "This Week's Sales")
         self.assertContains(response, "This Month's Sales")
-        self.assertContains(response, 'P1300.00')
+        self.assertContains(response, f'P{expected_week_total:.2f}')
         self.assertContains(response, 'P1900.00')
 
     def test_viewer_is_redirected_from_admin_payments(self):
@@ -1590,11 +1763,40 @@ class SecurityValidationTests(TestCase):
         response = self.client.get(reverse('admin_activity_logs'))
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Status')
+        self.assertContains(response, 'Active')
         self.assertContains(response, 'Archive')
         self.assertContains(
             response,
             reverse('admin_activity_log_delete', args=[log.id]),
         )
+        self.assertNotContains(response, 'View Details')
+
+    def test_admin_activity_logs_archived_view_renders_restore_action(self):
+        log = ActivityLog.objects.create(
+            actor=self.admin_user,
+            actor_role='Admin - All Management',
+            action='test_action',
+            target_type='payment',
+            target_id=1,
+            description='Created for restore action test.',
+            is_archived=True,
+            archived_at=timezone.now(),
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.get(
+            f"{reverse('admin_activity_logs')}?archived=1")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Status')
+        self.assertContains(response, 'Archived')
+        self.assertContains(response, 'Restore')
+        self.assertContains(
+            response,
+            reverse('admin_activity_log_delete', args=[log.id]),
+        )
+        self.assertNotContains(response, 'View Details')
 
     def test_admin_can_delete_activity_log_via_post_route(self):
         log = ActivityLog.objects.create(
@@ -1620,6 +1822,223 @@ class SecurityValidationTests(TestCase):
             reverse('admin_activity_logs')), log.description)
         self.assertContains(self.client.get(
             f"{reverse('admin_activity_logs')}?archived=1"), log.description)
+
+    def test_admin_can_restore_archived_activity_log_via_post_route(self):
+        log = ActivityLog.objects.create(
+            actor=self.admin_user,
+            actor_role='Admin - All Management',
+            action='test_action',
+            target_type='payment',
+            target_id=1,
+            description='Created for restore route test.',
+            is_archived=True,
+            archived_at=timezone.now(),
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.post(
+            reverse('admin_activity_log_delete', args=[log.id]),
+            {'next': f"{reverse('admin_activity_logs')}?archived=1"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.headers['Location'],
+            f"{reverse('admin_activity_logs')}?archived=1",
+        )
+        log.refresh_from_db()
+        self.assertFalse(log.is_archived)
+        self.assertIsNone(log.archived_at)
+        self.assertContains(self.client.get(
+            reverse('admin_activity_logs')), log.description)
+        self.assertNotContains(self.client.get(
+            f"{reverse('admin_activity_logs')}?archived=1"), log.description)
+
+    def test_admin_activity_logs_export_tab_renders_export_routes(self):
+        ActivityLog.objects.create(
+            actor=self.admin_user,
+            actor_role='Admin - All Management',
+            action='User login',
+            target_type='auth',
+            description='Admin signed in.',
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.get(reverse('admin_activity_logs'), {
+            'tab': 'export',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['current_tab'], 'export')
+        self.assertContains(response, '[Export Logs]')
+        self.assertContains(response, reverse(
+            'admin_activity_logs_export', args=['csv']))
+        self.assertContains(response, reverse(
+            'admin_activity_logs_export', args=['xlsx']))
+        self.assertContains(response, reverse('admin_activity_logs_print'))
+        self.assertContains(response, 'Login / Logout')
+        self.assertContains(response, 'Status')
+        self.assertNotContains(response, '<th>Target</th>', html=True)
+        self.assertNotContains(response, '<th>Module</th>', html=True)
+
+    def test_admin_activity_logs_export_tab_paginates_preview_rows(self):
+        for index in range(12):
+            ActivityLog.objects.create(
+                actor=self.admin_user,
+                actor_role='Admin - All Management',
+                action='User login',
+                target_type='auth',
+                description=f'Export preview row {index}',
+            )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.get(reverse('admin_activity_logs'), {
+            'tab': 'export',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Page 1 of 2')
+        self.assertContains(response, 'export_page=2')
+        self.assertNotContains(response, 'Export preview row 0')
+
+        response = self.client.get(reverse('admin_activity_logs'), {
+            'tab': 'export',
+            'export_page': 2,
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Page 2 of 2')
+        self.assertContains(response, 'Export preview row 0')
+        self.assertContains(response, 'Previous')
+
+    def test_admin_activity_logs_supports_multi_action_filter(self):
+        ActivityLog.objects.create(
+            actor=self.admin_user,
+            actor_role='Admin - All Management',
+            action='create_item',
+            target_type='products',
+            description='Created cake item.',
+        )
+        ActivityLog.objects.create(
+            actor=self.admin_user,
+            actor_role='Admin - All Management',
+            action='archive_item',
+            target_type='products',
+            description='Archived package item.',
+        )
+        ActivityLog.objects.create(
+            actor=self.admin_user,
+            actor_role='Admin - All Management',
+            action='delete_item',
+            target_type='products',
+            description='Deleted package item.',
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.get(reverse('admin_activity_logs'), [
+            ('action', 'create_item'),
+            ('action', 'archive_item'),
+        ])
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Created cake item.')
+        self.assertContains(response, 'Archived package item.')
+        self.assertNotContains(response, 'Deleted package item.')
+
+    def test_admin_activity_logs_print_limits_results_to_last_30_days(self):
+        recent_log = ActivityLog.objects.create(
+            actor=self.admin_user,
+            actor_role='Admin - All Management',
+            action='User login',
+            target_type='auth',
+            description='Recent activity log.',
+        )
+        old_log = ActivityLog.objects.create(
+            actor=self.admin_user,
+            actor_role='Admin - All Management',
+            action='User logout',
+            target_type='auth',
+            description='Old activity log.',
+        )
+        ActivityLog.objects.filter(id=recent_log.id).update(
+            created_at=timezone.now() - timedelta(days=3),
+        )
+        ActivityLog.objects.filter(id=old_log.id).update(
+            created_at=timezone.now() - timedelta(days=45),
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.get(reverse('admin_activity_logs_print'), {
+            'date_from': (timezone.localdate() - timedelta(days=60)).isoformat(),
+            'date_to': timezone.localdate().isoformat(),
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Recent activity log.')
+        self.assertNotContains(response, 'Old activity log.')
+        self.assertContains(response, 'Last 30 days')
+
+    def test_admin_activity_logs_export_xlsx_route_returns_file(self):
+        ActivityLog.objects.create(
+            actor=self.admin_user,
+            actor_role='Admin - All Management',
+            action='User login',
+            target_type='auth',
+            description='Recent activity log.',
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.get(
+            reverse('admin_activity_logs_export', args=['xlsx']))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response['Content-Type'],
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        self.assertIn('hanilies-audit-trail-', response['Content-Disposition'])
+
+    def test_admin_activity_logs_export_csv_route_returns_file(self):
+        ActivityLog.objects.create(
+            actor=self.admin_user,
+            actor_role='Admin - All Management',
+            action='User login',
+            target_type='auth',
+            description='Recent activity log.',
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.get(
+            reverse('admin_activity_logs_export', args=['csv']))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'text/csv')
+        self.assertIn('hanilies-audit-trail-', response['Content-Disposition'])
+        self.assertContains(response, 'Hanilies Cakeshoppe Audit Trail Report')
+
+    def test_admin_activity_log_delete_preserves_filtered_return_route(self):
+        log = ActivityLog.objects.create(
+            actor=self.admin_user,
+            actor_role='Admin - All Management',
+            action='test_action',
+            target_type='payment',
+            target_id=1,
+            description='Created for filtered return test.',
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.post(
+            reverse('admin_activity_log_delete', args=[log.id]),
+            {
+                'next': f"{reverse('admin_activity_logs')}?tab=export&action=test_action",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.headers['Location'],
+            f"{reverse('admin_activity_logs')}?tab=export&action=test_action",
+        )
 
     def test_admin_dashboard_shows_recent_audit_trail_entries(self):
         for index in range(6):
@@ -1663,6 +2082,46 @@ class SecurityValidationTests(TestCase):
             f"{reverse('admin_users')}?archived=1")
         self.assertNotIn(delete_user, list(active_response.context['users']))
         self.assertIn(delete_user, list(archived_response.context['users']))
+
+    def test_admin_users_archived_view_renders_restore_action(self):
+        archived_user = User.objects.create_user(
+            username='archived-user',
+            password='TestPass123!',
+            email='archived-user@example.com',
+            is_active=False,
+        )
+        UserProfile.objects.create(user=archived_user, role='customer')
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.get(f"{reverse('admin_users')}?archived=1")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Restore')
+        self.assertContains(response, reverse(
+            'admin_user_delete', args=[archived_user.id]))
+
+    def test_admin_can_restore_user_via_post_route(self):
+        restore_user = User.objects.create_user(
+            username='restore-me',
+            password='TestPass123!',
+            email='restore-me@example.com',
+            is_active=False,
+        )
+        UserProfile.objects.create(user=restore_user, role='customer')
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.post(
+            reverse('admin_user_delete', args=[restore_user.id]),
+            {'next': f"{reverse('admin_users')}?archived=1"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.headers['Location'],
+            f"{reverse('admin_users')}?archived=1",
+        )
+        restore_user.refresh_from_db()
+        self.assertTrue(restore_user.is_active)
 
     def test_admin_users_page_renders_delete_action_for_other_users(self):
         self.client.login(username='admin-user', password='TestPass123!')
@@ -1878,6 +2337,75 @@ class SecurityValidationTests(TestCase):
         self.assertContains(response, 'Customer Order Preview')
         self.assertContains(response, 'Happy Birthday')
 
+    @override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+    def test_cake_order_preview_renders_zoomable_design_reference(self):
+        cake = Cake.objects.create(
+            name='Zoom Cake',
+            category='birthday',
+            description='Cake with preview image.',
+            price=Decimal('1250.00'),
+            stock=3,
+            is_active=True,
+            image=build_test_image_upload('zoom-cake.jpg'),
+        )
+        order = CakeOrder.objects.create(
+            user=self.viewer,
+            cake=cake,
+            quantity=1,
+            total_price=Decimal('1250.00'),
+            contact_name='Viewer User',
+            contact_phone='09123456789',
+            contact_email='viewer@example.com',
+        )
+        CakeCustomization.objects.create(
+            cake_order=order,
+            design_reference=build_test_image_upload('design-reference.jpg'),
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.get(
+            reverse('admin_cake_order_view', args=[order.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Design Reference')
+        self.assertContains(response, 'Cake Design Reference for Order #')
+        self.assertContains(response, 'data-zoom-src=')
+        self.assertNotContains(response, 'Selected Cake Image')
+
+    @override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+    def test_package_order_preview_renders_zoomable_design_reference(self):
+        package = Package.objects.create(
+            name='Zoom Package',
+            package_type='christening',
+            description='Package with gallery images.',
+            base_price=Decimal('5500.00'),
+            status='active',
+        )
+        order = PackageOrder.objects.create(
+            user=self.viewer,
+            package=package,
+            total_price=Decimal('5500.00'),
+            event_type='christening',
+            event_date=date(2026, 6, 1),
+            event_time=time(10, 30),
+            venue='Oroquieta City Hall',
+            contact_name='Viewer User',
+            contact_phone='09123456789',
+            contact_email='viewer@example.com',
+            design_reference=build_test_image_upload(
+                'package-design-reference.jpg'),
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.get(
+            reverse('admin_package_order_view', args=[order.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Design Reference')
+        self.assertContains(response, 'Package Design Reference for Order #')
+        self.assertContains(response, 'data-zoom-src=')
+        self.assertNotContains(response, 'Customer Payment Proof')
+
     def test_supervisor_can_verify_payment_from_review_queue(self):
         order = CakeOrder.objects.create(
             user=self.viewer,
@@ -2048,6 +2576,71 @@ class SecurityValidationTests(TestCase):
             'admin_payment_delete', args=[rejected_payment.id]))
         self.assertContains(response, 'Archive')
 
+    def test_admin_payments_archived_view_renders_restore_actions(self):
+        order = CakeOrder.objects.create(
+            user=self.viewer,
+            cake=self.cake,
+            quantity=1,
+            total_price=Decimal('1750.00'),
+            contact_name='Viewer User',
+            contact_phone='09123456789',
+            contact_email='viewer@example.com',
+        )
+        payment = Payment.objects.create(
+            amount=Decimal('1750.00'),
+            payment_method='gcash',
+            payment_status='paid',
+            cake_order=order,
+            reference_number='RESTORE-001',
+            paid_at=timezone.now(),
+            is_archived=True,
+            archived_at=timezone.now(),
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.get(f"{reverse('admin_payments')}?archived=1")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Restore')
+        self.assertContains(response, reverse(
+            'admin_payment_delete', args=[payment.id]))
+
+    def test_admin_can_restore_payment_via_post_route(self):
+        order = CakeOrder.objects.create(
+            user=self.viewer,
+            cake=self.cake,
+            quantity=1,
+            total_price=Decimal('1650.00'),
+            contact_name='Viewer User',
+            contact_phone='09123456789',
+            contact_email='viewer@example.com',
+        )
+        payment = Payment.objects.create(
+            amount=Decimal('1650.00'),
+            payment_method='gcash',
+            payment_status='paid',
+            cake_order=order,
+            reference_number='RESTORE-002',
+            paid_at=timezone.now(),
+            is_archived=True,
+            archived_at=timezone.now(),
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.post(
+            reverse('admin_payment_delete', args=[payment.id]),
+            {'next': f"{reverse('admin_payments')}?archived=1"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.headers['Location'],
+            f"{reverse('admin_payments')}?archived=1",
+        )
+        payment.refresh_from_db()
+        self.assertFalse(payment.is_archived)
+        self.assertIsNone(payment.archived_at)
+
     def test_admin_can_export_sales_report_as_xlsx(self):
         order = CakeOrder.objects.create(
             user=self.viewer,
@@ -2216,6 +2809,55 @@ class SecurityValidationTests(TestCase):
         self.assertNotIn(order, list(active_response.context['orders']))
         self.assertIn(order, list(archived_response.context['orders']))
 
+    def test_admin_cake_orders_archived_view_renders_restore_action_option(self):
+        CakeOrder.objects.create(
+            user=self.viewer,
+            cake=self.cake,
+            quantity=1,
+            total_price=Decimal('999.00'),
+            order_status='confirmed',
+            contact_name='Viewer User',
+            contact_phone='09123456789',
+            contact_email='viewer@example.com',
+            is_archived=True,
+            archived_at=timezone.now(),
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.get(
+            f"{reverse('admin_cake_orders')}?archived=1")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Restore Order')
+
+    def test_admin_can_restore_cake_order_via_post_route(self):
+        order = CakeOrder.objects.create(
+            user=self.viewer,
+            cake=self.cake,
+            quantity=1,
+            total_price=Decimal('999.00'),
+            contact_name='Viewer User',
+            contact_phone='09123456789',
+            contact_email='viewer@example.com',
+            is_archived=True,
+            archived_at=timezone.now(),
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.post(
+            reverse('admin_cake_order_delete', args=[order.id]),
+            {'next': f"{reverse('admin_cake_orders')}?archived=1"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.headers['Location'],
+            f"{reverse('admin_cake_orders')}?archived=1",
+        )
+        order.refresh_from_db()
+        self.assertFalse(order.is_archived)
+        self.assertIsNone(order.archived_at)
+
     def test_admin_cake_orders_page_renders_delete_action_option(self):
         CakeOrder.objects.create(
             user=self.viewer,
@@ -2282,6 +2924,151 @@ class SecurityValidationTests(TestCase):
             f"{reverse('admin_package_orders')}?archived=1")
         self.assertNotIn(order, list(active_response.context['orders']))
         self.assertIn(order, list(archived_response.context['orders']))
+
+    def test_admin_package_orders_archived_view_renders_restore_action_option(self):
+        PackageOrder.objects.create(
+            user=self.viewer,
+            package=self.package,
+            total_price=Decimal('5000.00'),
+            order_status='confirmed',
+            event_type='christening',
+            event_date=date(2026, 6, 1),
+            event_time=time(10, 30),
+            venue='Oroquieta City Hall',
+            contact_name='Viewer User',
+            contact_phone='09123456789',
+            contact_email='viewer@example.com',
+            is_archived=True,
+            archived_at=timezone.now(),
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.get(
+            f"{reverse('admin_package_orders')}?archived=1")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Restore Order')
+
+    def test_admin_can_restore_package_order_via_post_route(self):
+        order = PackageOrder.objects.create(
+            user=self.viewer,
+            package=self.package,
+            total_price=Decimal('5000.00'),
+            event_type='christening',
+            event_date=date(2026, 6, 1),
+            event_time=time(10, 30),
+            venue='Oroquieta City Hall',
+            contact_name='Viewer User',
+            contact_phone='09123456789',
+            contact_email='viewer@example.com',
+            is_archived=True,
+            archived_at=timezone.now(),
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.post(
+            reverse('admin_package_order_delete', args=[order.id]),
+            {'next': f"{reverse('admin_package_orders')}?archived=1"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.headers['Location'],
+            f"{reverse('admin_package_orders')}?archived=1",
+        )
+        order.refresh_from_db()
+        self.assertFalse(order.is_archived)
+        self.assertIsNone(order.archived_at)
+
+    def test_admin_archived_cakes_page_renders_restore_action(self):
+        archived_cake = Cake.objects.create(
+            name='Archived Cake',
+            category='birthday',
+            description='Archived cake for restore test.',
+            price=Decimal('850.00'),
+            stock=2,
+            is_active=False,
+            is_archived=True,
+            archived_at=timezone.now(),
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.get(f"{reverse('admin_cakes')}?archived=1")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Restore')
+        self.assertContains(response, reverse(
+            'admin_cake_delete', args=[archived_cake.id]))
+
+    def test_admin_can_restore_cake_via_post_route(self):
+        archived_cake = Cake.objects.create(
+            name='Restore Cake',
+            category='birthday',
+            description='Cake restore test.',
+            price=Decimal('850.00'),
+            stock=2,
+            is_active=False,
+            is_archived=True,
+            archived_at=timezone.now(),
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.post(
+            reverse('admin_cake_delete', args=[archived_cake.id]),
+            {'next': f"{reverse('admin_cakes')}?archived=1"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.headers['Location'], f"{reverse('admin_cakes')}?archived=1")
+        archived_cake.refresh_from_db()
+        self.assertFalse(archived_cake.is_archived)
+        self.assertIsNone(archived_cake.archived_at)
+        self.assertTrue(archived_cake.is_active)
+
+    def test_admin_archived_packages_page_renders_restore_action(self):
+        archived_package = Package.objects.create(
+            name='Archived Package',
+            package_type='christening',
+            description='Archived package for restore test.',
+            base_price=Decimal('3500.00'),
+            status='inactive',
+            is_archived=True,
+            archived_at=timezone.now(),
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.get(f"{reverse('admin_packages')}?archived=1")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Restore')
+        self.assertContains(response, reverse(
+            'admin_package_delete', args=[archived_package.id]))
+
+    def test_admin_can_restore_package_via_post_route(self):
+        archived_package = Package.objects.create(
+            name='Restore Package',
+            package_type='christening',
+            description='Package restore test.',
+            base_price=Decimal('3500.00'),
+            status='inactive',
+            is_archived=True,
+            archived_at=timezone.now(),
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.post(
+            reverse('admin_package_delete', args=[archived_package.id]),
+            {'next': f"{reverse('admin_packages')}?archived=1"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.headers['Location'], f"{reverse('admin_packages')}?archived=1")
+        archived_package.refresh_from_db()
+        self.assertFalse(archived_package.is_archived)
+        self.assertIsNone(archived_package.archived_at)
+        self.assertEqual(archived_package.status, 'active')
 
     def test_admin_package_orders_page_renders_delete_action_option(self):
         PackageOrder.objects.create(
@@ -2764,6 +3551,7 @@ class AdminPackageImageUploadTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         package = Package.objects.get(name='Image Package')
+        self.assertEqual(package.product_code, f'PKG-{package.id:04d}')
         self.assertTrue(bool(package.image))
         self.assertIn('packages/', package.image.name)
         self.assertEqual(package.thumbnails.count(), 2)
@@ -2850,6 +3638,48 @@ class AdminPackageImageUploadTests(TestCase):
         self.assertNotEqual(updated_thumbnail.image.name,
                             original_thumbnail_name)
 
+    def test_admin_package_list_shows_generated_product_code(self):
+        package = Package.objects.create(
+            name='Visible Code Package',
+            package_type='christening',
+            description='Product code list rendering.',
+            base_price=Decimal('3200.00'),
+            status='active',
+            features='Backdrop',
+        )
+
+        response = self.client.get(reverse('admin_packages'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, package.product_code)
+
+
+class AdminProductCodeTests(TestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_user(
+            username='product-code-admin',
+            password='TestPass123!',
+            email='product-code-admin@example.com',
+        )
+        UserProfile.objects.create(user=self.admin_user, role='admin')
+        self.client.login(username='product-code-admin',
+                          password='TestPass123!')
+
+    def test_admin_cake_list_shows_generated_product_code(self):
+        cake = Cake.objects.create(
+            name='Visible Code Cake',
+            category='birthday',
+            description='Product code list rendering.',
+            price=Decimal('1100.00'),
+            stock=4,
+            is_active=True,
+        )
+
+        response = self.client.get(reverse('admin_cakes'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, cake.product_code)
+
     def test_admin_package_edit_can_remove_thumbnail_slot(self):
         package = Package.objects.create(
             name='Package With Thumbnail',
@@ -2886,6 +3716,33 @@ class AdminPackageImageUploadTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertFalse(package.thumbnails.exists())
+
+    def test_admin_package_add_saves_customization_options(self):
+        response = self.client.post(reverse('admin_package_add'), {
+            'name': 'Customizable Package',
+            'package_type': 'christening',
+            'description': 'Package with custom options.',
+            'base_price': '5000.00',
+            'status': 'active',
+            'features': 'Backdrop',
+            'customization_options_payload': json.dumps({
+                'addons': [
+                    {'label': 'Confetti Box', 'price': '125.00'},
+                ],
+                'cake_sizes': [
+                    {'label': 'Signature Upgrade', 'price': '250.00'},
+                ],
+            }),
+        })
+
+        self.assertEqual(response.status_code, 302)
+        package = Package.objects.get(name='Customizable Package')
+        self.assertEqual(
+            package.customization_options['addons'][0]['label'], 'Confetti Box')
+        self.assertEqual(
+            package.customization_options['addons'][0]['price'], '125.00')
+        self.assertEqual(
+            package.customization_options['cake_sizes'][0]['label'], 'Signature Upgrade')
 
 
 class PackageThumbnailCatalogTests(TestCase):
@@ -3121,6 +3978,55 @@ class AuthenticationFlowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, reverse('password_reset'))
         self.assertContains(response, 'Forgot Password?')
+
+    def test_login_view_creates_audit_log_entry(self):
+        user = User.objects.create_user(
+            username='audit-login-user',
+            email='audit-login@example.com',
+            password='TestPass123!',
+        )
+        UserProfile.objects.create(user=user, role='customer')
+
+        response = self.client.post(reverse('login'), {
+            'username': 'audit-login-user',
+            'password': 'TestPass123!',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers['Location'], reverse('profile'))
+        self.assertTrue(
+            ActivityLog.objects.filter(
+                actor=user,
+                action='User login',
+                target_type='user',
+                target_id=user.id,
+                description='User "audit-login-user" logged in.',
+            ).exists()
+        )
+
+    def test_logout_view_creates_audit_log_entry(self):
+        user = User.objects.create_user(
+            username='audit-logout-user',
+            email='audit-logout@example.com',
+            password='TestPass123!',
+        )
+        UserProfile.objects.create(user=user, role='customer')
+        self.client.login(username='audit-logout-user',
+                          password='TestPass123!')
+
+        response = self.client.get(reverse('logout'))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers['Location'], reverse('home'))
+        self.assertTrue(
+            ActivityLog.objects.filter(
+                actor=user,
+                action='User logout',
+                target_type='user',
+                target_id=user.id,
+                description='User "audit-logout-user" logged out.',
+            ).exists()
+        )
 
     def test_password_reset_request_supports_all_roles(self):
         roles = [role for role, _ in UserProfile.ROLE_CHOICES]

@@ -1,0 +1,263 @@
+<div class="product-option-builder mt-4" data-hidden-input-name="{{ hidden_input_name|default:'customization_options_payload' }}">
+    <input type="hidden" name="{{ hidden_input_name|default:'customization_options_payload' }}" class="product-option-builder-payload">
+
+    <div class="module-header mt-4">
+        <h2><i class="fas fa-wand-magic-sparkles"></i> {{ builder_title|default:'Customization Builder' }}</h2>
+        {% if builder_help %}
+        <p class="small text-muted mb-0">{{ builder_help }}</p>
+        {% endif %}
+    </div>
+
+    <div class="product-option-builder-grid">
+        <div>
+            {% for group in option_editor_groups %}
+            <section class="product-option-group" data-group-key="{{ group.key }}" data-item-label="{{ group.item_label }}" data-group-label="{{ group.label }}">
+                <div class="product-option-group__header">
+                    <div>
+                        <h3>{{ group.label }}</h3>
+                        <p>Add {{ group.item_label|lower }} choices and optional price adjustments.</p>
+                    </div>
+                    <button type="button" class="btn-secondary product-option-add">+ Add {{ group.item_label }}</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="product-option-table">
+                        <thead>
+                            <tr>
+                                <th>{{ group.item_label }} Name</th>
+                                <th>Price (P)</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in group.items %}
+                            <tr class="product-option-row">
+                                <td><input type="text" class="form-control" data-field="label" value="{{ item.label }}" placeholder="{{ group.item_label }} name"></td>
+                                <td><input type="number" class="form-control" data-field="price" value="{{ item.price }}" step="0.01" min="0" placeholder="0.00"></td>
+                                <td><button type="button" class="btn-link text-danger product-option-remove">Remove</button></td>
+                            </tr>
+                            {% empty %}
+                            <tr class="product-option-empty">
+                                <td colspan="3">No {{ group.label|lower }} added yet.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            {% endfor %}
+        </div>
+
+        <aside class="product-option-preview">
+            <h3>Live Preview</h3>
+            <p class="text-muted small">Preview how the option lists currently read while you edit them.</p>
+            <div class="product-option-preview__groups">
+                {% for group in option_editor_groups %}
+                <div class="product-option-preview__group" data-preview-group="{{ group.key }}">
+                    <div class="product-option-preview__title">{{ group.label }}</div>
+                    <div class="product-option-preview__body">No options added</div>
+                </div>
+                {% endfor %}
+            </div>
+        </aside>
+    </div>
+</div>
+
+<style>
+    .product-option-builder-grid {
+        display: grid;
+        gap: 24px;
+        grid-template-columns: minmax(0, 2.25fr) minmax(280px, 1fr);
+        margin-top: 24px;
+    }
+    .product-option-group {
+        margin-bottom: 22px;
+        padding: 18px;
+        border: 1px solid #f1d0d8;
+        border-radius: 18px;
+        background: linear-gradient(180deg, rgba(255, 245, 247, 0.92), #ffffff 72%);
+    }
+    .product-option-group__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+        margin-bottom: 12px;
+    }
+    .product-option-group__header h3,
+    .product-option-preview h3 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 700;
+    }
+    .product-option-group__header p,
+    .product-option-preview p {
+        margin: 4px 0 0;
+    }
+    .product-option-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .product-option-table th,
+    .product-option-table td {
+        padding: 10px 8px;
+        vertical-align: middle;
+    }
+    .product-option-table thead th {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        color: #d14a72;
+        border-bottom: 1px dashed #efb9c8;
+    }
+    .product-option-row + .product-option-row td,
+    .product-option-empty td {
+        border-top: 1px dashed #f2d6de;
+    }
+    .product-option-empty td {
+        color: #7c7f88;
+        text-align: center;
+        font-size: 0.92rem;
+    }
+    .product-option-preview {
+        position: sticky;
+        top: 100px;
+        align-self: start;
+        padding: 18px;
+        border: 1px solid #d7e0ea;
+        border-radius: 18px;
+        background: #f8fbff;
+    }
+    .product-option-preview__groups {
+        display: grid;
+        gap: 14px;
+    }
+    .product-option-preview__group {
+        padding: 12px 14px;
+        border-radius: 14px;
+        background: #ffffff;
+        border: 1px solid #e1e8f0;
+    }
+    .product-option-preview__title {
+        font-weight: 700;
+        color: #4d5160;
+        margin-bottom: 6px;
+    }
+    .product-option-preview__body {
+        color: #6b7280;
+        font-size: 0.93rem;
+        line-height: 1.45;
+    }
+    .product-option-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin: 0 8px 8px 0;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: #fff3f7;
+        color: #8a2448;
+        font-size: 0.85rem;
+    }
+    @media (max-width: 1100px) {
+        .product-option-builder-grid {
+            grid-template-columns: 1fr;
+        }
+        .product-option-preview {
+            position: static;
+        }
+    }
+</style>
+
+<script>
+    (function () {
+        function buildRow(group, item) {
+            const row = document.createElement('tr');
+            row.className = 'product-option-row';
+            row.innerHTML = `
+                <td><input type="text" class="form-control" data-field="label" value="${item.label}" placeholder="${group.dataset.itemLabel} name"></td>
+                <td><input type="number" class="form-control" data-field="price" value="${item.price}" step="0.01" min="0" placeholder="0.00"></td>
+                <td><button type="button" class="btn-link text-danger product-option-remove">Remove</button></td>
+            `;
+            return row;
+        }
+
+        function initializeBuilder(builder) {
+            const payloadInput = builder.querySelector('.product-option-builder-payload');
+            const groups = Array.from(builder.querySelectorAll('.product-option-group'));
+
+            function syncPreviewAndPayload() {
+                const payload = {};
+
+                groups.forEach((group) => {
+                    const groupKey = group.dataset.groupKey;
+                    const tbody = group.querySelector('tbody');
+                    const rows = Array.from(tbody.querySelectorAll('.product-option-row'));
+                    const items = rows.map((row) => {
+                        const label = row.querySelector('[data-field="label"]').value.trim();
+                        const priceInput = row.querySelector('[data-field="price"]').value.trim();
+                        const parsedPrice = Number.parseFloat(priceInput || '0');
+                        return {
+                            label,
+                            price: Number.isFinite(parsedPrice) ? parsedPrice.toFixed(2) : '0.00',
+                        };
+                    }).filter((item) => item.label);
+
+                    if (items.length) {
+                        payload[groupKey] = items;
+                    }
+
+                    const previewBody = builder.querySelector(`[data-preview-group="${groupKey}"] .product-option-preview__body`);
+                    if (!items.length) {
+                        previewBody.textContent = 'No options added';
+                    } else {
+                        previewBody.innerHTML = items.map((item) => {
+                            const hasPrice = parseFloat(item.price || '0') > 0;
+                            return `<span class="product-option-tag">${item.label}${hasPrice ? ` <strong>+ P${item.price}</strong>` : ''}</span>`;
+                        }).join('');
+                    }
+
+                    if (!rows.length) {
+                        tbody.innerHTML = `<tr class="product-option-empty"><td colspan="3">No ${group.dataset.groupLabel.toLowerCase()} added yet.</td></tr>`;
+                    }
+                });
+
+                payloadInput.value = JSON.stringify(payload);
+            }
+
+            builder.addEventListener('click', (event) => {
+                const addButton = event.target.closest('.product-option-add');
+                if (addButton) {
+                    const group = addButton.closest('.product-option-group');
+                    const tbody = group.querySelector('tbody');
+                    const emptyRow = tbody.querySelector('.product-option-empty');
+                    if (emptyRow) {
+                        emptyRow.remove();
+                    }
+                    tbody.appendChild(buildRow(group, { label: '', price: '0.00' }));
+                    syncPreviewAndPayload();
+                    return;
+                }
+
+                const removeButton = event.target.closest('.product-option-remove');
+                if (removeButton) {
+                    const group = removeButton.closest('.product-option-group');
+                    removeButton.closest('.product-option-row').remove();
+                    if (!group.querySelector('.product-option-row')) {
+                        const tbody = group.querySelector('tbody');
+                        tbody.innerHTML = `<tr class="product-option-empty"><td colspan="3">No ${group.dataset.groupLabel.toLowerCase()} added yet.</td></tr>`;
+                    }
+                    syncPreviewAndPayload();
+                }
+            });
+
+            builder.addEventListener('input', (event) => {
+                if (event.target.matches('[data-field="label"], [data-field="price"]')) {
+                    syncPreviewAndPayload();
+                }
+            });
+
+            syncPreviewAndPayload();
+        }
+
+        document.querySelectorAll('.product-option-builder').forEach(initializeBuilder);
+    }());
+</script>

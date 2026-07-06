@@ -673,12 +673,156 @@
             </div>
         </main>
     </div>
+
+    <div class="modal fade" id="imageZoomModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-xl modal-fullscreen-md-down">
+            <div class="modal-content image-zoom-modal-content border-0">
+                <div class="modal-header border-0 pb-0 align-items-center">
+                    <div class="d-flex align-items-center gap-3">
+                        <button type="button" class="image-zoom-close" data-bs-dismiss="modal" aria-label="Close">x</button>
+                        <h5 class="modal-title mb-0" id="imageZoomModalLabel">Image Preview</h5>
+                    </div>
+                    <div class="image-zoom-counter" id="imageZoomModalCounter">1 / 1</div>
+                </div>
+                <div class="modal-body pt-2">
+                    <div class="image-zoom-stage">
+                        <img id="imageZoomModalPreview" src="" alt="Zoomed product preview" class="img-fluid rounded-4 w-100">
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0 justify-content-center gap-3">
+                    <button type="button" class="image-zoom-nav" id="imageZoomModalPrev">
+                        <i class="fas fa-caret-left"></i> Previous
+                    </button>
+                    <button type="button" class="image-zoom-nav" id="imageZoomModalNext">
+                        Next <i class="fas fa-caret-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
     
     {% include 'includes/demo_panel.html' %}
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{% static 'js/demo-panel.js' %}"></script>
     <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var imageZoomModalElement = document.getElementById('imageZoomModal');
+            if (!imageZoomModalElement) {
+                return;
+            }
+
+            var imageZoomModal = new bootstrap.Modal(imageZoomModalElement);
+            var imageZoomModalLabel = document.getElementById('imageZoomModalLabel');
+            var imageZoomModalPreview = document.getElementById('imageZoomModalPreview');
+            var imageZoomModalCounter = document.getElementById('imageZoomModalCounter');
+            var imageZoomModalPrev = document.getElementById('imageZoomModalPrev');
+            var imageZoomModalNext = document.getElementById('imageZoomModalNext');
+            var activeZoomItems = [];
+            var activeZoomIndex = 0;
+
+            function buildZoomItemsFromTrigger(trigger) {
+                var zoomImages = (trigger.dataset.zoomImages || '').split('|').filter(Boolean);
+                if (zoomImages.length) {
+                    return zoomImages.map(function (imageSrc) {
+                        return {
+                            src: imageSrc,
+                            title: trigger.dataset.zoomTitle || 'Image Preview',
+                        };
+                    });
+                }
+
+                var zoomGallery = trigger.dataset.zoomGallery;
+                if (zoomGallery) {
+                    var galleryTriggers = Array.from(document.querySelectorAll('.image-zoom-trigger[data-zoom-gallery="' + zoomGallery + '"]'));
+                    var galleryItems = galleryTriggers
+                        .map(function (galleryTrigger) {
+                            return {
+                                src: galleryTrigger.dataset.zoomSrc || '',
+                                title: galleryTrigger.dataset.zoomTitle || 'Image Preview',
+                            };
+                        })
+                        .filter(function (item) {
+                            return Boolean(item.src);
+                        });
+
+                    if (galleryItems.length) {
+                        activeZoomIndex = Math.max(galleryTriggers.indexOf(trigger), 0);
+                        return galleryItems;
+                    }
+                }
+
+                if (trigger.dataset.zoomSrc) {
+                    return [{
+                        src: trigger.dataset.zoomSrc,
+                        title: trigger.dataset.zoomTitle || 'Image Preview',
+                    }];
+                }
+
+                return [];
+            }
+
+            function renderZoomImage() {
+                var imageCount = activeZoomItems.length || 1;
+                var activeItem = activeZoomItems[activeZoomIndex] || { src: '', title: 'Image Preview' };
+
+                imageZoomModalLabel.textContent = activeItem.title || 'Image Preview';
+                imageZoomModalPreview.src = activeItem.src || '';
+                imageZoomModalPreview.alt = activeItem.title || 'Zoomed product preview';
+                imageZoomModalCounter.textContent = (activeZoomIndex + 1) + ' / ' + imageCount;
+                imageZoomModalPrev.disabled = imageCount <= 1;
+                imageZoomModalNext.disabled = imageCount <= 1;
+            }
+
+            imageZoomModalPrev.addEventListener('click', function () {
+                if (activeZoomItems.length <= 1) {
+                    return;
+                }
+
+                activeZoomIndex = (activeZoomIndex - 1 + activeZoomItems.length) % activeZoomItems.length;
+                renderZoomImage();
+            });
+
+            imageZoomModalNext.addEventListener('click', function () {
+                if (activeZoomItems.length <= 1) {
+                    return;
+                }
+
+                activeZoomIndex = (activeZoomIndex + 1) % activeZoomItems.length;
+                renderZoomImage();
+            });
+
+            document.addEventListener('click', function (event) {
+                var trigger = event.target.closest('.image-zoom-trigger');
+                if (!trigger) {
+                    return;
+                }
+
+                event.preventDefault();
+                activeZoomItems = buildZoomItemsFromTrigger(trigger);
+                if (!activeZoomItems.length) {
+                    return;
+                }
+                if (!trigger.dataset.zoomGallery) {
+                    activeZoomIndex = parseInt(trigger.dataset.zoomStartIndex || '0', 10);
+                }
+                if (Number.isNaN(activeZoomIndex) || activeZoomIndex < 0 || activeZoomIndex >= activeZoomItems.length) {
+                    activeZoomIndex = 0;
+                }
+                renderZoomImage();
+                imageZoomModal.show();
+            });
+
+            imageZoomModalElement.addEventListener('hidden.bs.modal', function () {
+                activeZoomItems = [];
+                activeZoomIndex = 0;
+                imageZoomModalPreview.src = '';
+                imageZoomModalPreview.alt = 'Zoomed product preview';
+                imageZoomModalLabel.textContent = 'Image Preview';
+                imageZoomModalCounter.textContent = '1 / 1';
+            });
+        });
+
         function parseTableValue(value) {
             const normalized = value.replace(/[\n\r]+/g, ' ').replace(/\s+/g, ' ').trim();
             const numericValue = normalized.replace(/[#,PHPphp\u20b1,]/g, '').trim();

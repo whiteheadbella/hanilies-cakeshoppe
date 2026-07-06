@@ -56,10 +56,10 @@
 
                         <h6 class="fw-bold mb-3">Optional Add-ons</h6>
                         <div class="row g-3 mb-4">
-                            {% for key, option in addon_options.items %}
+                            {% for option in addon_options %}
                             <div class="col-md-6">
                                 <label class="form-check border rounded p-3 h-100">
-                                    <input class="form-check-input package-addon" type="checkbox" name="selected_addons" value="{{ key }}" data-price="{{ option.price }}" {% if key in draft.selected_addons %}checked{% endif %}>
+                                    <input class="form-check-input package-addon" type="checkbox" name="selected_addons" value="{{ option.key }}" data-price="{{ option.price }}" {% if option.key in draft.selected_addons %}checked{% endif %}>
                                     <span class="form-check-label ms-2">
                                         <strong>{{ option.label }}</strong><br>
                                         <span class="text-muted">+ P{{ option.price }}</span>

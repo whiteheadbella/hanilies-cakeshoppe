@@ -4,6 +4,7 @@ import re
 import signal
 import subprocess
 import sys
+import csv
 from urllib.parse import urlencode
 from io import BytesIO
 
@@ -25,6 +26,7 @@ from django.core.exceptions import PermissionDenied
 from django.db.models import Sum, Count, Q
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.utils.text import slugify
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_POST
 from PIL import Image, UnidentifiedImageError
@@ -99,6 +101,136 @@ PUBLIC_EVENT_TYPES = [
     choice for choice in PackageOrder.EVENT_TYPES if choice[0] != 'corporate'
 ]
 PUBLIC_EVENT_TYPE_VALUES = {value for value, _ in PUBLIC_EVENT_TYPES}
+
+CAKE_CUSTOMIZATION_GROUP_SPECS = [
+    {'key': 'flavors', 'label': 'Flavors',
+        'item_label': 'Flavor', 'input_type': 'select'},
+    {'key': 'sizes', 'label': 'Sizes', 'item_label': 'Size', 'input_type': 'select'},
+    {'key': 'shapes', 'label': 'Shapes',
+        'item_label': 'Shape', 'input_type': 'select'},
+    {'key': 'frostings', 'label': 'Frosting',
+        'item_label': 'Frosting', 'input_type': 'select'},
+    {'key': 'fillings', 'label': 'Fillings',
+        'item_label': 'Filling', 'input_type': 'select'},
+    {'key': 'decorations', 'label': 'Decorations',
+        'item_label': 'Decoration', 'input_type': 'checkbox'},
+]
+
+PACKAGE_CUSTOMIZATION_GROUP_SPECS = [
+    {'key': 'addons', 'label': 'Package Add-ons',
+        'item_label': 'Add-on', 'input_type': 'checkbox'},
+    {'key': 'cake_sizes', 'label': 'Cake Size Upgrades',
+        'item_label': 'Cake Size', 'input_type': 'select'},
+    {'key': 'cake_shapes', 'label': 'Cake Shapes',
+        'item_label': 'Cake Shape', 'input_type': 'select'},
+    {'key': 'cake_flavors', 'label': 'Cake Flavors',
+        'item_label': 'Cake Flavor', 'input_type': 'select'},
+    {'key': 'cake_frostings', 'label': 'Cake Frosting',
+        'item_label': 'Cake Frosting', 'input_type': 'select'},
+    {'key': 'cake_fillings', 'label': 'Cake Fillings',
+        'item_label': 'Cake Filling', 'input_type': 'select'},
+    {'key': 'cake_decorations', 'label': 'Cake Decorations',
+        'item_label': 'Cake Decoration', 'input_type': 'checkbox'},
+]
+
+DEFAULT_CAKE_CUSTOMIZATION_OPTIONS = {
+    'flavors': [
+        {'label': 'Chocolate', 'price': '0.00'},
+        {'label': 'Vanilla', 'price': '0.00'},
+        {'label': 'Red Velvet', 'price': '0.00'},
+        {'label': 'Ube', 'price': '0.00'},
+        {'label': 'Mocha', 'price': '0.00'},
+        {'label': 'Strawberry', 'price': '0.00'},
+    ],
+    'sizes': [
+        {'label': '6 inches', 'price': '0.00'},
+        {'label': '8 inches', 'price': '0.00'},
+        {'label': '10 inches', 'price': '0.00'},
+        {'label': '2 Tier', 'price': '0.00'},
+        {'label': '3 Tier', 'price': '0.00'},
+    ],
+    'shapes': [
+        {'label': 'Round', 'price': '0.00'},
+        {'label': 'Square', 'price': '0.00'},
+        {'label': 'Heart', 'price': '0.00'},
+        {'label': 'Custom', 'price': '0.00'},
+    ],
+    'frostings': [
+        {'label': 'Buttercream', 'price': '0.00'},
+        {'label': 'Cream Cheese', 'price': '0.00'},
+        {'label': 'Ganache', 'price': '0.00'},
+        {'label': 'Fondant', 'price': '0.00'},
+    ],
+    'fillings': [
+        {'label': 'Chocolate Ganache', 'price': '0.00'},
+        {'label': 'Strawberry Jam', 'price': '0.00'},
+        {'label': 'Cookies and Cream', 'price': '0.00'},
+        {'label': 'Mango', 'price': '0.00'},
+    ],
+    'decorations': [
+        {'key': 'fresh_flowers', 'label': 'Fresh Flowers', 'price': '300.00'},
+        {'key': 'edible_gold', 'label': 'Edible Gold Leaf', 'price': '500.00'},
+        {'key': 'cake_topper', 'label': 'Custom Cake Topper', 'price': '250.00'},
+        {'key': 'sprinkles', 'label': 'Edible Sprinkles', 'price': '100.00'},
+        {'key': 'fresh_fruits', 'label': 'Fresh Fruit Toppings', 'price': '200.00'},
+    ],
+}
+
+DEFAULT_PACKAGE_CUSTOMIZATION_OPTIONS = {
+    'addons': [
+        {'key': 'brownies', 'label': 'Chocofudge Brownies', 'price': '300.00'},
+        {'key': 'cupcakes', 'label': 'Themed Cupcakes', 'price': '350.00'},
+        {'key': 'cookies', 'label': 'Chocochip Cookies', 'price': '250.00'},
+        {'key': 'marshmallow', 'label': 'Marshmallow on Stick', 'price': '200.00'},
+        {'key': 'cake_pop', 'label': 'Cake Pop', 'price': '250.00'},
+        {'key': 'gummies', 'label': 'Assorted Gummies', 'price': '150.00'},
+        {'key': 'wafer', 'label': 'Wafer Sticks', 'price': '180.00'},
+        {'key': 'chocolate_fountain', 'label': 'Chocolate Fountain', 'price': '1500.00'},
+        {'key': 'lolli_balloon', 'label': 'Lolli Balloon with Print', 'price': '50.00'},
+        {'key': 'pillar_balloon', 'label': 'Pillar Balloon', 'price': '100.00'},
+        {'key': 'centerpiece', 'label': 'Centerpiece Balloon', 'price': '150.00'},
+    ],
+    'cake_sizes': [
+        {'value': 'standard', 'label': 'Standard package cake size', 'price': '0.00'},
+        {'value': 'upgrade_10', 'label': 'Upgrade to 10 inches', 'price': '500.00'},
+        {'value': 'upgrade_12', 'label': 'Upgrade to 12 inches', 'price': '900.00'},
+        {'value': 'extra_layer', 'label': 'Add extra layer', 'price': '1500.00'},
+    ],
+    'cake_shapes': [
+        {'label': 'Round', 'price': '0.00'},
+        {'label': 'Square', 'price': '0.00'},
+        {'label': 'Heart', 'price': '0.00'},
+        {'label': 'Custom', 'price': '0.00'},
+    ],
+    'cake_flavors': [
+        {'label': 'Chocolate', 'price': '0.00'},
+        {'label': 'Vanilla', 'price': '0.00'},
+        {'label': 'Red Velvet', 'price': '0.00'},
+        {'label': 'Ube', 'price': '0.00'},
+        {'label': 'Mocha', 'price': '0.00'},
+        {'label': 'Strawberry', 'price': '0.00'},
+    ],
+    'cake_frostings': [
+        {'label': 'Buttercream', 'price': '0.00'},
+        {'label': 'Cream Cheese', 'price': '0.00'},
+        {'label': 'Ganache', 'price': '0.00'},
+        {'label': 'Fondant', 'price': '0.00'},
+    ],
+    'cake_fillings': [
+        {'label': 'Chocolate Ganache', 'price': '0.00'},
+        {'label': 'Strawberry Jam', 'price': '0.00'},
+        {'label': 'Cookies and Cream', 'price': '0.00'},
+        {'label': 'Mango', 'price': '0.00'},
+    ],
+    'cake_decorations': [
+        {'key': 'edible_gold', 'label': 'Edible Gold Leaf', 'price': '500.00'},
+        {'key': 'fresh_flowers', 'label': 'Fresh Flowers', 'price': '300.00'},
+        {'key': 'custom_topper', 'label': 'Custom Cake Topper', 'price': '250.00'},
+        {'key': 'edible_image', 'label': 'Edible Image Print', 'price': '200.00'},
+        {'key': 'sprinkles', 'label': 'Edible Sprinkles', 'price': '100.00'},
+        {'key': 'fresh_fruits', 'label': 'Fresh Fruit Toppings', 'price': '200.00'},
+    ],
+}
 
 PACKAGE_ADDON_OPTIONS = {
     'brownies': {'label': 'Chocofudge Brownies', 'price': Decimal('300.00')},
@@ -407,6 +539,37 @@ def _validate_checkout_payment_submission(reference_number, proof_image, expecte
         return None, 'Only JPG, JPEG, and PNG files are allowed.'
 
     return normalized_expected_reference, None
+
+
+def _validate_optional_design_reference_upload(uploaded_image):
+    if uploaded_image is None:
+        return None
+
+    if getattr(uploaded_image, 'size', 0) > PAYMENT_PROOF_MAX_BYTES:
+        return 'The uploaded design reference must be 5 MB or smaller.'
+
+    content_type = str(
+        getattr(uploaded_image, 'content_type', '') or '').lower()
+    if content_type and content_type not in PAYMENT_PROOF_ALLOWED_CONTENT_TYPES:
+        return 'Only JPG, JPEG, and PNG files are allowed for the design reference.'
+
+    try:
+        uploaded_image.seek(0)
+        with Image.open(uploaded_image) as image:
+            image.verify()
+            image_format = (image.format or '').upper()
+    except (UnidentifiedImageError, OSError, ValueError):
+        return 'Only JPG, JPEG, and PNG files are allowed for the design reference.'
+    finally:
+        try:
+            uploaded_image.seek(0)
+        except (AttributeError, OSError, ValueError):
+            pass
+
+    if image_format not in PAYMENT_PROOF_ALLOWED_FORMATS:
+        return 'Only JPG, JPEG, and PNG files are allowed for the design reference.'
+
+    return None
 
 
 def _get_user_role_value(user):
@@ -756,9 +919,14 @@ def _can_view_order_for_role(user, order):
 
 def _decorate_admin_orders_with_actions(orders, request):
     for order in orders:
-        order.allowed_status_updates = _get_allowed_status_updates(
-            request.user, order)
+        if order.is_archived:
+            order.allowed_status_updates = []
+        else:
+            order.allowed_status_updates = _get_allowed_status_updates(
+                request.user, order)
         order.can_archive = _is_full_access_user(request.user)
+        order.archive_action_label = 'Restore Order' if order.is_archived else 'Archive Order'
+        order.archive_confirm_label = 'Restore' if order.is_archived else 'Archive'
     return orders
 
 
@@ -887,6 +1055,26 @@ def _archive_model_instance(instance, **field_overrides):
         instance.save(update_fields=list(dict.fromkeys(update_fields)))
 
 
+def _restore_model_instance(instance, **field_overrides):
+    update_fields = []
+    if hasattr(instance, 'is_archived'):
+        instance.is_archived = False
+        update_fields.append('is_archived')
+    if hasattr(instance, 'archived_at'):
+        instance.archived_at = None
+        update_fields.append('archived_at')
+
+    for field_name, field_value in field_overrides.items():
+        setattr(instance, field_name, field_value)
+        update_fields.append(field_name)
+
+    if hasattr(instance, 'updated_at'):
+        update_fields.append('updated_at')
+
+    if update_fields:
+        instance.save(update_fields=list(dict.fromkeys(update_fields)))
+
+
 def _redirect_authenticated_user(user):
     if not hasattr(user, 'profile'):
         if user.is_superuser:
@@ -926,6 +1114,266 @@ def _build_sales_export_rows(payments):
 
 def _build_sales_export_filename(file_format):
     return f'hanilies-sales-report-{timezone.localdate().isoformat()}.{file_format}'
+
+
+AUDIT_EXPORT_MAX_DAYS = 30
+
+
+def _build_activity_log_export_filename(file_format):
+    return f'hanilies-audit-trail-{timezone.localdate().isoformat()}.{file_format}'
+
+
+def _format_activity_label(value):
+    if not value:
+        return '-'
+    return str(value).replace('_', ' ').strip().title()
+
+
+def _parse_admin_filter_date(value):
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value, '%Y-%m-%d').date()
+    except ValueError:
+        return None
+
+
+def _normalize_activity_log_filter_state(request, *, export_scope=False):
+    today = timezone.localdate()
+    action_values = [
+        value.strip()
+        for value in request.GET.getlist('action')
+        if value.strip()
+    ]
+    if not action_values:
+        single_action = request.GET.get('action', '').strip()
+        if single_action:
+            action_values = [single_action]
+
+    filter_state = {
+        'search': request.GET.get('q', '').strip(),
+        'action': action_values[0] if len(action_values) == 1 else '',
+        'action_values': action_values,
+        'target_type': request.GET.get('target_type', '').strip(),
+        'actor': request.GET.get('actor', '').strip(),
+        'record_id': request.GET.get('record_id', '').strip(),
+        'record_id_value': None,
+        'record_id_invalid': False,
+        'date_from_value': _parse_admin_filter_date(request.GET.get('date_from', '').strip()),
+        'date_to_value': _parse_admin_filter_date(request.GET.get('date_to', '').strip()),
+        'export_scope': export_scope,
+    }
+
+    if filter_state['record_id']:
+        try:
+            filter_state['record_id_value'] = int(filter_state['record_id'])
+        except (TypeError, ValueError):
+            filter_state['record_id_invalid'] = True
+
+    if export_scope:
+        date_to = filter_state['date_to_value'] or today
+        if date_to > today:
+            date_to = today
+
+        date_from = filter_state['date_from_value'] or (
+            date_to - timedelta(days=AUDIT_EXPORT_MAX_DAYS - 1)
+        )
+        max_window_start = date_to - timedelta(days=AUDIT_EXPORT_MAX_DAYS - 1)
+        if date_from < max_window_start:
+            date_from = max_window_start
+        if date_from > date_to:
+            date_from = max_window_start
+
+        filter_state['date_from_value'] = date_from
+        filter_state['date_to_value'] = date_to
+
+    filter_state['date_from'] = (
+        filter_state['date_from_value'].isoformat()
+        if filter_state['date_from_value'] else ''
+    )
+    filter_state['date_to'] = (
+        filter_state['date_to_value'].isoformat()
+        if filter_state['date_to_value'] else ''
+    )
+    return filter_state
+
+
+def _filter_activity_logs_queryset(queryset, filter_state):
+    search_term = filter_state['search']
+    if search_term:
+        queryset = queryset.filter(
+            Q(description__icontains=search_term)
+            | Q(action__icontains=search_term)
+            | Q(target_type__icontains=search_term)
+            | Q(actor__username__icontains=search_term)
+            | Q(actor_role__icontains=search_term)
+        )
+
+    if filter_state['action_values']:
+        queryset = queryset.filter(action__in=filter_state['action_values'])
+
+    if filter_state['target_type']:
+        queryset = queryset.filter(target_type=filter_state['target_type'])
+
+    if filter_state['actor']:
+        if filter_state['actor'].isdigit():
+            queryset = queryset.filter(actor_id=int(filter_state['actor']))
+        else:
+            queryset = queryset.none()
+
+    if filter_state['record_id']:
+        if filter_state['record_id_invalid']:
+            queryset = queryset.none()
+        else:
+            queryset = queryset.filter(
+                target_id=filter_state['record_id_value'])
+
+    if filter_state['date_from_value']:
+        queryset = queryset.filter(
+            created_at__date__gte=filter_state['date_from_value'])
+
+    if filter_state['date_to_value']:
+        queryset = queryset.filter(
+            created_at__date__lte=filter_state['date_to_value'])
+
+    return queryset
+
+
+def _build_activity_log_target_label(activity_log):
+    if not activity_log.target_type:
+        return '-'
+    target_label = _format_activity_label(activity_log.target_type)
+    if activity_log.target_id:
+        return f'{target_label} #{activity_log.target_id}'
+    return target_label
+
+
+def _build_activity_log_summary(queryset):
+    return {
+        'total_records': queryset.count(),
+        'unique_users': queryset.exclude(actor__isnull=True).values('actor_id').distinct().count(),
+        'session_events': queryset.filter(action__in=['User login', 'User logout']).count(),
+    }
+
+
+def _build_activity_log_export_rows(queryset):
+    rows = []
+    for activity_log in queryset:
+        created_at = timezone.localtime(activity_log.created_at)
+        role_badge_key, role_badge_label = _get_activity_role_badge(
+            activity_log.actor,
+            activity_log.actor_role,
+        )
+        action_key = _get_activity_action_key(activity_log.action)
+        if action_key == 'login':
+            login_logout_label = 'Login'
+        elif action_key == 'logout':
+            login_logout_label = 'Logout'
+        else:
+            login_logout_label = '-'
+
+        rows.append({
+            'created_at': created_at,
+            'date_display': created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'actor': activity_log.actor.username if activity_log.actor else 'Deleted user',
+            'role': activity_log.actor_role or '-',
+            'role_badge_key': role_badge_key,
+            'role_badge_label': role_badge_label,
+            'action': _format_activity_label(activity_log.action),
+            'action_key': action_key,
+            'display_record_id': f'#{activity_log.target_id}' if activity_log.target_id else '-',
+            'login_logout_label': login_logout_label,
+            'status_label': 'Archived' if activity_log.is_archived else 'Active',
+            'status_key': 'archived' if activity_log.is_archived else 'active',
+            'target': _build_activity_log_target_label(activity_log),
+            'module': _format_activity_label(activity_log.target_type),
+            'record_id': activity_log.target_id,
+            'description': activity_log.description,
+        })
+    return rows
+
+
+def _get_activity_action_key(action_value):
+    normalized = (action_value or '').strip().lower()
+    if any(token in normalized for token in ['create', 'add', 'placed', 'register']):
+        return 'create'
+    if any(token in normalized for token in ['update', 'edit', 'verify', 'approve', 'processed']):
+        return 'update'
+    if any(token in normalized for token in ['delete', 'remove', 'reject']):
+        return 'delete'
+    if 'archive' in normalized:
+        return 'archive'
+    if 'restore' in normalized:
+        return 'restore'
+    if 'login' in normalized:
+        return 'login'
+    if 'logout' in normalized:
+        return 'logout'
+    return 'default'
+
+
+def _get_activity_role_badge(actor, actor_role):
+    profile_role = ''
+    if actor is not None:
+        profile = getattr(actor, 'profile', None)
+        profile_role = getattr(profile, 'role', '') or ''
+
+    normalized = f'{profile_role} {actor_role or ""}'.strip().lower()
+    if any(token in normalized for token in ['owner', 'admin']):
+        return 'admin', 'Admin'
+    if any(token in normalized for token in ['manager', 'supervisor', 'cashier', 'staff']):
+        return 'staff', 'Staff'
+    return 'customer', 'Customer'
+
+
+def _build_activity_log_query(request, **overrides):
+    query_params = request.GET.copy()
+    query_params.pop('next', None)
+    for key, value in overrides.items():
+        if value in (None, ''):
+            query_params.pop(key, None)
+        else:
+            query_params[key] = str(value)
+    return query_params
+
+
+def _build_activity_log_filter_chips(filter_state, actor_options):
+    actor_labels = {
+        str(actor['id']): actor['username']
+        for actor in actor_options
+    }
+    chips = []
+
+    if filter_state['search']:
+        chips.append(f"Search: {filter_state['search']}")
+
+    if filter_state['target_type']:
+        chips.append(
+            f"Module: {_format_activity_label(filter_state['target_type'])}")
+
+    if filter_state['action_values']:
+        chips.append(
+            f"Action: {', '.join(_format_activity_label(value) for value in filter_state['action_values'])}")
+
+    if filter_state['actor']:
+        chips.append(
+            f"User: {actor_labels.get(filter_state['actor'], 'Unknown user')}")
+
+    if filter_state['record_id']:
+        chips.append(f"Record ID: {filter_state['record_id']}")
+
+    if filter_state['date_from_value'] or filter_state['date_to_value']:
+        from_label = (
+            filter_state['date_from_value'].strftime('%b %d, %Y')
+            if filter_state['date_from_value'] else 'Any'
+        )
+        to_label = (
+            filter_state['date_to_value'].strftime('%b %d, %Y')
+            if filter_state['date_to_value'] else 'Any'
+        )
+        chips.append(f'Date: {from_label} - {to_label}')
+
+    return chips
 
 
 def _get_customer_cake_orders_queryset(user):
@@ -1074,6 +1522,171 @@ def _get_selected_option_labels(selected_keys, options):
         labels.append(option['label'])
         total += option['price']
     return labels, total
+
+
+def _build_unique_option_key(label, used_keys, preferred_key=''):
+    base_key = slugify(preferred_key or label) or 'option'
+    candidate = base_key
+    suffix = 2
+    while candidate in used_keys:
+        candidate = f'{base_key}-{suffix}'
+        suffix += 1
+    used_keys.add(candidate)
+    return candidate
+
+
+def _normalize_option_items(raw_items, spec):
+    items = []
+    used_keys = set()
+    input_type = spec['input_type']
+
+    for raw_item in raw_items or []:
+        if isinstance(raw_item, str):
+            label = raw_item.strip()
+            price = '0.00'
+            preferred_key = ''
+            preferred_value = ''
+        elif isinstance(raw_item, dict):
+            label = str(
+                raw_item.get('label')
+                or raw_item.get('name')
+                or raw_item.get('value')
+                or raw_item.get('key')
+                or ''
+            ).strip()
+            price = f'{_parse_decimal(raw_item.get("price", "0.00")):.2f}'
+            preferred_key = str(raw_item.get('key') or '').strip()
+            preferred_value = str(raw_item.get('value') or '').strip()
+        else:
+            continue
+
+        if not label:
+            continue
+
+        item = {
+            'label': label,
+            'price': f'{_parse_decimal(price):.2f}',
+        }
+        if input_type == 'checkbox':
+            item['key'] = _build_unique_option_key(
+                label, used_keys, preferred_key)
+        else:
+            item['value'] = preferred_value or label
+        items.append(item)
+
+    return items
+
+
+def _normalize_option_groups(raw_groups, specs):
+    raw_groups = raw_groups if isinstance(raw_groups, dict) else {}
+    normalized = {}
+    for spec in specs:
+        items = _normalize_option_items(raw_groups.get(spec['key'], []), spec)
+        if items:
+            normalized[spec['key']] = items
+    return normalized
+
+
+def _build_option_editor_groups(raw_groups, specs):
+    normalized = _normalize_option_groups(raw_groups, specs)
+    return [
+        {
+            **spec,
+            'items': normalized.get(spec['key'], []),
+        }
+        for spec in specs
+    ]
+
+
+def _parse_customization_options_payload(payload, specs):
+    payload = (payload or '').strip()
+    if not payload:
+        return {}
+
+    try:
+        raw_groups = json.loads(payload)
+    except json.JSONDecodeError as exc:
+        raise ValueError(
+            'Product customization options could not be read.') from exc
+
+    if not isinstance(raw_groups, dict):
+        raise ValueError('Product customization options are invalid.')
+
+    return _normalize_option_groups(raw_groups, specs)
+
+
+def _merge_option_groups(raw_groups, default_groups, specs):
+    configured = _normalize_option_groups(raw_groups, specs)
+    defaults = _normalize_option_groups(default_groups, specs)
+    merged = {}
+    for spec in specs:
+        merged[spec['key']] = configured.get(
+            spec['key']) or defaults.get(spec['key'], [])
+    return merged
+
+
+def _build_checkbox_option_lookup(option_items):
+    return {
+        item['key']: {
+            'label': item['label'],
+            'price': _parse_decimal(item['price']),
+        }
+        for item in option_items
+        if item.get('key')
+    }
+
+
+def _build_select_option_lookup(option_items):
+    return {
+        item.get('value', item['label']): {
+            'label': item['label'],
+            'value': item.get('value', item['label']),
+            'price': _parse_decimal(item['price']),
+        }
+        for item in option_items
+        if item.get('label')
+    }
+
+
+def _resolve_selected_option(selected_value, option_items):
+    selected_value = (selected_value or '').strip()
+    if not selected_value:
+        return None
+
+    lookup = _build_select_option_lookup(option_items)
+    matched = lookup.get(selected_value)
+    if matched:
+        return matched
+
+    for item in option_items:
+        if item['label'].strip().lower() == selected_value.lower():
+            return {
+                'label': item['label'],
+                'value': item.get('value', item['label']),
+                'price': _parse_decimal(item['price']),
+            }
+
+    return {
+        'label': selected_value,
+        'value': selected_value,
+        'price': Decimal('0.00'),
+    }
+
+
+def _get_cake_storefront_options(cake):
+    return _merge_option_groups(
+        getattr(cake, 'customization_options', {}),
+        DEFAULT_CAKE_CUSTOMIZATION_OPTIONS,
+        CAKE_CUSTOMIZATION_GROUP_SPECS,
+    )
+
+
+def _get_package_storefront_options(package):
+    return _merge_option_groups(
+        getattr(package, 'customization_options', {}),
+        DEFAULT_PACKAGE_CUSTOMIZATION_OPTIONS,
+        PACKAGE_CUSTOMIZATION_GROUP_SPECS,
+    )
 
 
 def _build_package_thumbnail_slots(package=None):
@@ -2304,6 +2917,13 @@ def login_view(request):
 
         if user is not None:
             login(request, user)
+            _log_staff_activity(
+                user,
+                'User login',
+                f'User "{user.username}" logged in.',
+                'user',
+                user.id,
+            )
             return _redirect_authenticated_user(user)
         else:
             return render(request, 'hanilies/login.html', {'error': 'Invalid username or password'})
@@ -2360,8 +2980,17 @@ def register_view(request):
 
 def logout_view(request):
     """Log out user"""
+    logged_out_user = request.user if request.user.is_authenticated else None
     storage = messages.get_messages(request)
     storage.used = True
+    if logged_out_user is not None:
+        _log_staff_activity(
+            logged_out_user,
+            'User logout',
+            f'User "{logged_out_user.username}" logged out.',
+            'user',
+            logged_out_user.id,
+        )
     logout(request)
     return redirect('home')
 
@@ -2726,6 +3355,9 @@ def cake_customize(request):
 
     selected_cake = get_object_or_404(
         cake_queryset, id=selected_cake_id) if selected_cake_id else cake_queryset.order_by('name').first()
+    cake_option_groups = _get_cake_storefront_options(selected_cake)
+    decoration_option_lookup = _build_checkbox_option_lookup(
+        cake_option_groups['decorations'])
     defaults = _get_profile_defaults(request.user)
     defaults.setdefault('delivery_date', '')
     cake_order_window = build_cake_booking_window()
@@ -2749,8 +3381,24 @@ def cake_customize(request):
         quantity = max(int(request.POST.get('quantity', 1) or 1), 1)
         selected_decorations = request.POST.getlist('decorations')
         decoration_labels, decoration_total = _get_selected_option_labels(
-            selected_decorations, CAKE_DECORATION_OPTIONS)
-        total_price = (selected_cake.price * quantity) + decoration_total
+            selected_decorations, decoration_option_lookup)
+        selected_size = _resolve_selected_option(
+            request.POST.get('size'), cake_option_groups['sizes'])
+        selected_shape = _resolve_selected_option(
+            request.POST.get('shape'), cake_option_groups['shapes'])
+        selected_flavor = _resolve_selected_option(
+            request.POST.get('flavor'), cake_option_groups['flavors'])
+        selected_frosting = _resolve_selected_option(
+            request.POST.get('frosting'), cake_option_groups['frostings'])
+        selected_filling = _resolve_selected_option(
+            request.POST.get('filling'), cake_option_groups['fillings'])
+        single_option_total = sum(
+            option['price']
+            for option in [selected_size, selected_shape, selected_flavor, selected_frosting, selected_filling]
+            if option
+        )
+        total_price = (selected_cake.price * quantity) + \
+            single_option_total + decoration_total
         payment_method = request.POST.get('payment_method', 'cod')
         deposit_amount, balance_due = _calculate_deposit_breakdown(total_price)
         reference_number = request.POST.get('reference_number', '').strip()
@@ -2800,12 +3448,16 @@ def cake_customize(request):
                 balance_due=Decimal(
                     '0.00') if payment_method == 'gcash' else balance_due,
                 theme=request.POST.get('theme', '').strip(),
-                size=request.POST.get('size', '').strip(),
-                shape=request.POST.get('shape', '').strip() or 'Round',
-                flavor=request.POST.get('flavor', '').strip() or 'Chocolate',
-                frosting=request.POST.get(
-                    'frosting', '').strip() or 'Buttercream',
-                filling=request.POST.get('filling', '').strip(),
+                size=selected_size['label'] if selected_size else request.POST.get(
+                    'size', '').strip(),
+                shape=(selected_shape['label'] if selected_shape else request.POST.get(
+                    'shape', '').strip()) or 'Round',
+                flavor=(selected_flavor['label'] if selected_flavor else request.POST.get(
+                    'flavor', '').strip()) or 'Chocolate',
+                frosting=(selected_frosting['label'] if selected_frosting else request.POST.get(
+                    'frosting', '').strip()) or 'Buttercream',
+                filling=selected_filling['label'] if selected_filling else request.POST.get(
+                    'filling', '').strip(),
                 color_palette=request.POST.get('color_palette', '').strip(),
                 message_on_cake=request.POST.get(
                     'message_on_cake', '').strip(),
@@ -2848,7 +3500,12 @@ def cake_customize(request):
     context = {
         'cake': selected_cake,
         'cakes': cake_queryset.order_by('name'),
-        'decoration_options': CAKE_DECORATION_OPTIONS,
+        'cake_size_options': cake_option_groups['sizes'],
+        'cake_shape_options': cake_option_groups['shapes'],
+        'cake_flavor_options': cake_option_groups['flavors'],
+        'cake_frosting_options': cake_option_groups['frostings'],
+        'cake_filling_options': cake_option_groups['fillings'],
+        'decoration_options': cake_option_groups['decorations'],
         'theme_options': CAKE_THEME_OPTIONS,
         'payment_plan_labels': PAYMENT_PLAN_LABELS,
         'selected_payment_method': selected_payment_method,
@@ -2885,6 +3542,9 @@ def package_order(request):
 
     selected_package = get_object_or_404(package_queryset, id=selected_package_id) if selected_package_id and str(
         selected_package_id).isdigit() else package_queryset.order_by('name').first()
+    package_option_groups = _get_package_storefront_options(selected_package)
+    addon_option_lookup = _build_checkbox_option_lookup(
+        package_option_groups['addons'])
 
     if request.method == 'POST':
         event_type = request.POST.get(
@@ -2896,14 +3556,14 @@ def package_order(request):
                 'package': selected_package,
                 'packages': package_queryset.order_by('name'),
                 'event_types': PUBLIC_EVENT_TYPES,
-                'addon_options': PACKAGE_ADDON_OPTIONS,
+                'addon_options': package_option_groups['addons'],
                 'draft': draft,
             }
             return render(request, 'hanilies/package_order.html', context)
 
         selected_addons = request.POST.getlist('selected_addons')
         addon_labels, addon_total = _get_selected_option_labels(
-            selected_addons, PACKAGE_ADDON_OPTIONS)
+            selected_addons, addon_option_lookup)
         updated_draft = {
             'package_id': str(selected_package.id),
             'event_type': event_type,
@@ -2921,7 +3581,7 @@ def package_order(request):
         'package': selected_package,
         'packages': package_queryset.order_by('name'),
         'event_types': PUBLIC_EVENT_TYPES,
-        'addon_options': PACKAGE_ADDON_OPTIONS,
+        'addon_options': package_option_groups['addons'],
         'draft': draft,
     }
     return render(request, 'hanilies/package_order.html', context)
@@ -2938,24 +3598,39 @@ def package_cake_customize(request):
 
     selected_package = get_object_or_404(
         _get_public_package_queryset(), id=package_id)
+    package_option_groups = _get_package_storefront_options(selected_package)
+    decoration_option_lookup = _build_checkbox_option_lookup(
+        package_option_groups['cake_decorations'])
 
     if request.method == 'POST':
         size_key = request.POST.get('cake_size', 'standard')
         selected_decorations = request.POST.getlist('cake_decorations')
         decoration_labels, decoration_total = _get_selected_option_labels(
-            selected_decorations, PACKAGE_CAKE_DECORATIONS)
-        size_option = PACKAGE_CAKE_UPGRADES.get(
-            size_key, PACKAGE_CAKE_UPGRADES['standard'])
-        cake_custom_total = size_option['price'] + decoration_total
+            selected_decorations, decoration_option_lookup)
+        size_option = _resolve_selected_option(
+            size_key, package_option_groups['cake_sizes'])
+        shape_option = _resolve_selected_option(
+            request.POST.get('shape'), package_option_groups['cake_shapes'])
+        flavor_option = _resolve_selected_option(
+            request.POST.get('flavor'), package_option_groups['cake_flavors'])
+        frosting_option = _resolve_selected_option(
+            request.POST.get('frosting'), package_option_groups['cake_frostings'])
+        filling_option = _resolve_selected_option(
+            request.POST.get('filling'), package_option_groups['cake_fillings'])
+        cake_custom_total = sum(
+            option['price']
+            for option in [size_option, shape_option, flavor_option, frosting_option, filling_option]
+            if option
+        ) + decoration_total
 
         draft.update({
             'cake_theme': request.POST.get('theme', '').strip(),
-            'cake_flavor': request.POST.get('flavor', '').strip(),
-            'cake_frosting': request.POST.get('frosting', '').strip(),
-            'cake_filling': request.POST.get('filling', '').strip(),
-            'cake_size_key': size_key,
-            'cake_size_label': size_option['label'],
-            'cake_shape': request.POST.get('shape', '').strip(),
+            'cake_flavor': flavor_option['label'] if flavor_option else request.POST.get('flavor', '').strip(),
+            'cake_frosting': frosting_option['label'] if frosting_option else request.POST.get('frosting', '').strip(),
+            'cake_filling': filling_option['label'] if filling_option else request.POST.get('filling', '').strip(),
+            'cake_size_key': size_option['value'] if size_option else size_key,
+            'cake_size_label': size_option['label'] if size_option else size_key,
+            'cake_shape': shape_option['label'] if shape_option else request.POST.get('shape', '').strip(),
             'cake_message': request.POST.get('message_on_cake', '').strip(),
             'cake_color_palette': request.POST.get('color_palette', '').strip(),
             'cake_special_instructions': request.POST.get('cake_instructions', '').strip(),
@@ -2970,8 +3645,12 @@ def package_cake_customize(request):
         'package': selected_package,
         'draft': draft,
         'theme_options': CAKE_THEME_OPTIONS,
-        'size_options': PACKAGE_CAKE_UPGRADES,
-        'decoration_options': PACKAGE_CAKE_DECORATIONS,
+        'size_options': package_option_groups['cake_sizes'],
+        'shape_options': package_option_groups['cake_shapes'],
+        'flavor_options': package_option_groups['cake_flavors'],
+        'frosting_options': package_option_groups['cake_frostings'],
+        'filling_options': package_option_groups['cake_fillings'],
+        'decoration_options': package_option_groups['cake_decorations'],
     }
     return render(request, 'hanilies/package_cake_customize.html', context)
 
@@ -3014,6 +3693,7 @@ def package_payment(request):
         reference_number = request.POST.get('reference_number', '').strip()
         submitted_amount = request.POST.get('payment_amount', '').strip()
         proof_image = request.FILES.get('proof_image')
+        design_reference = request.FILES.get('design_reference')
         expected_payment_amount = grand_total if payment_method == 'gcash' else deposit_amount
         form_values.update({
             'event_date': request.POST.get('event_date', '').strip(),
@@ -3041,6 +3721,8 @@ def package_payment(request):
                 package_checkout_meta['payment_reference'],
                 submitted_amount=submitted_amount,
             )
+            design_reference_error = _validate_optional_design_reference_upload(
+                design_reference)
             event_date_form = PackageBookingDateForm({
                 'event_date': form_values['event_date'],
             })
@@ -3049,6 +3731,8 @@ def package_payment(request):
                                0] if event_date_form.non_field_errors() else event_date_form.errors['event_date'][0])
             elif payment_error:
                 messages.error(request, payment_error)
+            elif design_reference_error:
+                messages.error(request, design_reference_error)
             else:
                 package_order = PackageOrder.objects.create(
                     user=request.user,
@@ -3072,6 +3756,7 @@ def package_payment(request):
                     cake_frosting=draft.get('cake_frosting', ''),
                     cake_filling=draft.get('cake_filling', ''),
                     cake_message=draft.get('cake_message', ''),
+                    design_reference=design_reference,
                 )
 
                 _create_checkout_payments(
@@ -3234,6 +3919,10 @@ def admin_cake_add(request):
 
     if request.method == 'POST':
         try:
+            customization_options = _parse_customization_options_payload(
+                request.POST.get('customization_options_payload'),
+                CAKE_CUSTOMIZATION_GROUP_SPECS,
+            )
             # Get form data
             name = request.POST.get('name')
             category = request.POST.get('category')
@@ -3243,6 +3932,10 @@ def admin_cake_add(request):
                 return render(request, 'admin/cakes/add.html', {
                     'admin_menu': get_admin_menu(request),
                     'cake_categories': Cake.CAKE_CATEGORIES,
+                    'option_editor_groups': _build_option_editor_groups(
+                        customization_options,
+                        CAKE_CUSTOMIZATION_GROUP_SPECS,
+                    ),
                 })
 
             description = request.POST.get('description')
@@ -3257,6 +3950,7 @@ def admin_cake_add(request):
                 description=description,
                 price=price,
                 stock=stock,
+                customization_options=customization_options,
                 is_active=is_active
             )
 
@@ -3276,6 +3970,16 @@ def admin_cake_add(request):
                 request, f'Cake "{cake.name}" added successfully!')
             return redirect('admin_cakes')
 
+        except ValueError as e:
+            messages.error(request, str(e))
+            return render(request, 'admin/cakes/add.html', {
+                'admin_menu': get_admin_menu(request),
+                'cake_categories': Cake.CAKE_CATEGORIES,
+                'option_editor_groups': _build_option_editor_groups(
+                    {},
+                    CAKE_CUSTOMIZATION_GROUP_SPECS,
+                ),
+            })
         except Exception as e:
             messages.error(request, f'Error adding cake: {str(e)}')
             return redirect('admin_cake_add')
@@ -3283,6 +3987,10 @@ def admin_cake_add(request):
     return render(request, 'admin/cakes/add.html', {
         'admin_menu': get_admin_menu(request),
         'cake_categories': Cake.CAKE_CATEGORIES,
+        'option_editor_groups': _build_option_editor_groups(
+            {},
+            CAKE_CUSTOMIZATION_GROUP_SPECS,
+        ),
     })
 
 
@@ -3298,6 +4006,10 @@ def admin_cake_edit(request, cake_id):
 
     if request.method == 'POST':
         try:
+            customization_options = _parse_customization_options_payload(
+                request.POST.get('customization_options_payload'),
+                CAKE_CUSTOMIZATION_GROUP_SPECS,
+            )
             # Update basic info
             cake.name = request.POST.get('name')
             category = request.POST.get('category')
@@ -3308,12 +4020,17 @@ def admin_cake_edit(request, cake_id):
                     'cake': cake,
                     'admin_menu': get_admin_menu(request),
                     'cake_categories': Cake.CAKE_CATEGORIES,
+                    'option_editor_groups': _build_option_editor_groups(
+                        customization_options,
+                        CAKE_CUSTOMIZATION_GROUP_SPECS,
+                    ),
                 })
 
             cake.category = category
             cake.description = request.POST.get('description')
             cake.price = request.POST.get('price')
             cake.stock = request.POST.get('stock')
+            cake.customization_options = customization_options
             cake.is_active = request.POST.get('is_active') == 'on'
 
             # Handle image upload
@@ -3341,6 +4058,17 @@ def admin_cake_edit(request, cake_id):
                 request, f'Cake "{cake.name}" updated successfully!')
             return redirect('admin_cakes')
 
+        except ValueError as e:
+            messages.error(request, str(e))
+            return render(request, 'admin/cakes/edit.html', {
+                'cake': cake,
+                'admin_menu': get_admin_menu(request),
+                'cake_categories': Cake.CAKE_CATEGORIES,
+                'option_editor_groups': _build_option_editor_groups(
+                    cake.customization_options,
+                    CAKE_CUSTOMIZATION_GROUP_SPECS,
+                ),
+            })
         except Exception as e:
             messages.error(request, f'Error updating cake: {str(e)}')
             return redirect('admin_cake_edit', cake_id=cake_id)
@@ -3349,28 +4077,44 @@ def admin_cake_edit(request, cake_id):
         'cake': cake,
         'admin_menu': get_admin_menu(request),
         'cake_categories': Cake.CAKE_CATEGORIES,
+        'option_editor_groups': _build_option_editor_groups(
+            cake.customization_options,
+            CAKE_CUSTOMIZATION_GROUP_SPECS,
+        ),
     })
 
 
 @login_required
+@require_POST
 def admin_cake_delete(request, cake_id):
-    """Archive a cake"""
+    """Archive or restore a cake"""
     access_denied = _require_admin_roles(request, CAKE_PRODUCT_ROLE_VALUES)
     if access_denied:
         return access_denied
 
     cake = get_object_or_404(Cake, id=cake_id)
     cake_name = cake.name
-    _archive_model_instance(cake, is_active=False)
-    _log_staff_activity(
-        request.user,
-        'cake_archived',
-        f'Archived cake "{cake_name}".',
-        'cake',
-        cake_id,
-    )
-    messages.success(request, f'Cake "{cake_name}" archived successfully!')
-    return redirect('admin_cakes')
+    if cake.is_archived:
+        _restore_model_instance(cake, is_active=True)
+        _log_staff_activity(
+            request.user,
+            'cake_restored',
+            f'Restored cake "{cake_name}".',
+            'cake',
+            cake_id,
+        )
+        messages.success(request, f'Cake "{cake_name}" restored successfully!')
+    else:
+        _archive_model_instance(cake, is_active=False)
+        _log_staff_activity(
+            request.user,
+            'cake_archived',
+            f'Archived cake "{cake_name}".',
+            'cake',
+            cake_id,
+        )
+        messages.success(request, f'Cake "{cake_name}" archived successfully!')
+    return redirect(_get_safe_admin_return_url(request, 'admin_cakes'))
 
 
 # ============================================
@@ -3412,15 +4156,17 @@ def admin_cake_order_view(request, order_id):
 
     order = get_object_or_404(
         CakeOrder.objects.select_related(
-            'user', 'cake').prefetch_related('payments'),
+            'user', 'cake', 'customization').prefetch_related('payments'),
         id=order_id,
     )
     if not _can_view_order_for_role(request.user, order):
         messages.error(request, 'Permission denied')
         return redirect('admin_cake_orders')
     back_url = _get_safe_admin_return_url(request, 'admin_cake_orders')
+    order_customization = getattr(order, 'customization', None)
     return render(request, 'admin/orders/cake_order_view.html', {
         'order': order,
+        'order_customization': order_customization,
         'back_url': back_url,
         'back_label': 'Back to Payments' if back_url.startswith(reverse('admin_payments')) else 'Back to Cake Orders',
         'admin_menu': get_admin_menu(request)
@@ -3470,7 +4216,7 @@ def admin_cake_order_update(request, order_id):
 @login_required
 @require_POST
 def admin_cake_order_delete(request, order_id):
-    """Archive a cake order"""
+    """Archive or restore a cake order"""
     access_denied = _require_admin_roles(
         request, FULL_ACCESS_ROLE_VALUES)
     if access_denied:
@@ -3478,16 +4224,28 @@ def admin_cake_order_delete(request, order_id):
 
     order = get_object_or_404(CakeOrder, id=order_id)
     order_id_value = order.id
-    _archive_model_instance(order)
-    _log_staff_activity(
-        request.user,
-        'cake_order_archived',
-        f'Archived cake order #{order_id_value}.',
-        'cake_order',
-        order_id_value,
-    )
-    messages.success(
-        request, f'Order #{order_id_value} archived successfully!')
+    if order.is_archived:
+        _restore_model_instance(order)
+        _log_staff_activity(
+            request.user,
+            'cake_order_restored',
+            f'Restored cake order #{order_id_value}.',
+            'cake_order',
+            order_id_value,
+        )
+        messages.success(
+            request, f'Order #{order_id_value} restored successfully!')
+    else:
+        _archive_model_instance(order)
+        _log_staff_activity(
+            request.user,
+            'cake_order_archived',
+            f'Archived cake order #{order_id_value}.',
+            'cake_order',
+            order_id_value,
+        )
+        messages.success(
+            request, f'Order #{order_id_value} archived successfully!')
     return redirect(_get_safe_admin_return_url(request, 'admin_cake_orders'))
 
 
@@ -3524,12 +4282,20 @@ def admin_package_add(request):
     if request.method == 'POST':
         try:
             package_type = request.POST.get('package_type')
+            customization_options = _parse_customization_options_payload(
+                request.POST.get('customization_options_payload'),
+                PACKAGE_CUSTOMIZATION_GROUP_SPECS,
+            )
             if package_type not in PUBLIC_PACKAGE_TYPE_VALUES:
                 messages.error(
                     request, 'Selected package type is no longer available.')
                 return render(request, 'admin/packages/add.html', {
                     'admin_menu': get_admin_menu(request),
                     'thumbnail_slots': _build_package_thumbnail_slots(),
+                    'option_editor_groups': _build_option_editor_groups(
+                        customization_options,
+                        PACKAGE_CUSTOMIZATION_GROUP_SPECS,
+                    ),
                 })
 
             package = Package(
@@ -3539,6 +4305,7 @@ def admin_package_add(request):
                 base_price=request.POST.get('base_price'),
                 status=request.POST.get('status', 'active'),
                 features=request.POST.get('features', ''),
+                customization_options=customization_options,
                 image=request.FILES.get('image'),
             )
             package.save()
@@ -3553,12 +4320,18 @@ def admin_package_add(request):
             messages.success(
                 request, f'Package "{package.name}" added successfully!')
             return redirect('admin_packages')
+        except ValueError as e:
+            messages.error(request, str(e))
         except Exception as e:
             messages.error(request, f'Error adding package: {str(e)}')
 
     return render(request, 'admin/packages/add.html', {
         'admin_menu': get_admin_menu(request),
         'thumbnail_slots': _build_package_thumbnail_slots(),
+        'option_editor_groups': _build_option_editor_groups(
+            {},
+            PACKAGE_CUSTOMIZATION_GROUP_SPECS,
+        ),
     })
 
 
@@ -3576,6 +4349,10 @@ def admin_package_edit(request, package_id):
     if request.method == 'POST':
         try:
             package_type = request.POST.get('package_type')
+            customization_options = _parse_customization_options_payload(
+                request.POST.get('customization_options_payload'),
+                PACKAGE_CUSTOMIZATION_GROUP_SPECS,
+            )
             if package_type not in PUBLIC_PACKAGE_TYPE_VALUES:
                 messages.error(
                     request, 'Selected package type is no longer available.')
@@ -3583,6 +4360,10 @@ def admin_package_edit(request, package_id):
                     'package': package,
                     'admin_menu': get_admin_menu(request),
                     'thumbnail_slots': _build_package_thumbnail_slots(package),
+                    'option_editor_groups': _build_option_editor_groups(
+                        customization_options,
+                        PACKAGE_CUSTOMIZATION_GROUP_SPECS,
+                    ),
                 })
 
             package.name = request.POST.get('name')
@@ -3591,6 +4372,7 @@ def admin_package_edit(request, package_id):
             package.base_price = request.POST.get('base_price')
             package.status = request.POST.get('status')
             package.features = request.POST.get('features', '')
+            package.customization_options = customization_options
 
             uploaded_image = request.FILES.get('image')
             if uploaded_image:
@@ -3614,6 +4396,8 @@ def admin_package_edit(request, package_id):
             messages.success(
                 request, f'Package "{package.name}" updated successfully!')
             return redirect('admin_packages')
+        except ValueError as e:
+            messages.error(request, str(e))
         except Exception as e:
             messages.error(request, f'Error updating package: {str(e)}')
 
@@ -3621,12 +4405,17 @@ def admin_package_edit(request, package_id):
         'package': package,
         'admin_menu': get_admin_menu(request),
         'thumbnail_slots': _build_package_thumbnail_slots(package),
+        'option_editor_groups': _build_option_editor_groups(
+            package.customization_options,
+            PACKAGE_CUSTOMIZATION_GROUP_SPECS,
+        ),
     })
 
 
 @login_required
+@require_POST
 def admin_package_delete(request, package_id):
-    """Archive a package"""
+    """Archive or restore a package"""
     access_denied = _require_admin_roles(
         request, PACKAGE_PRODUCT_ROLE_VALUES)
     if access_denied:
@@ -3634,17 +4423,29 @@ def admin_package_delete(request, package_id):
 
     package = get_object_or_404(Package, id=package_id)
     package_name = package.name
-    _archive_model_instance(package, status='inactive')
-    _log_staff_activity(
-        request.user,
-        'package_archived',
-        f'Archived package "{package_name}".',
-        'package',
-        package_id,
-    )
-    messages.success(
-        request, f'Package "{package_name}" archived successfully!')
-    return redirect('admin_packages')
+    if package.is_archived:
+        _restore_model_instance(package, status='active')
+        _log_staff_activity(
+            request.user,
+            'package_restored',
+            f'Restored package "{package_name}".',
+            'package',
+            package_id,
+        )
+        messages.success(
+            request, f'Package "{package_name}" restored successfully!')
+    else:
+        _archive_model_instance(package, status='inactive')
+        _log_staff_activity(
+            request.user,
+            'package_archived',
+            f'Archived package "{package_name}".',
+            'package',
+            package_id,
+        )
+        messages.success(
+            request, f'Package "{package_name}" archived successfully!')
+    return redirect(_get_safe_admin_return_url(request, 'admin_packages'))
 
 
 # ============================================
@@ -3686,7 +4487,7 @@ def admin_package_order_view(request, order_id):
 
     order = get_object_or_404(
         PackageOrder.objects.select_related(
-            'user', 'package').prefetch_related('payments'),
+            'user', 'package').prefetch_related('payments', 'package__thumbnails'),
         id=order_id,
     )
     if not _can_view_order_for_role(request.user, order):
@@ -3745,7 +4546,7 @@ def admin_package_order_update(request, order_id):
 @login_required
 @require_POST
 def admin_package_order_delete(request, order_id):
-    """Archive a package order"""
+    """Archive or restore a package order"""
     access_denied = _require_admin_roles(
         request, FULL_ACCESS_ROLE_VALUES)
     if access_denied:
@@ -3753,16 +4554,28 @@ def admin_package_order_delete(request, order_id):
 
     order = get_object_or_404(PackageOrder, id=order_id)
     order_id_value = order.id
-    _archive_model_instance(order)
-    _log_staff_activity(
-        request.user,
-        'package_order_archived',
-        f'Archived package order #{order_id_value}.',
-        'package_order',
-        order_id_value,
-    )
-    messages.success(
-        request, f'Package Order #{order_id_value} archived successfully!')
+    if order.is_archived:
+        _restore_model_instance(order)
+        _log_staff_activity(
+            request.user,
+            'package_order_restored',
+            f'Restored package order #{order_id_value}.',
+            'package_order',
+            order_id_value,
+        )
+        messages.success(
+            request, f'Package Order #{order_id_value} restored successfully!')
+    else:
+        _archive_model_instance(order)
+        _log_staff_activity(
+            request.user,
+            'package_order_archived',
+            f'Archived package order #{order_id_value}.',
+            'package_order',
+            order_id_value,
+        )
+        messages.success(
+            request, f'Package Order #{order_id_value} archived successfully!')
     return redirect(_get_safe_admin_return_url(request, 'admin_package_orders'))
 
 
@@ -3883,12 +4696,26 @@ def admin_payment_verify(request, payment_id):
 @login_required
 @require_POST
 def admin_payment_delete(request, payment_id):
-    """Archive a completed payment from the admin panel"""
+    """Archive or restore a completed payment from the admin panel"""
     access_denied = _require_admin_roles(request, FULL_ACCESS_ROLE_VALUES)
     if access_denied:
         return access_denied
 
     payment = get_object_or_404(Payment, id=payment_id)
+
+    if payment.is_archived:
+        payment_id_value = payment.id
+        _restore_model_instance(payment)
+        _log_staff_activity(
+            request.user,
+            'payment_restored',
+            f'Restored payment #{payment_id_value}.',
+            'payment',
+            payment_id_value,
+        )
+        messages.success(
+            request, f'Payment #{payment_id_value} restored successfully!')
+        return redirect(_get_safe_admin_return_url(request, 'admin_payments'))
 
     if payment.payment_status not in ['paid', 'rejected', 'cancelled']:
         messages.error(
@@ -4166,33 +4993,382 @@ def admin_refund_update(request, refund_id):
 
 @login_required
 def admin_activity_logs(request):
-    """List recorded staff audit trail entries"""
+    """List recorded audit trail entries"""
     access_denied = _require_admin_roles(request, AUDIT_TRAIL_ROLE_VALUES)
     if access_denied:
         return access_denied
 
     is_archived_view = _is_archived_admin_view(request)
-    activity_logs = ActivityLog.objects.select_related(
-        'actor').filter(is_archived=is_archived_view)[:100]
+    current_tab = request.GET.get('tab', 'records').strip().lower()
+    if current_tab not in {'records', 'export'}:
+        current_tab = 'records'
+
+    base_queryset = ActivityLog.objects.select_related('actor').filter(
+        is_archived=is_archived_view,
+    )
+    filter_state = _normalize_activity_log_filter_state(
+        request,
+        export_scope=current_tab == 'export',
+    )
+    activity_logs_queryset = _filter_activity_logs_queryset(
+        base_queryset, filter_state)
+    activity_logs_page, activity_logs_pagination = _paginate_admin_queryset(
+        request,
+        activity_logs_queryset,
+        'logs_page',
+        per_page=12,
+    )
+
+    for activity_log in activity_logs_page.object_list:
+        activity_log.display_actor = (
+            activity_log.actor.username if activity_log.actor else 'Deleted user'
+        )
+        activity_log.display_action = _format_activity_label(
+            activity_log.action)
+        activity_log.display_time = timezone.localtime(
+            activity_log.created_at).strftime('%I:%M %p')
+        activity_log.display_target = _build_activity_log_target_label(
+            activity_log)
+        activity_log.display_module = _format_activity_label(
+            activity_log.target_type)
+        activity_log.display_record_id = (
+            f'#{activity_log.target_id}' if activity_log.target_id else '-'
+        )
+        activity_log.display_created_at = timezone.localtime(
+            activity_log.created_at)
+        activity_log.exact_timestamp = activity_log.display_created_at.strftime(
+            '%Y-%m-%d %H:%M:%S'
+        )
+        activity_log.action_badge_key = _get_activity_action_key(
+            activity_log.action)
+        (
+            activity_log.role_badge_key,
+            activity_log.role_badge_label,
+        ) = _get_activity_role_badge(activity_log.actor, activity_log.actor_role)
+
+    action_options = list(
+        base_queryset.exclude(action='').order_by(
+            'action').values_list('action', flat=True).distinct()
+    )
+    target_type_options = list(
+        base_queryset.exclude(target_type='').order_by(
+            'target_type').values_list('target_type', flat=True).distinct()
+    )
+    actor_options = list(
+        User.objects.filter(activity_logs__in=base_queryset)
+        .order_by('username')
+        .distinct()
+        .values('id', 'username')
+    )
+
+    records_tab_query = _build_activity_log_query(
+        request, tab='records', logs_page=None, export_page=None)
+    export_tab_query = _build_activity_log_query(
+        request, tab='export', logs_page=None, export_page=None)
+    reset_query = _build_activity_log_query(
+        request,
+        q=None,
+        action=None,
+        target_type=None,
+        actor=None,
+        record_id=None,
+        date_from=None,
+        date_to=None,
+        logs_page=None,
+        export_page=None,
+    )
+    archive_toggle_query = _build_activity_log_query(
+        request,
+        archived=None if is_archived_view else '1',
+        logs_page=None,
+        export_page=None,
+    )
+    if is_archived_view:
+        archive_toggle_query.pop('archived', None)
+
+    export_context_query = _build_activity_log_query(
+        request,
+        tab='export',
+        logs_page=None,
+        export_page=None,
+    )
+    export_preview_page, export_preview_pagination = _paginate_admin_queryset(
+        request,
+        activity_logs_queryset,
+        'export_page',
+        per_page=10,
+    )
+    export_rows = _build_activity_log_export_rows(
+        export_preview_page.object_list)
+
+    date_range_label = None
+    if filter_state['date_from_value'] and filter_state['date_to_value']:
+        date_range_label = (
+            f"{filter_state['date_from_value'].strftime('%b %d, %Y')}"
+            f" - {filter_state['date_to_value'].strftime('%b %d, %Y')}"
+        )
+
     return render(request, 'admin/activity_logs.html', {
-        'activity_logs': activity_logs,
+        'activity_logs': activity_logs_page,
+        'activity_logs_pagination': activity_logs_pagination,
+        'activity_log_summary': _build_activity_log_summary(activity_logs_queryset),
+        'action_options': action_options,
+        'target_type_options': target_type_options,
+        'actor_options': actor_options,
+        'current_tab': current_tab,
+        'current_filters': filter_state,
+        'active_filter_chips': _build_activity_log_filter_chips(
+            filter_state,
+            actor_options,
+        ),
+        'records_tab_url': _build_path_with_query(request.path, records_tab_query),
+        'export_tab_url': _build_path_with_query(request.path, export_tab_query),
+        'reset_filters_url': _build_path_with_query(request.path, reset_query),
+        'archive_toggle_url': _build_path_with_query(request.path, archive_toggle_query),
+        'export_pdf_url': _build_path_with_query(
+            reverse('admin_activity_logs_export', args=['pdf']),
+            export_context_query,
+        ),
+        'export_csv_url': _build_path_with_query(
+            reverse('admin_activity_logs_export', args=['csv']),
+            export_context_query,
+        ),
+        'export_xlsx_url': _build_path_with_query(
+            reverse('admin_activity_logs_export', args=['xlsx']),
+            export_context_query,
+        ),
+        'print_url': _build_path_with_query(
+            reverse('admin_activity_logs_print'),
+            export_context_query,
+        ),
+        'export_preview_rows': export_rows,
+        'export_preview_page': export_preview_page,
+        'export_preview_pagination': export_preview_pagination,
+        'export_window_days': AUDIT_EXPORT_MAX_DAYS,
+        'date_range_label': date_range_label,
+        'current_page_url': request.get_full_path(),
         'is_archived_view': is_archived_view,
         'admin_menu': get_admin_menu(request),
     })
 
 
 @login_required
+def admin_activity_logs_export(request, file_format):
+    """Export filtered audit trail entries to CSV, XLSX, or PDF."""
+    access_denied = _require_admin_roles(request, AUDIT_TRAIL_ROLE_VALUES)
+    if access_denied:
+        return access_denied
+
+    is_archived_view = _is_archived_admin_view(request)
+    filter_state = _normalize_activity_log_filter_state(
+        request, export_scope=True)
+    activity_logs_queryset = _filter_activity_logs_queryset(
+        ActivityLog.objects.select_related(
+            'actor').filter(is_archived=is_archived_view),
+        filter_state,
+    )
+    export_rows = _build_activity_log_export_rows(activity_logs_queryset)
+    report_title = 'Hanilies Cakeshoppe Audit Trail Report'
+    date_range_label = (
+        f"{filter_state['date_from_value'].strftime('%b %d, %Y')}"
+        f" - {filter_state['date_to_value'].strftime('%b %d, %Y')}"
+    )
+
+    if file_format == 'csv':
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = (
+            f'attachment; filename="{_build_activity_log_export_filename("csv")}"'
+        )
+        writer = csv.writer(response)
+        writer.writerow(['Hanilies Cakeshoppe Audit Trail Report'])
+        writer.writerow([f'Date Range: {date_range_label}'])
+        writer.writerow([
+            'Date',
+            'User',
+            'Role',
+            'Action',
+            'Module',
+            'Record ID',
+            'Target',
+            'Description',
+        ])
+        for row in export_rows:
+            writer.writerow([
+                row['date_display'],
+                row['actor'],
+                row['role'],
+                row['action'],
+                row['module'],
+                row['record_id'] or '-',
+                row['target'],
+                row['description'],
+            ])
+        return response
+
+    if file_format == 'xlsx':
+        try:
+            from openpyxl import Workbook
+            from openpyxl.styles import Font
+        except ImportError:
+            messages.error(
+                request,
+                'XLSX export is not available until openpyxl is installed.',
+            )
+            return redirect(_get_safe_admin_return_url(request, 'admin_activity_logs'))
+
+        workbook = Workbook()
+        worksheet = workbook.active
+        worksheet.title = 'Audit Trail'
+        worksheet.append(['Hanilies Cakeshoppe Audit Trail Report'])
+        worksheet.append([f'Date Range: {date_range_label}'])
+        worksheet.append([
+            'Date',
+            'User',
+            'Role',
+            'Action',
+            'Target',
+            'Description',
+        ])
+
+        for header_cell in worksheet[3]:
+            header_cell.font = Font(bold=True)
+
+        for row in export_rows:
+            worksheet.append([
+                row['date_display'],
+                row['actor'],
+                row['role'],
+                row['action'],
+                row['target'],
+                row['description'],
+            ])
+
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = (
+            f'attachment; filename="{_build_activity_log_export_filename("xlsx")}"'
+        )
+        workbook.save(response)
+        return response
+
+    if file_format == 'pdf':
+        try:
+            from reportlab.lib.pagesizes import landscape, letter
+            from reportlab.pdfgen import canvas
+        except ImportError:
+            messages.error(
+                request,
+                'PDF export is not available until reportlab is installed.',
+            )
+            return redirect(_get_safe_admin_return_url(request, 'admin_activity_logs'))
+
+        buffer = BytesIO()
+        pdf = canvas.Canvas(buffer, pagesize=landscape(letter))
+        width, height = landscape(letter)
+        y_position = height - 40
+
+        pdf.setFont('Helvetica-Bold', 16)
+        pdf.drawString(40, y_position, report_title)
+        y_position -= 18
+        pdf.setFont('Helvetica', 10)
+        pdf.drawString(40, y_position, f'Date Range: {date_range_label}')
+        y_position -= 14
+        pdf.drawString(
+            40,
+            y_position,
+            f'Generated: {timezone.localtime(timezone.now()).strftime("%Y-%m-%d %H:%M")}',
+        )
+        y_position -= 26
+
+        pdf.setFont('Helvetica-Bold', 9)
+        pdf.drawString(40, y_position, 'Date')
+        pdf.drawString(120, y_position, 'User')
+        pdf.drawString(205, y_position, 'Role')
+        pdf.drawString(315, y_position, 'Action')
+        pdf.drawString(410, y_position, 'Target')
+        pdf.drawString(505, y_position, 'Description')
+        y_position -= 18
+        pdf.setFont('Helvetica', 8)
+
+        for row in export_rows:
+            if y_position <= 40:
+                pdf.showPage()
+                y_position = height - 40
+                pdf.setFont('Helvetica-Bold', 9)
+                pdf.drawString(40, y_position, 'Date')
+                pdf.drawString(120, y_position, 'User')
+                pdf.drawString(205, y_position, 'Role')
+                pdf.drawString(315, y_position, 'Action')
+                pdf.drawString(410, y_position, 'Target')
+                pdf.drawString(505, y_position, 'Description')
+                y_position -= 18
+                pdf.setFont('Helvetica', 8)
+
+            pdf.drawString(40, y_position, row['date_display'])
+            pdf.drawString(120, y_position, row['actor'][:14])
+            pdf.drawString(205, y_position, row['role'][:18])
+            pdf.drawString(315, y_position, row['action'][:15])
+            pdf.drawString(410, y_position, row['target'][:16])
+            pdf.drawString(505, y_position, row['description'][:38])
+            y_position -= 16
+
+        pdf.save()
+        pdf_bytes = buffer.getvalue()
+        buffer.close()
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        response['Content-Disposition'] = (
+            f'attachment; filename="{_build_activity_log_export_filename("pdf")}"'
+        )
+        return response
+
+    messages.error(request, 'Unsupported export format requested.')
+    return redirect(_get_safe_admin_return_url(request, 'admin_activity_logs'))
+
+
+@login_required
+def admin_activity_logs_print(request):
+    """Render a print-friendly audit trail page limited to a 30-day window."""
+    access_denied = _require_admin_roles(request, AUDIT_TRAIL_ROLE_VALUES)
+    if access_denied:
+        return access_denied
+
+    is_archived_view = _is_archived_admin_view(request)
+    filter_state = _normalize_activity_log_filter_state(
+        request, export_scope=True)
+    activity_logs_queryset = _filter_activity_logs_queryset(
+        ActivityLog.objects.select_related(
+            'actor').filter(is_archived=is_archived_view),
+        filter_state,
+    )
+    return render(request, 'admin/activity_logs_print.html', {
+        'activity_logs': _build_activity_log_export_rows(activity_logs_queryset),
+        'date_range_label': (
+            f"{filter_state['date_from_value'].strftime('%b %d, %Y')}"
+            f" - {filter_state['date_to_value'].strftime('%b %d, %Y')}"
+        ),
+        'export_window_days': AUDIT_EXPORT_MAX_DAYS,
+        'generated_at': timezone.localtime(timezone.now()),
+        'is_archived_view': is_archived_view,
+    })
+
+
+@login_required
 @require_POST
 def admin_activity_log_delete(request, log_id):
-    """Archive an audit trail entry from the admin panel"""
+    """Archive or restore an audit trail entry from the admin panel"""
     access_denied = _require_admin_roles(request, AUDIT_TRAIL_ROLE_VALUES)
     if access_denied:
         return access_denied
 
     activity_log = get_object_or_404(ActivityLog, id=log_id)
-    _archive_model_instance(activity_log)
-    messages.success(request, 'Audit trail entry archived successfully!')
-    return redirect('admin_activity_logs')
+    if activity_log.is_archived:
+        _restore_model_instance(activity_log)
+        messages.success(request, 'Audit trail entry restored successfully!')
+    else:
+        _archive_model_instance(activity_log)
+        messages.success(request, 'Audit trail entry archived successfully!')
+    return redirect(_get_safe_admin_return_url(request, 'admin_activity_logs'))
 
 
 # ============================================
@@ -4317,8 +5493,9 @@ def admin_user_edit(request, user_id):
 
 @login_required
 @require_POST
+@require_POST
 def admin_user_delete(request, user_id):
-    """Archive a user from the admin panel"""
+    """Archive or restore a user from the admin panel"""
     access_denied = _require_admin_roles(request, USER_MANAGEMENT_ROLE_VALUES)
     if access_denied:
         return access_denied
@@ -4327,20 +5504,32 @@ def admin_user_delete(request, user_id):
 
     if delete_user == request.user:
         messages.error(request, 'You cannot delete your own account.')
-        return redirect('admin_users')
+        return redirect(_get_safe_admin_return_url(request, 'admin_users'))
 
     username = delete_user.username
-    delete_user.is_active = False
-    delete_user.save(update_fields=['is_active'])
-    _log_staff_activity(
-        request.user,
-        'user_archived',
-        f'Archived user "{username}".',
-        'user',
-        user_id,
-    )
-    messages.success(request, f'User "{username}" archived successfully!')
-    return redirect('admin_users')
+    if delete_user.is_active:
+        delete_user.is_active = False
+        delete_user.save(update_fields=['is_active'])
+        _log_staff_activity(
+            request.user,
+            'user_archived',
+            f'Archived user "{username}".',
+            'user',
+            user_id,
+        )
+        messages.success(request, f'User "{username}" archived successfully!')
+    else:
+        delete_user.is_active = True
+        delete_user.save(update_fields=['is_active'])
+        _log_staff_activity(
+            request.user,
+            'user_restored',
+            f'Restored user "{username}".',
+            'user',
+            user_id,
+        )
+        messages.success(request, f'User "{username}" restored successfully!')
+    return redirect(_get_safe_admin_return_url(request, 'admin_users'))
 
 
 @login_required

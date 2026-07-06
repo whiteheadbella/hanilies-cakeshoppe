@@ -5,55 +5,472 @@
 {% block page_icon %}clipboard-list{% endblock %}
 
 {% block content %}
-<div class="module-card">
-    <div class="module-header" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
-        <h2><i class="fas fa-history"></i> {% if is_archived_view %}Archived Audit Trail{% else %}Audit Trail{% endif %}</h2>
-        <a href="{% if is_archived_view %}{% url 'admin_activity_logs' %}{% else %}{% url 'admin_activity_logs' %}?archived=1{% endif %}" class="btn-primary" style="text-decoration: none; background: {% if is_archived_view %}linear-gradient(135deg, #0f766e, #14b8a6){% else %}linear-gradient(135deg, #6b7280, #9ca3af){% endif %};">
-            <i class="fas fa-box-archive"></i> {% if is_archived_view %}Back to Active{% else %}View Archived{% endif %}
-        </a>
+<style>
+.audit-preview-table-wrap {
+    background: #ffffff;
+    border: 1px solid #eef0f4;
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+    overflow-x: auto;
+    padding: 0;
+    margin-top: 24px;
+}
+
+.audit-preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 14px;
+    color: #1f2937;
+}
+
+.audit-preview-table th,
+.audit-preview-table td {
+    padding: 18px 20px;
+    text-align: left;
+    vertical-align: middle;
+    border-bottom: 1px solid #eef0f4;
+}
+
+.audit-preview-table th {
+    font-weight: 700;
+    font-size: 13px;
+    color: #111827;
+    white-space: nowrap;
+}
+
+.audit-preview-table td {
+    line-height: 1.5;
+}
+
+.audit-preview-table tbody tr {
+    height: 64px;
+}
+
+.audit-preview-table tbody tr:hover {
+    background: #fff7fa;
+}
+
+.audit-preview-table th:nth-child(1),
+.audit-preview-table td:nth-child(1) {
+    width: 150px;
+}
+
+.audit-preview-table th:nth-child(2),
+.audit-preview-table td:nth-child(2) {
+    width: 180px;
+}
+
+.audit-preview-table th:nth-child(3),
+.audit-preview-table td:nth-child(3) {
+    width: 140px;
+}
+
+.audit-preview-table th:nth-child(4),
+.audit-preview-table td:nth-child(4) {
+    width: 170px;
+}
+
+.audit-preview-table th:nth-child(5),
+.audit-preview-table td:nth-child(5) {
+    width: 130px;
+}
+
+.audit-preview-table th:nth-child(6),
+.audit-preview-table td:nth-child(6) {
+    width: 90px;
+}
+
+.audit-preview-table th:nth-child(7),
+.audit-preview-table td:nth-child(7) {
+    width: 160px;
+}
+
+.audit-preview-table th:nth-child(8),
+.audit-preview-table td:nth-child(8) {
+    width: 280px;
+}
+
+.audit-preview-table .audit-role-badge,
+.audit-preview-table .audit-action-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.audit-preview-table .audit-role-badge {
+    background: #ffe4ec;
+    color: #ef3f6b;
+}
+
+.audit-preview-table .audit-action-badge {
+    background: #eaf3ff;
+    color: #2563eb;
+}
+
+.audit-preview-table td.text-center {
+    text-align: center;
+    padding: 30px;
+    color: #6b7280;
+}
+
+.audit-filter-note-inline {
+    margin-top: 16px;
+    padding: 16px 20px;
+    border-radius: 14px;
+    background: #fff7fa;
+    border: 1px solid #ffd6e2;
+}
+
+.audit-filter-note-inline strong {
+    color: #111827;
+}
+
+.audit-filter-note-inline p {
+    margin: 4px 0 0;
+    color: #6b7280;
+}
+</style>
+
+<div class="module-card audit-ui-shell">
+    <div class="audit-ui-page-head">
+        <div class="audit-ui-page-head-main">
+            <div class="audit-ui-page-head-row">
+                <h2 class="audit-ui-title">Audit Trail</h2>
+                <div class="audit-ui-top-actions">
+                    <a href="{{ archive_toggle_url }}" class="audit-ui-toolbar-btn audit-ui-toolbar-btn-soft">
+                        <i class="fas fa-box-archive"></i>
+                        <span>{% if is_archived_view %}Back to Active{% else %}View Archived{% endif %}</span>
+                    </a>
+                </div>
+            </div>
+        </div>
     </div>
-    <table class="module-table">
+
+    <div class="audit-ui-tab-shell">
+        <div class="audit-ui-tabs">
+            <a href="{{ records_tab_url }}" class="audit-ui-tab {% if current_tab == 'records' %}is-active{% endif %}">[Record Logs]</a>
+            <a href="{{ export_tab_url }}" class="audit-ui-tab {% if current_tab == 'export' %}is-active{% endif %}">[Export Logs]</a>
+        </div>
+    </div>
+
+    <form method="get" class="audit-ui-toolbar-card">
+        <input type="hidden" name="tab" value="{{ current_tab }}">
+        {% if is_archived_view %}
+        <input type="hidden" name="archived" value="1">
+        {% endif %}
+
+        <div class="audit-ui-filter-card-head">
+            <div>
+                <h3 class="audit-ui-filter-card-title">Search And Filters</h3>
+                <p class="audit-ui-filter-card-copy">Refine the audit view with search, date range, user, module, record ID, and action filters.</p>
+            </div>
+            <div class="audit-ui-filter-card-actions">
+                <a href="{{ export_tab_url }}" class="audit-ui-toolbar-btn audit-ui-toolbar-btn-primary audit-ui-toolbar-btn-export">
+                    <i class="fas fa-download"></i>
+                    <span>Export</span>
+                </a>
+                <button type="submit" class="audit-ui-toolbar-btn audit-ui-toolbar-btn-primary">
+                    <i class="fas fa-filter"></i>
+                    <span>Apply Filters</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="audit-ui-toolbar-top">
+            <label class="audit-ui-search-field">
+                <i class="fas fa-search"></i>
+                <input type="text" name="q" value="{{ current_filters.search }}" placeholder="Search by Log ID, user, action, module, or target">
+            </label>
+        </div>
+
+        <div class="audit-ui-toolbar-filters">
+            <label class="audit-ui-inline-filter">
+                <span>Date From</span>
+                <input type="date" name="date_from" value="{{ current_filters.date_from }}">
+            </label>
+            <label class="audit-ui-inline-filter">
+                <span>Date To</span>
+                <input type="date" name="date_to" value="{{ current_filters.date_to }}">
+            </label>
+            <label class="audit-ui-inline-filter">
+                <span>User</span>
+                <select name="actor">
+                    <option value="">All Users</option>
+                    {% for actor in actor_options %}
+                    <option value="{{ actor.id }}" {% if current_filters.actor == actor.id|stringformat:"s" %}selected{% endif %}>{{ actor.username }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label class="audit-ui-inline-filter">
+                <span>Module</span>
+                <select name="target_type">
+                    <option value="">All Modules</option>
+                    {% for target_type in target_type_options %}
+                    <option value="{{ target_type }}" {% if current_filters.target_type == target_type %}selected{% endif %}>{{ target_type|title }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label class="audit-ui-inline-filter">
+                <span>Record ID</span>
+                <input type="text" name="record_id" value="{{ current_filters.record_id }}" placeholder="Order or record ID">
+            </label>
+        </div>
+
+        <div class="audit-ui-toolbar-bottom">
+            <div class="audit-ui-action-filter-group">
+                <span class="audit-ui-action-filter-title">Status / Action Filters</span>
+                <div class="audit-ui-checkbox-panel">
+                    <div class="audit-ui-checkbox-grid">
+                        {% for action in action_options %}
+                        <label class="audit-ui-checkbox-chip">
+                            <input type="checkbox" name="action" value="{{ action }}" {% if action in current_filters.action_values %}checked{% endif %}>
+                            <span>{{ action|title }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="audit-ui-filter-footer-actions">
+                <a href="{{ reset_filters_url }}" class="audit-ui-reset-link"><i class="fas fa-rotate-left"></i><span>Reset Filters</span></a>
+            </div>
+        </div>
+    </form>
+
+    {% if active_filter_chips %}
+    <div class="audit-ui-chipbar">
+        {% for chip in active_filter_chips %}
+        <span class="audit-filter-chip">{{ chip }}</span>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if current_tab == 'records' %}
+    <section class="audit-ui-table-card">
+        <div class="audit-ui-section-head">
+            <div>
+                <h3>Audit Records</h3>
+                <p>{{ activity_logs_pagination.summary }}</p>
+            </div>
+            <div class="audit-ui-section-meta">
+                {% if date_range_label %}
+                <span class="audit-ui-range-pill">{{ date_range_label }}</span>
+                {% endif %}
+                <span class="audit-ui-view-pill">{% if is_archived_view %}Archived View{% else %}Active View{% endif %}</span>
+            </div>
+        </div>
+
+        {% if activity_logs %}
+        <div class="audit-ui-table-wrap">
+            <table class="audit-ui-table">
+                <colgroup>
+                    <col class="audit-ui-col-date">
+                    <col class="audit-ui-col-user">
+                    <col class="audit-ui-col-role">
+                    <col class="audit-ui-col-action">
+                    <col class="audit-ui-col-record-id">
+                    <col class="audit-ui-col-timestamp">
+                    <col class="audit-ui-col-description">
+                    <col class="audit-ui-col-actions">
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th class="audit-ui-col-date"><button type="button" class="audit-ui-header-chip" data-audit-header>Date</button></th>
+                        <th class="audit-ui-col-user"><button type="button" class="audit-ui-header-chip" data-audit-header>User</button></th>
+                        <th class="audit-ui-col-role"><button type="button" class="audit-ui-header-chip" data-audit-header>Role</button></th>
+                        <th class="audit-ui-col-action"><button type="button" class="audit-ui-header-chip" data-audit-header>Action</button></th>
+                        <th class="audit-ui-col-record-id"><button type="button" class="audit-ui-header-chip" data-audit-header>ID</button></th>
+                        <th class="audit-ui-col-timestamp"><button type="button" class="audit-ui-header-chip" data-audit-header>Login / Logout</button></th>
+                        <th class="audit-ui-col-description"><button type="button" class="audit-ui-header-chip" data-audit-header>Description</button></th>
+                        <th class="audit-ui-col-actions"><button type="button" class="audit-ui-header-chip" data-audit-header>Status</button></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in activity_logs %}
+                    <tr>
+                        <td class="audit-ui-col-date">{{ log.exact_timestamp }}</td>
+                        <td class="audit-ui-col-user">
+                            <div class="audit-ui-user-cell">
+                                <span>{{ log.display_actor }}</span>
+                            </div>
+                        </td>
+                        <td class="audit-ui-col-role">
+                            <span class="audit-role-badge audit-role-badge-{{ log.role_badge_key }}">{{ log.role_badge_label }}</span>
+                        </td>
+                        <td class="audit-ui-col-action">
+                            <span class="audit-action-badge audit-action-badge-{{ log.action_badge_key }}">{{ log.display_action }}</span>
+                        </td>
+                        <td class="audit-ui-col-record-id">{{ log.display_record_id }}</td>
+                        <td class="audit-ui-col-timestamp">
+                            {% if log.action_badge_key == 'login' %}
+                            Login
+                            {% elif log.action_badge_key == 'logout' %}
+                            Logout
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td class="audit-ui-col-description">
+                            <div class="audit-ui-description-cell">
+                                <strong>{{ log.description }}</strong>
+                            </div>
+                        </td>
+                        <td class="audit-ui-col-actions">
+                            <div class="audit-ui-row-actions">
+                                <span class="audit-ui-row-state {% if is_archived_view %}audit-ui-row-state-archived{% else %}audit-ui-row-state-active{% endif %}">{% if is_archived_view %}Archived{% else %}Active{% endif %}</span>
+                                <form method="post" action="{% url 'admin_activity_log_delete' log.id %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="next" value="{{ current_page_url }}">
+                                    <button type="submit" class="audit-ui-inline-btn audit-ui-inline-btn-soft {% if is_archived_view %}audit-ui-inline-btn-restore{% else %}audit-ui-inline-btn-archive{% endif %}" onclick="return confirm('{% if is_archived_view %}Restore{% else %}Archive{% endif %} this audit trail entry?');"><i class="fas {% if is_archived_view %}fa-rotate-left{% else %}fa-box-archive{% endif %}"></i><span>{% if is_archived_view %}Restore{% else %}Archive{% endif %}</span></button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="audit-empty-state">
+            <i class="fas fa-inbox"></i>
+            <p>No audit trail entries matched the selected filters.</p>
+        </div>
+        {% endif %}
+
+        {% if activity_logs_pagination.has_multiple_pages %}
+        <div class="audit-pagination-row audit-pagination-row-table">
+            <span>{{ activity_logs_pagination.summary }}</span>
+            <div class="audit-ui-page-controls">
+                {% if activity_logs_pagination.prev_url %}
+                <a href="{{ activity_logs_pagination.prev_url }}" class="audit-ui-page-btn">Previous</a>
+                {% endif %}
+                <span class="audit-ui-page-indicator">Page {{ activity_logs.number }} of {{ activity_logs.paginator.num_pages }}</span>
+                {% if activity_logs_pagination.next_url %}
+                <a href="{{ activity_logs_pagination.next_url }}" class="audit-ui-page-btn">Next</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </section>
+    {% else %}
+    <section class="audit-ui-table-card">
+            <div class="audit-ui-section-head">
+                <div>
+                    <h3>Export Logs</h3>
+                    <p>Download or print logs using the active filters and the existing 30-day export window.</p>
+                </div>
+                <div class="audit-ui-section-meta">
+                    {% if date_range_label %}
+                    <span class="audit-ui-range-pill">{{ date_range_label }}</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="audit-ui-export-grid">
+                <a href="{{ export_csv_url }}" class="audit-ui-export-card">
+                    <i class="fas fa-file-csv"></i>
+                    <strong>Export CSV</strong>
+                    <span>Flat file for spreadsheet imports and quick sharing.</span>
+                </a>
+                <a href="{{ export_xlsx_url }}" class="audit-ui-export-card">
+                    <i class="fas fa-file-excel"></i>
+                    <strong>Export XLSX</strong>
+                    <span>Workbook format for reporting and sorting.</span>
+                </a>
+                <a href="{{ export_pdf_url }}" class="audit-ui-export-card">
+                    <i class="fas fa-file-pdf"></i>
+                    <strong>Export PDF</strong>
+                    <span>Printable document version of the current view.</span>
+                </a>
+                <a href="{{ print_url }}" class="audit-ui-export-card" target="_blank" rel="noopener">
+                    <i class="fas fa-print"></i>
+                    <strong>Print 30 Days</strong>
+                    <span>Open the print-friendly page in a new tab.</span>
+                </a>
+            </div>
+
+            <div class="audit-export-note">
+                <span>Use the right-side filter panel to narrow logs by user, module, record ID, action, or date before exporting.</span>
+            </div>
+<div class="audit-preview-table-wrap">
+    <table class="module-table audit-preview-table" data-pagination-mode="server">
         <thead>
             <tr>
                 <th>Date</th>
-                <th>Staff</th>
+                <th>User</th>
                 <th>Role</th>
                 <th>Action</th>
-                <th>Target</th>
+                <th>ID</th>
+                <th>Login / Logout</th>
                 <th>Description</th>
-                <th>Actions</th>
+                <th>Status</th>
             </tr>
         </thead>
+
         <tbody>
-            {% for log in activity_logs %}
+            {% for row in export_preview_rows %}
             <tr>
-                <td>{{ log.created_at|date:"Y-m-d H:i" }}</td>
-                <td>{{ log.actor.username|default:"Deleted user" }}</td>
-                <td>{{ log.actor_role|default:"-" }}</td>
-                <td>{{ log.action|title }}</td>
+                <td>{{ row.date_display }}</td>
+                <td>{{ row.actor }}</td>
                 <td>
-                    {% if log.target_type %}
-                    {{ log.target_type|title }}{% if log.target_id %} #{{ log.target_id }}{% endif %}
-                    {% else %}
-                    -
-                    {% endif %}
+                    <span class="audit-role-badge audit-role-badge-{{ row.role_badge_key }}">
+                        {{ row.role_badge_label }}
+                    </span>
                 </td>
-                <td>{{ log.description }}</td>
                 <td>
-                    {% if not is_archived_view %}
-                    <form method="post" action="{% url 'admin_activity_log_delete' log.id %}" style="display: inline;">
-                        {% csrf_token %}
-                        <button type="submit" onclick="return confirm('Archive this audit trail entry?');" style="background: none; border: none; padding: 0; color: #d94b4b; cursor: pointer; text-decoration: underline; font: inherit;">Archive</button>
-                    </form>
-                    {% endif %}
+                    <span class="audit-action-badge audit-action-badge-{{ row.action_key }}">
+                        {{ row.action }}
+                    </span>
+                </td>
+                <td>{{ row.display_record_id }}</td>
+                <td>{{ row.login_logout_label }}</td>
+                <td>{{ row.description }}</td>
+                <td>
+                    <span class="audit-ui-row-state audit-ui-row-state-{{ row.status_key }}">{{ row.status_label }}</span>
                 </td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="7" class="text-center">No audit trail entries recorded yet.</td>
+                <td colspan="8" class="text-center">
+                    No audit entries available for the selected export window.
+                </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
+</div>
+
+        {% if export_preview_pagination.has_multiple_pages %}
+        <div class="audit-pagination-row audit-pagination-row-table">
+            <span>{{ export_preview_pagination.summary }}</span>
+            <div class="audit-ui-page-controls">
+                {% if export_preview_pagination.prev_url %}
+                <a href="{{ export_preview_pagination.prev_url }}" class="audit-ui-page-btn">Previous</a>
+                {% else %}
+                <span class="audit-ui-page-btn audit-ui-page-btn-disabled">Previous</span>
+                {% endif %}
+                <span class="audit-ui-page-indicator">Page {{ export_preview_page.number }} of {{ export_preview_page.paginator.num_pages }}</span>
+                {% if export_preview_pagination.next_url %}
+                <a href="{{ export_preview_pagination.next_url }}" class="audit-ui-page-btn">Next</a>
+                {% else %}
+                <span class="audit-ui-page-btn audit-ui-page-btn-disabled">Next</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+<div class="audit-filter-note audit-filter-note-inline">
+    <div>
+        <strong>Export setting</strong>
+        <p>PDF, Excel, CSV, and print use the existing {{ export_window_days }}-day window.</p>
+    </div>
+</div>
+    </section>
+    {% endif %}
 </div>
 {% endblock %}

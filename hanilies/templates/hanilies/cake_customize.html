@@ -59,50 +59,42 @@
                                 <label class="form-label fw-semibold">Size</label>
                                 <select class="form-select" name="size" id="size">
                                     <option value="">Select Size</option>
-                                    <option>6 inches</option>
-                                    <option>8 inches</option>
-                                    <option>10 inches</option>
-                                    <option>2 Tier</option>
-                                    <option>3 Tier</option>
+                                    {% for option in cake_size_options %}
+                                    <option value="{{ option.value }}" data-price="{{ option.price }}">{{ option.label }}{% if option.price != '0.00' %} (+ P{{ option.price }}){% endif %}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label fw-semibold">Shape</label>
-                                <select class="form-select" name="shape">
-                                    <option>Round</option>
-                                    <option>Square</option>
-                                    <option>Heart</option>
-                                    <option>Custom</option>
+                                <select class="form-select" name="shape" id="shape">
+                                    {% for option in cake_shape_options %}
+                                    <option value="{{ option.value }}" data-price="{{ option.price }}">{{ option.label }}{% if option.price != '0.00' %} (+ P{{ option.price }}){% endif %}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label fw-semibold">Flavor</label>
-                                <select class="form-select" name="flavor">
-                                    <option>Chocolate</option>
-                                    <option>Vanilla</option>
-                                    <option>Red Velvet</option>
-                                    <option>Ube</option>
-                                    <option>Mocha</option>
-                                    <option>Strawberry</option>
+                                <select class="form-select" name="flavor" id="flavor">
+                                    {% for option in cake_flavor_options %}
+                                    <option value="{{ option.value }}" data-price="{{ option.price }}">{{ option.label }}{% if option.price != '0.00' %} (+ P{{ option.price }}){% endif %}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label fw-semibold">Frosting</label>
-                                <select class="form-select" name="frosting">
-                                    <option>Buttercream</option>
-                                    <option>Cream Cheese</option>
-                                    <option>Ganache</option>
-                                    <option>Fondant</option>
+                                <select class="form-select" name="frosting" id="frosting">
+                                    {% for option in cake_frosting_options %}
+                                    <option value="{{ option.value }}" data-price="{{ option.price }}">{{ option.label }}{% if option.price != '0.00' %} (+ P{{ option.price }}){% endif %}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-semibold">Filling</label>
-                                <select class="form-select" name="filling">
+                                <select class="form-select" name="filling" id="filling">
                                     <option value="">None</option>
-                                    <option>Chocolate Ganache</option>
-                                    <option>Strawberry Jam</option>
-                                    <option>Cookies and Cream</option>
-                                    <option>Mango</option>
+                                    {% for option in cake_filling_options %}
+                                    <option value="{{ option.value }}" data-price="{{ option.price }}">{{ option.label }}{% if option.price != '0.00' %} (+ P{{ option.price }}){% endif %}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
                             <div class="col-md-6">
@@ -121,10 +113,10 @@
 
                         <h6 class="fw-bold mb-3">Decoration Add-ons</h6>
                         <div class="row g-2 mb-4">
-                            {% for key, option in decoration_options.items %}
+                            {% for option in decoration_options %}
                             <div class="col-md-6">
                                 <label class="form-check border rounded p-3 h-100">
-                                    <input class="form-check-input addon-checkbox" type="checkbox" name="decorations" value="{{ key }}" data-price="{{ option.price }}">
+                                    <input class="form-check-input addon-checkbox" type="checkbox" name="decorations" value="{{ option.key }}" data-price="{{ option.price }}">
                                     <span class="form-check-label ms-2">
                                         <strong>{{ option.label }}</strong><br>
                                         <span class="text-muted">+ P{{ option.price }}</span>
@@ -411,8 +403,12 @@
                     </div>
                     <hr>
                     <div class="d-flex justify-content-between mb-2">
-                        <span>Total Order</span>
+                        <span>Base Cake x Quantity</span>
                         <span id="summary-base">P{{ cake.price }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Customization Add-ons</span>
+                        <span id="summary-customization">P0.00</span>
                     </div>
                     <div class="d-flex justify-content-between mb-2">
                         <span>Decoration Add-ons</span>
@@ -444,6 +440,10 @@
     const quantityInput = document.getElementById('quantity');
     const themeSelect = document.getElementById('theme');
     const sizeSelect = document.getElementById('size');
+    const shapeSelect = document.getElementById('shape');
+    const flavorSelect = document.getElementById('flavor');
+    const frostingSelect = document.getElementById('frosting');
+    const fillingSelect = document.getElementById('filling');
     const addonCheckboxes = document.querySelectorAll('.addon-checkbox');
     const paymentRadios = document.querySelectorAll('.payment-radio');
     const gcashFields = document.getElementById('gcash-fields');
@@ -482,7 +482,14 @@
 
     function getCakeTotals() {
         const quantity = Math.max(parseInt(quantityInput.value || '1', 10), 1);
+        const pricedSelects = [sizeSelect, shapeSelect, flavorSelect, frostingSelect, fillingSelect];
+        let customizationTotal = 0;
         let addonTotal = 0;
+
+        pricedSelects.forEach((select) => {
+            const option = select.options[select.selectedIndex];
+            customizationTotal += parseFloat(option?.dataset.price || '0');
+        });
 
         addonCheckboxes.forEach((checkbox) => {
             if (checkbox.checked) {
@@ -492,8 +499,9 @@
 
         return {
             quantity,
+            customizationTotal,
             addonTotal,
-            total: (baseCakePrice * quantity) + addonTotal,
+            total: (baseCakePrice * quantity) + customizationTotal + addonTotal,
         };
     }
 
@@ -509,13 +517,14 @@
     }
 
     function updateCakeSummary() {
-        const { quantity, addonTotal, total } = getCakeTotals();
+        const { quantity, customizationTotal, addonTotal, total } = getCakeTotals();
         const { dueNow, balanceDue } = getCakePaymentBreakdown();
         document.getElementById('summary-theme').textContent = themeSelect.value || 'Not selected';
         document.getElementById('summary-size').textContent = sizeSelect.value || 'Not selected';
         document.getElementById('summary-quantity').textContent = quantity;
+        document.getElementById('summary-customization').textContent = `P${customizationTotal.toFixed(2)}`;
         document.getElementById('summary-addons').textContent = `P${addonTotal.toFixed(2)}`;
-        document.getElementById('summary-base').textContent = `P${total.toFixed(2)}`;
+        document.getElementById('summary-base').textContent = `P${(baseCakePrice * quantity).toFixed(2)}`;
         document.getElementById('summary-deposit').textContent = `P${dueNow.toFixed(2)}`;
         document.getElementById('summary-balance').textContent = `P${balanceDue.toFixed(2)}`;
         document.getElementById('summary-total').textContent = `P${total.toFixed(2)}`;
@@ -604,10 +613,10 @@
         document.getElementById('review-cake-theme').textContent = themeSelect.value || 'Not selected';
         document.getElementById('review-cake-size').textContent = sizeSelect.value || 'Not selected';
         document.getElementById('review-cake-quantity').textContent = quantity;
-        document.getElementById('review-cake-shape').textContent = cakeOrderForm.querySelector('select[name="shape"]').value || 'Not selected';
-        document.getElementById('review-cake-flavor').textContent = cakeOrderForm.querySelector('select[name="flavor"]').value || 'Not selected';
-        document.getElementById('review-cake-frosting').textContent = cakeOrderForm.querySelector('select[name="frosting"]').value || 'Not selected';
-        document.getElementById('review-cake-filling').textContent = cakeOrderForm.querySelector('select[name="filling"]').value || 'None';
+        document.getElementById('review-cake-shape').textContent = shapeSelect.value || 'Not selected';
+        document.getElementById('review-cake-flavor').textContent = flavorSelect.value || 'Not selected';
+        document.getElementById('review-cake-frosting').textContent = frostingSelect.value || 'Not selected';
+        document.getElementById('review-cake-filling').textContent = fillingSelect.value || 'None';
         document.getElementById('review-cake-color').textContent = cakeOrderForm.querySelector('input[name="color_palette"]').value.trim() || 'Not specified';
         document.getElementById('review-cake-decorations').textContent = selectedDecorations.join(', ') || 'None selected';
         document.getElementById('review-cake-message').textContent = cakeOrderForm.querySelector('input[name="message_on_cake"]').value.trim() || 'None';
@@ -641,6 +650,10 @@
 
     themeSelect.addEventListener('change', updateCakeSummary);
     sizeSelect.addEventListener('change', updateCakeSummary);
+    shapeSelect.addEventListener('change', updateCakeSummary);
+    flavorSelect.addEventListener('change', updateCakeSummary);
+    frostingSelect.addEventListener('change', updateCakeSummary);
+    fillingSelect.addEventListener('change', updateCakeSummary);
     quantityInput.addEventListener('input', updateCakeSummary);
     addonCheckboxes.forEach((checkbox) => checkbox.addEventListener('change', updateCakeSummary));
     paymentRadios.forEach((radio) => radio.addEventListener('change', updatePaymentSummary));

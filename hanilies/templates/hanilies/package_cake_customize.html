@@ -57,48 +57,42 @@
                             <div class="col-md-6">
                                 <label class="form-label fw-semibold">Cake Size Upgrade</label>
                                 <select class="form-select package-size-option" name="cake_size">
-                                    {% for key, option in size_options.items %}
-                                    <option value="{{ key }}" data-price="{{ option.price }}" {% if draft.cake_size_key == key %}selected{% endif %}>{{ option.label }} {% if option.price > 0 %}(+ P{{ option.price }}){% endif %}</option>
+                                    {% for option in size_options %}
+                                    <option value="{{ option.value }}" data-price="{{ option.price }}" {% if draft.cake_size_key == option.value %}selected{% endif %}>{{ option.label }}{% if option.price != '0.00' %} (+ P{{ option.price }}){% endif %}</option>
                                     {% endfor %}
                                 </select>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label fw-semibold">Flavor</label>
-                                <select class="form-select" name="flavor">
-                                    <option>Chocolate</option>
-                                    <option>Vanilla</option>
-                                    <option>Red Velvet</option>
-                                    <option>Ube</option>
-                                    <option>Mocha</option>
-                                    <option>Strawberry</option>
+                                <select class="form-select package-priced-select" name="flavor" id="package-flavor">
+                                    {% for option in flavor_options %}
+                                    <option value="{{ option.value }}" data-price="{{ option.price }}" {% if draft.cake_flavor == option.label or draft.cake_flavor == option.value %}selected{% endif %}>{{ option.label }}{% if option.price != '0.00' %} (+ P{{ option.price }}){% endif %}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label fw-semibold">Frosting</label>
-                                <select class="form-select" name="frosting">
-                                    <option>Buttercream</option>
-                                    <option>Cream Cheese</option>
-                                    <option>Ganache</option>
-                                    <option>Fondant</option>
+                                <select class="form-select package-priced-select" name="frosting" id="package-frosting">
+                                    {% for option in frosting_options %}
+                                    <option value="{{ option.value }}" data-price="{{ option.price }}" {% if draft.cake_frosting == option.label or draft.cake_frosting == option.value %}selected{% endif %}>{{ option.label }}{% if option.price != '0.00' %} (+ P{{ option.price }}){% endif %}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label fw-semibold">Filling</label>
-                                <select class="form-select" name="filling">
+                                <select class="form-select package-priced-select" name="filling" id="package-filling">
                                     <option value="">None</option>
-                                    <option>Chocolate Ganache</option>
-                                    <option>Strawberry Jam</option>
-                                    <option>Cookies and Cream</option>
-                                    <option>Mango</option>
+                                    {% for option in filling_options %}
+                                    <option value="{{ option.value }}" data-price="{{ option.price }}" {% if draft.cake_filling == option.label or draft.cake_filling == option.value %}selected{% endif %}>{{ option.label }}{% if option.price != '0.00' %} (+ P{{ option.price }}){% endif %}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-semibold">Shape</label>
-                                <select class="form-select" name="shape">
-                                    <option>Round</option>
-                                    <option>Square</option>
-                                    <option>Heart</option>
-                                    <option>Custom</option>
+                                <select class="form-select package-priced-select" name="shape" id="package-shape">
+                                    {% for option in shape_options %}
+                                    <option value="{{ option.value }}" data-price="{{ option.price }}" {% if draft.cake_shape == option.label or draft.cake_shape == option.value %}selected{% endif %}>{{ option.label }}{% if option.price != '0.00' %} (+ P{{ option.price }}){% endif %}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
                             <div class="col-md-6">
@@ -113,10 +107,10 @@
 
                         <h6 class="fw-bold mb-3">Optional Cake Decorations</h6>
                         <div class="row g-3 mb-4">
-                            {% for key, option in decoration_options.items %}
+                            {% for option in decoration_options %}
                             <div class="col-md-6">
                                 <label class="form-check border rounded p-3 h-100">
-                                    <input class="form-check-input package-cake-decoration" type="checkbox" name="cake_decorations" value="{{ key }}" data-price="{{ option.price }}" {% if key in draft.cake_decorations %}checked{% endif %}>
+                                    <input class="form-check-input package-cake-decoration" type="checkbox" name="cake_decorations" value="{{ option.key }}" data-price="{{ option.price }}" {% if option.key in draft.cake_decorations %}checked{% endif %}>
                                     <span class="form-check-label ms-2">
                                         <strong>{{ option.label }}</strong><br>
                                         <span class="text-muted">+ P{{ option.price }}</span>
@@ -182,12 +176,19 @@
 <script>
     const packageSubtotal = parseFloat('{{ draft.base_total }}');
     const sizeSelect = document.querySelector('.package-size-option');
+    const packagePricedSelects = document.querySelectorAll('.package-priced-select');
     const packageCakeDecorations = document.querySelectorAll('.package-cake-decoration');
 
     function updatePackageCakeSummary() {
         const selectedSize = sizeSelect.options[sizeSelect.selectedIndex];
         const sizePrice = parseFloat(selectedSize.dataset.price || '0');
+        let pricedSelectTotal = 0;
         let decorationTotal = 0;
+
+        packagePricedSelects.forEach((select) => {
+            const option = select.options[select.selectedIndex];
+            pricedSelectTotal += parseFloat(option?.dataset.price || '0');
+        });
 
         packageCakeDecorations.forEach((checkbox) => {
             if (checkbox.checked) {
@@ -195,7 +196,7 @@
             }
         });
 
-        const cakeTotal = sizePrice + decorationTotal;
+        const cakeTotal = sizePrice + pricedSelectTotal + decorationTotal;
         const runningTotal = packageSubtotal + cakeTotal;
         document.getElementById('summary-size-upgrade').textContent = selectedSize.textContent.trim();
         document.getElementById('summary-cake-addon').textContent = `P${decorationTotal.toFixed(2)}`;
@@ -204,6 +205,7 @@
     }
 
     sizeSelect.addEventListener('change', updatePackageCakeSummary);
+    packagePricedSelects.forEach((select) => select.addEventListener('change', updatePackageCakeSummary));
     packageCakeDecorations.forEach((checkbox) => checkbox.addEventListener('change', updatePackageCakeSummary));
     updatePackageCakeSummary();
 </script>

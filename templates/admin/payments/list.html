@@ -238,14 +238,12 @@
                     <td>{{ payment.paid_at|date:"Y-m-d H:i"|default:payment.created_at|date:"Y-m-d H:i" }}</td>
                     <td>
                         {% if can_export_sales %}
-                        {% if not is_archived_view %}
                         <form method="post" action="{% url 'admin_payment_delete' payment.id %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" style="display: inline;">
                             {% csrf_token %}
-                            <button type="submit" onclick="return confirm('Archive payment #{{ payment.id }}?');" class="btn-delete">
-                                <i class="fas fa-box-archive"></i> Archive
+                            <button type="submit" onclick="return confirm('{% if is_archived_view %}Restore{% else %}Archive{% endif %} payment #{{ payment.id }}?');" class="btn-delete" style="{% if is_archived_view %}background: #dbeafe; color: #1d4ed8;{% endif %}">
+                                <i class="fas {% if is_archived_view %}fa-rotate-left{% else %}fa-box-archive{% endif %}"></i> {% if is_archived_view %}Restore{% else %}Archive{% endif %}
                             </button>
                         </form>
-                        {% endif %}
                         {% else %}
                         <span class="text-muted small">Full-access staff only</span>
                         {% endif %}
@@ -323,14 +321,12 @@
                     <td>{{ payment.created_at|date:"Y-m-d H:i" }}</td>
                     <td>
                         {% if can_export_sales %}
-                        {% if not is_archived_view %}
                         <form method="post" action="{% url 'admin_payment_delete' payment.id %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" style="display: inline;">
                             {% csrf_token %}
-                            <button type="submit" onclick="return confirm('Archive payment #{{ payment.id }}?');" class="btn-delete">
-                                <i class="fas fa-box-archive"></i> Archive
+                            <button type="submit" onclick="return confirm('{% if is_archived_view %}Restore{% else %}Archive{% endif %} payment #{{ payment.id }}?');" class="btn-delete" style="{% if is_archived_view %}background: #dbeafe; color: #1d4ed8;{% endif %}">
+                                <i class="fas {% if is_archived_view %}fa-rotate-left{% else %}fa-box-archive{% endif %}"></i> {% if is_archived_view %}Restore{% else %}Archive{% endif %}
                             </button>
                         </form>
-                        {% endif %}
                         {% else %}
                         <span class="text-muted small">Full-access staff only</span>
                         {% endif %}

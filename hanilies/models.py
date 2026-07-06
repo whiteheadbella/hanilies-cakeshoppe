@@ -3,6 +3,10 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 
 
+def _build_generated_product_code(prefix, record_id):
+    return f"{prefix}-{record_id:04d}"
+
+
 class UserProfile(models.Model):
     ROLE_CHOICES = [
         ('owner', 'Owner - Full Access'),
@@ -69,12 +73,15 @@ class Cake(models.Model):
     ]
 
     name = models.CharField(max_length=100)
+    product_code = models.CharField(
+        max_length=16, unique=True, blank=True, null=True, editable=False)
     category = models.CharField(max_length=20, choices=CAKE_CATEGORIES)
     description = models.TextField(blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     stock = models.IntegerField(default=0)
     image = models.ImageField(
         upload_to='cakes/', blank=True, null=True)  # Already there
+    customization_options = models.JSONField(default=dict, blank=True)
     is_active = models.BooleanField(default=True)
     is_archived = models.BooleanField(default=False)
     archived_at = models.DateTimeField(null=True, blank=True)
@@ -83,6 +90,12 @@ class Cake(models.Model):
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if not self.product_code:
+            self.product_code = _build_generated_product_code('CK', self.pk)
+            super().save(update_fields=['product_code'])
 
     def image_url(self):
         if self.image:
@@ -190,6 +203,8 @@ class Package(models.Model):
     ]
 
     name = models.CharField(max_length=100)
+    product_code = models.CharField(
+        max_length=16, unique=True, blank=True, null=True, editable=False)
     package_type = models.CharField(max_length=20, choices=PACKAGE_TYPES)
     description = models.TextField(blank=True)
     base_price = models.DecimalField(max_digits=10, decimal_places=2)
@@ -198,6 +213,7 @@ class Package(models.Model):
     included_items = models.TextField(
         blank=True, help_text="List included items, one per line")
     image = models.ImageField(upload_to='packages/', blank=True, null=True)
+    customization_options = models.JSONField(default=dict, blank=True)
     status = models.CharField(max_length=20, default='active', choices=[
                               ('active', 'Active'), ('inactive', 'Inactive')])
     is_archived = models.BooleanField(default=False)
@@ -207,6 +223,12 @@ class Package(models.Model):
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if not self.product_code:
+            self.product_code = _build_generated_product_code('PKG', self.pk)
+            super().save(update_fields=['product_code'])
 
     @property
     def ordered_thumbnails(self):
@@ -304,6 +326,8 @@ class PackageOrder(models.Model):
     cake_frosting = models.CharField(max_length=50, blank=True)
     cake_filling = models.CharField(max_length=50, blank=True)
     cake_message = models.CharField(max_length=200, blank=True)
+    design_reference = models.ImageField(
+        upload_to='designs/', blank=True, null=True)
     order_number = models.CharField(
         max_length=32, unique=True, null=True, blank=True)
 
