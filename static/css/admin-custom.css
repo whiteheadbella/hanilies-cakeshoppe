@@ -2827,7 +2827,6 @@ body {
     justify-content: flex-start;
     gap: 6px;
     width: 100%;
-    min-height: auto;
     padding: 0;
     border: 0;
     border-radius: 0;
