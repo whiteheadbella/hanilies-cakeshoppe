@@ -1482,6 +1482,45 @@ class OrderingIntegrationTests(TestCase):
         self.assertContains(response, f'Cake Order #{archived_order.id}')
         self.assertContains(response, 'Archived Record')
 
+    def test_order_tracking_print_summary_renders_product_code(self):
+        order = CakeOrder.objects.create(
+            user=self.user,
+            cake=self.cake,
+            quantity=1,
+            total_price=Decimal('980.00'),
+            payment_plan='cod',
+            deposit_amount=Decimal('490.00'),
+            balance_due=Decimal('490.00'),
+            order_status='confirmed',
+            contact_name='Integration User',
+            contact_phone='09170000000',
+            contact_email='integration@example.com',
+        )
+        Payment.objects.create(
+            cake_order=order,
+            amount=Decimal('490.00'),
+            payment_method='gcash',
+            payment_purpose='deposit',
+            payment_status='paid',
+            reference_number='PRINT-CAKE-001',
+        )
+
+        tracking_response = self.client.get(
+            f'{reverse("order_tracking")}?type=cake&id={order.id}'
+        )
+        print_url = reverse('order_tracking_print', args=['cake', order.id])
+
+        self.assertEqual(tracking_response.status_code, 200)
+        self.assertContains(tracking_response, print_url)
+
+        print_response = self.client.get(print_url)
+
+        self.assertEqual(print_response.status_code, 200)
+        self.assertContains(print_response, 'Printable Order Summary')
+        self.assertContains(print_response, self.cake.name)
+        self.assertContains(print_response, self.cake.product_code)
+        self.assertContains(print_response, order.contact_name)
+
 
 class SecurityValidationTests(TestCase):
     def setUp(self):
@@ -1535,6 +1574,24 @@ class SecurityValidationTests(TestCase):
 
     def test_guest_is_redirected_to_login_for_protected_tracking_route(self):
         response = self.client.get(reverse('order_tracking'))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse('login'), response.headers['Location'])
+
+    def test_guest_is_redirected_to_login_for_protected_print_summary_route(self):
+        order = CakeOrder.objects.create(
+            user=self.viewer,
+            cake=self.cake,
+            quantity=1,
+            total_price=Decimal('999.00'),
+            contact_name='Viewer User',
+            contact_phone='09123456789',
+            contact_email='viewer@example.com',
+        )
+
+        response = self.client.get(
+            reverse('order_tracking_print', args=['cake', order.id])
+        )
 
         self.assertEqual(response.status_code, 302)
         self.assertIn(reverse('login'), response.headers['Location'])
@@ -3173,6 +3230,7 @@ class OrderStatusNotificationTests(TestCase):
         notification = Notification.objects.get(cake_order=order)
         self.assertEqual(notification.user, self.customer)
         self.assertEqual(notification.notification_type, 'order_status')
+        self.assertIn(f'Code: {self.cake.product_code}', notification.message)
         self.assertIn('Current status: Preparing.', notification.message)
 
     def test_admin_cake_order_update_accepts_ready_for_pickup_status(self):
@@ -3217,6 +3275,7 @@ class OrderStatusNotificationTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].subject, 'Cake Order #1 updated')
+        self.assertIn(f'Code: {self.cake.product_code}', mail.outbox[0].body)
         self.assertIn('Current status: Ready for Pickup.', mail.outbox[0].body)
         self.assertEqual(mail.outbox[0].to, ['customer@example.com'])
 
@@ -3319,6 +3378,7 @@ class OrderStatusNotificationTests(TestCase):
         self.assertEqual(payment.payment_status, 'paid')
         notification = Notification.objects.get(payment=payment)
         self.assertEqual(notification.notification_type, 'payment_status')
+        self.assertIn(f'Code: {self.cake.product_code}', notification.message)
         self.assertIn('payment status is now Paid', notification.message)
 
     def test_payment_approval_sends_customer_email(self):
@@ -3348,6 +3408,7 @@ class OrderStatusNotificationTests(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].subject,
                          f'Payment #{payment.id} updated')
+        self.assertIn(f'Code: {self.cake.product_code}', mail.outbox[0].body)
         self.assertIn('payment status is now Paid', mail.outbox[0].body)
         self.assertEqual(mail.outbox[0].to, ['customer@example.com'])
 
@@ -3384,6 +3445,8 @@ class OrderStatusNotificationTests(TestCase):
         self.assertEqual(order.order_status, 'payment_retry')
         notification = Notification.objects.get(payment=payment)
         self.assertEqual(notification.notification_type, 'payment_status')
+        self.assertIn(f'Code: {self.package.product_code}',
+                      notification.message)
         self.assertIn('payment status is now Rejected', notification.message)
 
 

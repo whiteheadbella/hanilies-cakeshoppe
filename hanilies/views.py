@@ -643,6 +643,29 @@ def _get_order_label(order):
     return 'Cake Order' if order_kind == 'cake' else 'Package Order'
 
 
+def _get_order_product_summary(order):
+    if isinstance(order, CakeOrder):
+        product = order.cake
+    else:
+        product = order.package
+
+    if product is None:
+        return ''
+
+    product_name = str(getattr(product, 'name', '') or '').strip()
+    product_code = str(getattr(product, 'product_code', '') or '').strip()
+    summary_parts = []
+    if product_name:
+        summary_parts.append(product_name)
+    if product_code:
+        summary_parts.append(f'Code: {product_code}')
+
+    if not summary_parts:
+        return ''
+
+    return f"Product: {' | '.join(summary_parts)}. "
+
+
 def _get_order_payments_queryset(order):
     return order.payments.order_by('created_at', 'id')
 
@@ -766,6 +789,7 @@ def _create_refund_status_notification(refund_request):
         notification['title'],
         (
             f'{notification["message"]} '
+            f'{_get_order_product_summary(order)}'
             f'Penalty fee: P{refund_request.penalty_fee}. '
             f'Refundable amount: P{refund_request.refundable_amount}.'
         ),
@@ -1384,6 +1408,14 @@ def _get_customer_package_orders_queryset(user):
     return PackageOrder.objects.filter(user=user).order_by('-created_at')
 
 
+def _get_customer_order_queryset(user, order_type):
+    if order_type == 'cake':
+        return _get_customer_cake_orders_queryset(user).select_related('cake').prefetch_related('payments')
+    if order_type == 'package':
+        return _get_customer_package_orders_queryset(user).select_related('package').prefetch_related('payments')
+    raise PermissionDenied
+
+
 def _parse_delivery_datetime(date_value):
     if not date_value:
         return None
@@ -1818,6 +1850,7 @@ def _create_order_status_notification(order, order_type, previous_status):
         f'{order_label} #{order.id} updated',
         (
             f'{notification["headline"]} '
+            f'{_get_order_product_summary(order)}'
             f'Current status: {order.get_order_status_display()}. '
             'Open your tracking page for the latest details.'
         ),
@@ -1851,6 +1884,7 @@ def _create_payment_status_notification(payment, previous_status):
         f'Payment #{payment.id} updated',
         (
             f'{notification["headline"]} '
+            f'{_get_order_product_summary(order)}'
             f'For {order_label} #{order.id}, the payment status is now '
             f'{payment.get_payment_status_display()}. '
             'Check your order tracking page for the latest status.'
@@ -3239,6 +3273,30 @@ def order_tracking(request):
         'selected_notifications': selected_notifications,
     }
     return render(request, 'hanilies/order_tracking.html', context)
+
+
+@login_required
+def order_tracking_print(request, order_type, order_id):
+    order = get_object_or_404(
+        _get_customer_order_queryset(request.user, order_type),
+        id=order_id,
+    )
+    selected_payment = _get_order_primary_payment(order)
+    selected_payments = list(_get_order_payments_queryset(order))
+    selected_customization = None
+    if order_type == 'cake':
+        selected_customization = getattr(order, 'customization', None)
+
+    context = {
+        'selected_order': order,
+        'selected_order_type': order_type,
+        'selected_payment': selected_payment,
+        'selected_payments': selected_payments,
+        'selected_customization': selected_customization,
+        'selected_refund_request': getattr(order, 'refund_request', None),
+        'tracking_url': f"{reverse('order_tracking')}?type={order_type}&id={order.id}",
+    }
+    return render(request, 'hanilies/order_tracking_print.html', context)
 
 
 @login_required

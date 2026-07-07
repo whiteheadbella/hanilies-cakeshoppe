@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Printable Order Summary</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --ink: #1f2937;
+            --muted: #6b7280;
+            --line: #d1d5db;
+            --panel: #fff7ed;
+            --accent: #be185d;
+            --accent-soft: #fce7f3;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 24px;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--ink);
+            background: #f8fafc;
+        }
+
+        .print-shell {
+            max-width: 960px;
+            margin: 0 auto;
+        }
+
+        .print-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .print-actions a,
+        .print-actions button {
+            border: 0;
+            border-radius: 999px;
+            padding: 10px 16px;
+            font: inherit;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .print-actions a {
+            background: #e5e7eb;
+            color: var(--ink);
+        }
+
+        .print-actions button {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .summary-card {
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            overflow: hidden;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+        }
+
+        .summary-header {
+            background: linear-gradient(135deg, #be185d, #f59e0b);
+            color: #fff;
+            padding: 24px;
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: flex-start;
+        }
+
+        .summary-header h1 {
+            margin: 0 0 6px;
+            font-size: 1.8rem;
+        }
+
+        .summary-header p,
+        .summary-header .meta {
+            margin: 0;
+            opacity: 0.94;
+        }
+
+        .summary-body {
+            padding: 24px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .panel {
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 16px;
+            background: #fff;
+        }
+
+        .panel.product-panel {
+            background: var(--panel);
+        }
+
+        .label {
+            color: var(--muted);
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 6px;
+        }
+
+        .value-strong {
+            font-size: 1.12rem;
+            font-weight: 700;
+        }
+
+        .stack > div + div {
+            margin-top: 8px;
+        }
+
+        .totals {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .total-box {
+            border-radius: 14px;
+            padding: 16px;
+            background: var(--accent-soft);
+            border: 1px solid #fbcfe8;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
+        }
+
+        th,
+        td {
+            border: 1px solid var(--line);
+            padding: 10px 12px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th {
+            background: #f8fafc;
+            font-size: 0.86rem;
+        }
+
+        .status-chip {
+            display: inline-block;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.2);
+            font-size: 0.86rem;
+            font-weight: 600;
+        }
+
+        .notes {
+            margin-top: 20px;
+            color: var(--muted);
+            font-size: 0.92rem;
+        }
+
+        @media (max-width: 720px) {
+            body {
+                padding: 12px;
+            }
+
+            .summary-header,
+            .print-actions,
+            .grid,
+            .totals {
+                display: block;
+            }
+
+            .grid,
+            .totals {
+                gap: 0;
+            }
+
+            .panel,
+            .total-box {
+                margin-bottom: 12px;
+            }
+        }
+
+        @media print {
+            body {
+                background: #fff;
+                padding: 0;
+            }
+
+            .print-actions {
+                display: none;
+            }
+
+            .summary-card {
+                border: 0;
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="print-shell">
+        <div class="print-actions">
+            <a href="{{ tracking_url }}">Back to Tracking</a>
+            <button type="button" onclick="window.print()">Print Summary</button>
+        </div>
+
+        <div class="summary-card">
+            <div class="summary-header">
+                <div>
+                    <h1>Printable Order Summary</h1>
+                    <p>
+                        {% if selected_order_type == 'cake' %}
+                        Cake Order #{{ selected_order.id }}
+                        {% else %}
+                        Package Order #{{ selected_order.id }}
+                        {% endif %}
+                    </p>
+                    <p class="meta">Placed on {{ selected_order.created_at|date:'F d, Y h:i A' }}</p>
+                </div>
+                <div class="status-chip">{{ selected_order.get_order_status_display }}</div>
+            </div>
+
+            <div class="summary-body">
+                <div class="grid">
+                    <div class="panel product-panel stack">
+                        {% if selected_order_type == 'cake' %}
+                        <div class="label">Cake Product</div>
+                        <div class="value-strong">{{ selected_order.cake.name|default:'Custom Cake' }}</div>
+                        <div>Product Code: {{ selected_order.cake.product_code|default:'Not assigned' }}</div>
+                        <div>Category: {{ selected_order.cake.get_category_display|default:'-' }}</div>
+                        {% else %}
+                        <div class="label">Package Product</div>
+                        <div class="value-strong">{{ selected_order.package.name|default:'Custom Package' }}</div>
+                        <div>Product Code: {{ selected_order.package.product_code|default:'Not assigned' }}</div>
+                        <div>Type: {{ selected_order.package.get_package_type_display|default:'-' }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="panel stack">
+                        <div class="label">Customer</div>
+                        <div class="value-strong">{{ selected_order.contact_name }}</div>
+                        <div>{{ selected_order.contact_phone }}</div>
+                        <div>{{ selected_order.contact_email }}</div>
+                        {% if selected_order.order_number %}
+                        <div>Order Number: {{ selected_order.order_number }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="totals">
+                    <div class="total-box">
+                        <div class="label">Payment Plan</div>
+                        <div class="value-strong">{{ selected_order.get_payment_plan_display }}</div>
+                    </div>
+                    <div class="total-box">
+                        <div class="label">Amount Due Now</div>
+                        <div class="value-strong">P{{ selected_order.deposit_amount }}</div>
+                    </div>
+                    <div class="total-box">
+                        <div class="label">Order Total</div>
+                        <div class="value-strong">P{{ selected_order.total_price }}</div>
+                    </div>
+                </div>
+
+                <div class="grid">
+                    <div class="panel stack">
+                        {% if selected_order_type == 'cake' %}
+                        <div class="label">Cake Details</div>
+                        <div>Quantity: {{ selected_order.quantity }}</div>
+                        <div>Theme: {{ selected_order.theme|default:'Not specified' }}</div>
+                        <div>Size: {{ selected_order.size|default:'Not specified' }}</div>
+                        <div>Shape: {{ selected_order.shape|default:'Not specified' }}</div>
+                        <div>Flavor: {{ selected_order.flavor|default:'Not specified' }}</div>
+                        <div>Frosting: {{ selected_order.frosting|default:'Not specified' }}</div>
+                        <div>Filling: {{ selected_order.filling|default:'None' }}</div>
+                        <div>Message on Cake: {{ selected_order.message_on_cake|default:'None' }}</div>
+                        <div>Color Palette: {{ selected_order.color_palette|default:'Not specified' }}</div>
+                        {% if selected_customization and selected_customization.additional_decorations %}
+                        <div>Additional Decorations: {{ selected_customization.additional_decorations }}</div>
+                        {% endif %}
+                        {% else %}
+                        <div class="label">Package Details</div>
+                        <div>Event Type: {{ selected_order.get_event_type_display }}</div>
+                        <div>Event Date: {{ selected_order.event_date|date:'F d, Y' }}</div>
+                        <div>Event Time: {{ selected_order.event_time|time:'h:i A'|default:'Not set' }}</div>
+                        <div>Venue: {{ selected_order.venue }}</div>
+                        <div>Cake Flavor: {{ selected_order.cake_flavor|default:'Not specified' }}</div>
+                        <div>Cake Frosting: {{ selected_order.cake_frosting|default:'Not specified' }}</div>
+                        <div>Cake Filling: {{ selected_order.cake_filling|default:'None' }}</div>
+                        <div>Cake Message: {{ selected_order.cake_message|default:'None' }}</div>
+                        <div>Selected Add-ons: {{ selected_order.selected_addons|linebreaksbr|default:'None' }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="panel stack">
+                        {% if selected_order_type == 'cake' %}
+                        <div class="label">Delivery Details</div>
+                        <div>Date: {{ selected_order.delivery_date|date:'F d, Y'|default:'Not set' }}</div>
+                        <div>Address: {{ selected_order.delivery_address|default:'Not provided' }}</div>
+                        <div>Special Instructions: {{ selected_order.special_instructions|default:'None' }}</div>
+                        {% else %}
+                        <div class="label">Payment and Refund</div>
+                        <div>Balance Due Later: P{{ selected_order.balance_due }}</div>
+                        {% if selected_refund_request %}
+                        <div>Refund Status: {{ selected_refund_request.get_status_display }}</div>
+                        <div>Refundable Amount: P{{ selected_refund_request.refundable_amount }}</div>
+                        {% else %}
+                        <div>Refund Status: No refund request</div>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% if selected_payments %}
+                <div class="panel">
+                    <div class="label">Payment Schedule</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Purpose</th>
+                                <th>Method</th>
+                                <th>Status</th>
+                                <th>Reference</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for payment in selected_payments %}
+                            <tr>
+                                <td>{{ payment.get_payment_purpose_display }}</td>
+                                <td>{{ payment.get_payment_method_display }}</td>
+                                <td>{{ payment.get_payment_status_display }}</td>
+                                <td>{{ payment.reference_number|default:'Not required' }}</td>
+                                <td>P{{ payment.amount }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+
+                <div class="notes">
+                    This printable summary reflects the current order record and payment status shown in the customer tracking page.
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

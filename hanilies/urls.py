@@ -29,6 +29,8 @@ urlpatterns = [
     path('update-preferences/', views.update_preferences,
          name='update_preferences'),
     path('order-tracking/', views.order_tracking, name='order_tracking'),
+    path('order-tracking/<str:order_type>/<int:order_id>/print/',
+         views.order_tracking_print, name='order_tracking_print'),
     path('order-tracking/<str:order_type>/<int:order_id>/payments/<int:payment_id>/resubmit/',
          views.resubmit_payment_proof, name='resubmit_payment_proof'),
     path('order-cancel/<str:order_type>/<int:order_id>/',
