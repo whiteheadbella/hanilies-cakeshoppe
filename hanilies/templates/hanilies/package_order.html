@@ -36,6 +36,7 @@
                                 <div>
                                     <div class="small text-muted">Selected package</div>
                                     <div class="h5 mb-1">{{ package.name }}</div>
+                                    <div class="small text-muted">Product Code: {{ package.product_code }}</div>
                                     <div class="text-muted text-capitalize">{{ package.get_package_type_display }}</div>
                                 </div>
                                 <div class="text-md-end">
@@ -87,6 +88,7 @@
                     <div class="mb-3">
                         <div class="small text-muted">Package</div>
                         <div class="fw-semibold">{{ package.name }}</div>
+                        <div class="small text-muted">Code: {{ package.product_code }}</div>
                     </div>
                     {% if package.included_items %}
                     <div class="mb-3">

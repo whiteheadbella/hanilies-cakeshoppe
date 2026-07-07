@@ -81,6 +81,7 @@
                         <h4 class="h5 mb-0">{{ package.name }}</h4>
                         <span class="badge text-bg-light text-capitalize">{{ package.get_package_type_display }}</span>
                     </div>
+                    <div class="small text-muted mb-2">Product Code: {{ package.product_code }}</div>
                     <p class="text-muted mb-3">{{ package.description|default:'Package order with customizable inclusions and cake options.' }}</p>
                     {% if package.included_items %}
                     <div class="small text-muted mb-3">
