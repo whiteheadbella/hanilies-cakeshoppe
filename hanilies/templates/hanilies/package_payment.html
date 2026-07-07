@@ -36,7 +36,7 @@
                                 <div>
                                     <div class="small text-muted">Selected package</div>
                                     <div class="h5 mb-1">{{ package.name }}</div>
-                                    <div class="small text-muted">Product Code: {{ package.product_code }}</div>
+                                    <div class="small text-muted">Product Code: {{ package.product_code|default:'Not assigned' }}</div>
                                     <div class="text-muted text-capitalize">{{ draft.event_type|default:package.package_type }}</div>
                                 </div>
                                 <div class="text-md-end">
@@ -166,7 +166,7 @@
                                     </div>
                                     <div class="col-md-6">
                                         <div class="fw-semibold text-muted">Product Code</div>
-                                        <div>{{ package.product_code }}</div>
+                                        <div>{{ package.product_code|default:'Not assigned' }}</div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="fw-semibold text-muted">Grand Total</div>
@@ -274,7 +274,7 @@
                     <div class="mb-3">
                         <div class="small text-muted">Package</div>
                         <div class="fw-semibold">{{ package.name }}</div>
-                        <div class="small text-muted">Code: {{ package.product_code }}</div>
+                        <div class="small text-muted">Code: {{ package.product_code|default:'Not assigned' }}</div>
                     </div>
                     <div class="mb-3">
                         <div class="small text-muted">Selected Add-ons</div>

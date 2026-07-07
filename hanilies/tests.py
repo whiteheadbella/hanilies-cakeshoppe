@@ -1,4 +1,4 @@
-from io import BytesIO
+from io import BytesIO, StringIO
 from datetime import date, time, timedelta
 from decimal import Decimal
 import json
@@ -3743,6 +3743,42 @@ class AdminProductCodeTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, cake.product_code)
 
+    def test_admin_cake_list_uses_placeholder_when_product_code_missing(self):
+        cake = Cake.objects.create(
+            name='Legacy Code Cake',
+            category='birthday',
+            description='Legacy record without product code.',
+            price=Decimal('980.00'),
+            stock=3,
+            is_active=True,
+        )
+        Cake.objects.filter(pk=cake.pk).update(product_code=None)
+
+        response = self.client.get(reverse('admin_cakes'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response, '<strong>Not assigned</strong>', html=True)
+        self.assertNotContains(response, '<strong>None</strong>', html=True)
+
+    def test_admin_package_edit_uses_placeholder_when_product_code_missing(self):
+        package = Package.objects.create(
+            name='Legacy Package',
+            package_type='christening',
+            description='Legacy record without product code.',
+            base_price=Decimal('5000.00'),
+            status='active',
+            features='Lights',
+        )
+        Package.objects.filter(pk=package.pk).update(product_code=None)
+
+        response = self.client.get(
+            reverse('admin_package_edit', args=[package.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'value="Auto-generated after saving"')
+        self.assertNotContains(response, 'value="None"')
+
     def test_admin_package_edit_can_remove_thumbnail_slot(self):
         package = Package.objects.create(
             name='Package With Thumbnail',
@@ -4430,3 +4466,47 @@ class CatalogSeedFixtureTests(TestCase):
             response,
             f"{reverse('cake_customize')}?cake_id={seeded_cake.id}",
         )
+
+
+class CatalogSeedCommandTests(TestCase):
+    def test_seed_catalog_if_empty_loads_fixture_and_assigns_product_codes(self):
+        Cake.objects.all().delete()
+        Package.objects.all().delete()
+
+        output = StringIO()
+        call_command('seed_catalog_if_empty', stdout=output, verbosity=0)
+
+        self.assertEqual(Cake.objects.count(), 25)
+        self.assertEqual(Package.objects.count(), 12)
+        self.assertEqual(Cake.objects.filter(
+            product_code__isnull=True).count(), 0)
+        self.assertEqual(Package.objects.filter(
+            product_code__isnull=True).count(), 0)
+        self.assertTrue(Cake.objects.filter(product_code='CK-0001').exists())
+        self.assertTrue(Package.objects.filter(
+            product_code='PKG-0001').exists())
+        self.assertIn('Catalog seed loaded.', output.getvalue())
+
+    def test_seed_catalog_if_empty_skips_existing_catalog_data(self):
+        initial_cake_count = Cake.objects.count()
+        initial_package_count = Package.objects.count()
+
+        existing_cake = Cake.objects.create(
+            name='Existing Catalog Cake',
+            category='birthday',
+            description='Keep existing catalog data untouched.',
+            price=Decimal('1200.00'),
+            stock=2,
+            is_active=True,
+        )
+
+        output = StringIO()
+        call_command('seed_catalog_if_empty', stdout=output, verbosity=0)
+
+        self.assertEqual(Cake.objects.count(), initial_cake_count + 1)
+        self.assertEqual(Package.objects.count(), initial_package_count)
+        existing_cake.refresh_from_db()
+        self.assertEqual(existing_cake.product_code,
+                         f'CK-{existing_cake.id:04d}')
+        self.assertIn(
+            'Catalog seed skipped because cake/package data already exists.', output.getvalue())

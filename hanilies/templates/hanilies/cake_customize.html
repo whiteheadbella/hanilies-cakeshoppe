@@ -36,7 +36,7 @@
                                 <div>
                                     <div class="small text-muted">Selected cake</div>
                                     <div class="h5 mb-1">{{ cake.name }}</div>
-                                    <div class="small text-muted">Product Code: {{ cake.product_code }}</div>
+                                    <div class="small text-muted">Product Code: {{ cake.product_code|default:'Not assigned' }}</div>
                                     <div class="text-muted text-capitalize">{{ cake.get_category_display }}</div>
                                 </div>
                                 <div class="text-md-end">
@@ -265,7 +265,7 @@
                                     </div>
                                     <div class="col-md-6">
                                         <div class="fw-semibold text-muted">Product Code</div>
-                                        <div>{{ cake.product_code }}</div>
+                                        <div>{{ cake.product_code|default:'Not assigned' }}</div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="fw-semibold text-muted">Total</div>
@@ -389,7 +389,7 @@
                     <div class="mb-3">
                         <div class="small text-muted">Cake</div>
                         <div class="fw-semibold">{{ cake.name }}</div>
-                        <div class="small text-muted">Code: {{ cake.product_code }}</div>
+                        <div class="small text-muted">Code: {{ cake.product_code|default:'Not assigned' }}</div>
                     </div>
                     <div class="mb-3">
                         <div class="small text-muted">Selected Theme</div>

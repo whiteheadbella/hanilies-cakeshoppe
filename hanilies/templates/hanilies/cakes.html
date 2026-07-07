@@ -62,7 +62,7 @@
                         <h4 class="h5 mb-0">{{ cake.name }}</h4>
                         <span class="badge text-bg-light text-capitalize">{{ cake.get_category_display }}</span>
                     </div>
-                    <div class="small text-muted mb-2">Product Code: {{ cake.product_code }}</div>
+                    <div class="small text-muted mb-2">Product Code: {{ cake.product_code|default:'Not assigned' }}</div>
                     <p class="text-muted mb-3">{{ cake.description|default:'Customized celebration cake available for made-to-order requests.' }}</p>
                     <div class="small text-muted mb-3">
                         <div><i class="fas fa-box me-2"></i>Available stock: {{ cake.stock }}</div>

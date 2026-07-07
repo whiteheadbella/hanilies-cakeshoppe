@@ -15,7 +15,7 @@
 
             <div class="form-group">
                 <label>Product Code</label>
-                <input type="text" class="form-control" value="{{ cake.product_code }}" readonly>
+                <input type="text" class="form-control" value="{{ cake.product_code|default:'Auto-generated after saving' }}" readonly>
                 <small class="text-muted">This cake code is generated automatically and stays fixed for the product.</small>
             </div>
             
