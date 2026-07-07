@@ -264,6 +264,10 @@
                                         <div>{{ cake.name }}</div>
                                     </div>
                                     <div class="col-md-6">
+                                        <div class="fw-semibold text-muted">Product Code</div>
+                                        <div>{{ cake.product_code }}</div>
+                                    </div>
+                                    <div class="col-md-6">
                                         <div class="fw-semibold text-muted">Total</div>
                                         <div class="fw-bold text-gold-pink" id="review-cake-total">P{{ cake.price }}</div>
                                     </div>
@@ -385,6 +389,7 @@
                     <div class="mb-3">
                         <div class="small text-muted">Cake</div>
                         <div class="fw-semibold">{{ cake.name }}</div>
+                        <div class="small text-muted">Code: {{ cake.product_code }}</div>
                     </div>
                     <div class="mb-3">
                         <div class="small text-muted">Selected Theme</div>
