@@ -4510,3 +4510,37 @@ class CatalogSeedCommandTests(TestCase):
                          f'CK-{existing_cake.id:04d}')
         self.assertIn(
             'Catalog seed skipped because cake/package data already exists.', output.getvalue())
+
+    def test_seed_catalog_if_empty_backfills_missing_codes_for_existing_catalog(self):
+        existing_cake = Cake.objects.create(
+            name='Legacy Catalog Cake',
+            category='birthday',
+            description='Existing row missing product code.',
+            price=Decimal('1300.00'),
+            stock=3,
+            is_active=True,
+        )
+        existing_package = Package.objects.create(
+            name='Legacy Catalog Package',
+            package_type='wedding',
+            description='Existing row missing product code.',
+            base_price=Decimal('9000.00'),
+            features='Feature 1',
+            included_items='Item 1',
+            status='active',
+        )
+        Cake.objects.filter(pk=existing_cake.pk).update(product_code=None)
+        Package.objects.filter(
+            pk=existing_package.pk).update(product_code=None)
+
+        output = StringIO()
+        call_command('seed_catalog_if_empty', stdout=output, verbosity=0)
+
+        existing_cake.refresh_from_db()
+        existing_package.refresh_from_db()
+        self.assertEqual(existing_cake.product_code,
+                         f'CK-{existing_cake.id:04d}')
+        self.assertEqual(existing_package.product_code,
+                         f'PKG-{existing_package.id:04d}')
+        self.assertIn(
+            'Assigned product codes to 1 cakes and 1 packages.', output.getvalue())
