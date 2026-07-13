@@ -4,9 +4,9 @@
 {% block title %}Home{% endblock %}
 
 {% block content %}
-<section class="hero-section py-5">
-    <div class="container py-4">
-        <div class="row align-items-center g-5 min-vh-80">
+<section class="hero-section pt-5 pb-0">
+    <div class="container pt-4 pb-0">
+        <div class="row align-items-center align-items-lg-start g-4">
             <div class="col-lg-6">
                 <span class="badge bg-gold-pink text-white p-2 mb-3">
                     <i class="fas fa-sparkles me-1"></i> Rule-Based Smart Suggestions
@@ -39,13 +39,104 @@
                 </div>
             </div>
             <div class="col-lg-6">
-                <div class="card border-0 shadow-lg overflow-hidden">
-                    <img src="{% static 'images/hero-cake.png' %}" class="img-fluid hero-image" alt="Celebration cake display">
+                <div class="hero-collage-shell">
+                    <div class="hero-collage-accent hero-collage-accent-top"></div>
+                    <div class="hero-collage-accent hero-collage-accent-bottom"></div>
+                    {% if hero_collage_images %}
+                    <div class="hero-collage-grid hero-collage-count-{{ hero_collage_images|length }}">
+                        {% for hero_image in hero_collage_images %}
+                        <figure class="hero-collage-card hero-collage-card-{{ forloop.counter }}">
+                            <img src="{{ hero_image.image_url }}" class="hero-collage-image" alt="{{ hero_image.title }}">
+                            <button type="button" class="image-zoom-trigger hero-collage-zoom" data-zoom-src="{{ hero_image.image_url }}" data-zoom-title="{{ hero_image.title }}" data-zoom-gallery="home-hero-collage">
+                                <i class="fas fa-search-plus"></i>
+                                <span>Zoom</span>
+                            </button>
+                        </figure>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="hero-collage-empty">
+                        <span class="hero-collage-kicker">Celebration Gallery</span>
+                        <h3>Elegant moments designed for birthdays, weddings, and milestone parties.</h3>
+                        <p>Fresh cakes, polished tablescapes, and soft pink-and-gold details set the tone for every celebration.</p>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
 </section>
+
+<section class="testimonials-section">
+    <div class="container">
+        <div class="text-center mb-5">
+            <span class="badge bg-gold-pink text-white p-2 mb-2">
+                <i class="fas fa-heart me-1"></i> Customer Testimonials
+            </span>
+            <h2 class="mb-2">What Our Customers Say</h2>
+            <p class="text-muted mb-0">Celebrations become easier when the cake, package, and service all arrive the way customers expect.</p>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-md-6 col-lg-4">
+                <div class="testimonial-card card border-0 shadow-sm h-100">
+                    <div class="card-body p-4">
+                        <div class="testimonial-stars mb-3">
+                            <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
+                        </div>
+                        <p class="testimonial-quote mb-4">The cake looked exactly like the peg we sent, and the ordering steps were easy to follow from start to finish.</p>
+                        <div class="testimonial-author">
+                            <strong>Marian T.</strong>
+                            <span>Birthday Celebration</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4">
+                <div class="testimonial-card card border-0 shadow-sm h-100">
+                    <div class="card-body p-4">
+                        <div class="testimonial-stars mb-3">
+                            <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
+                        </div>
+                        <p class="testimonial-quote mb-4">We booked a package for our family party, and everything from the add-ons to the cake setup felt organized and on time.</p>
+                        <div class="testimonial-author">
+                            <strong>Jessa R.</strong>
+                            <span>Family Event Package</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4">
+                <div class="testimonial-card card border-0 shadow-sm h-100">
+                    <div class="card-body p-4">
+                        <div class="testimonial-stars mb-3">
+                            <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
+                        </div>
+                        <p class="testimonial-quote mb-4">The shop was responsive, the payment instructions were clear, and the final order matched the event theme beautifully.</p>
+                        <div class="testimonial-author">
+                            <strong>Angela P.</strong>
+                            <span>Customized Cake Order</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% if home_strip_image %}
+<section class="home-strip-section pb-5">
+    <div class="container">
+        <div class="home-strip-frame image-zoom-frame">
+            <img src="{{ home_strip_image.image_url }}" class="home-strip-image" alt="{{ home_strip_image.title }}">
+            <button type="button" class="image-zoom-trigger home-strip-zoom" data-zoom-src="{{ home_strip_image.image_url }}" data-zoom-title="{{ home_strip_image.title }}" data-zoom-gallery="home-strip-image">
+                <i class="fas fa-search-plus"></i>
+                <span>View Image</span>
+            </button>
+        </div>
+    </div>
+</section>
+{% endif %}
 
 <section class="py-5 bg-light">
     <div class="container">

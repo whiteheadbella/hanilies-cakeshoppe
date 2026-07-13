@@ -2,12 +2,124 @@
 
 {% block title %}Event Packages{% endblock %}
 
+{% block extra_css %}
+<style>
+    .packages-page-intro {
+        align-items: center;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 247, 250, 0.96));
+        border: 1px solid rgba(214, 174, 106, 0.18);
+        border-radius: 28px;
+        box-shadow: 0 20px 48px rgba(133, 88, 106, 0.08);
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin: 0 auto;
+        max-width: 760px;
+        padding: 1.35rem 1.5rem;
+        text-align: center;
+    }
+
+    .packages-page-intro-icon {
+        align-items: center;
+        background: linear-gradient(135deg, rgba(255, 238, 243, 0.96), rgba(255, 247, 229, 0.98));
+        border: 1px solid rgba(214, 174, 106, 0.22);
+        border-radius: 20px;
+        display: inline-flex;
+        flex-shrink: 0;
+        height: 58px;
+        justify-content: center;
+        width: 58px;
+    }
+
+    .packages-page-intro-icon svg {
+        display: block;
+        height: 34px;
+        width: 34px;
+    }
+
+    .packages-page-intro-copy h1 {
+        margin-bottom: 0.25rem;
+    }
+
+    .packages-page-intro-copy p {
+        margin-bottom: 0;
+    }
+
+    .package-included-list {
+        display: grid;
+        gap: 0.65rem;
+    }
+
+    .package-included-list-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.7rem 0.85rem;
+        border: 1px solid rgba(214, 174, 106, 0.18);
+        border-radius: 1rem;
+        background: transparent;
+    }
+
+    .package-included-list-thumb {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        overflow: hidden;
+        flex-shrink: 0;
+        background: #fff5f7;
+        border: 1px solid rgba(214, 174, 106, 0.18);
+    }
+
+    .package-included-list-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+    @media (max-width: 575px) {
+        .packages-page-intro {
+            flex-direction: column;
+            padding: 1.15rem 1rem;
+        }
+
+        .packages-page-intro-icon {
+            height: 52px;
+            width: 52px;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container py-4">
     <div class="row mb-4">
-        <div class="col-lg-8">
-            <h1 class="display-5 fw-bold mb-2">Event Packages</h1>
-            <p class="lead text-muted mb-0">Choose a package, review the live inclusions, and continue to a real order flow.</p>
+        <div class="col-12">
+            <div class="packages-page-intro" data-packages-page-intro>
+                <span class="packages-page-intro-icon" aria-hidden="true">
+                    <svg viewBox="0 0 48 48" class="packages-page-intro-icon-art" role="presentation" focusable="false">
+                        <path d="M12 35 L18 21 L31 34 Z" fill="#ff8a65"></path>
+                        <path d="M18 21 L33 18 L31 34 Z" fill="#7c4dff"></path>
+                        <path d="M22 23 L28 31" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round"></path>
+                        <path d="M14 14 C17 12, 19 9, 20 6" stroke="#ff4fa3" stroke-width="3" stroke-linecap="round"></path>
+                        <path d="M21 14 C24 13, 27 12, 31 11" stroke="#ffb300" stroke-width="3" stroke-linecap="round"></path>
+                        <path d="M27 17 C30 17, 34 18, 38 20" stroke="#3d8bfd" stroke-width="3" stroke-linecap="round"></path>
+                        <path d="M31 22 C34 24, 36 27, 38 31" stroke="#00bfa5" stroke-width="3" stroke-linecap="round"></path>
+                        <circle cx="14" cy="10" r="2.3" fill="#ffb300"></circle>
+                        <circle cx="25" cy="7" r="2.1" fill="#3d8bfd"></circle>
+                        <circle cx="35" cy="13" r="2.2" fill="#00bfa5"></circle>
+                        <circle cx="39" cy="25" r="2.1" fill="#ff4fa3"></circle>
+                        <circle cx="10" cy="20" r="1.9" fill="#7c4dff"></circle>
+                        <path d="M9 28 l3 -1 l-1 3 z" fill="#ff4fa3"></path>
+                        <path d="M19 11 l2 -3 l2 3 l-2 3 z" fill="#00bfa5"></path>
+                        <path d="M33 7 l3 1 l-2 3 l-3 -1 z" fill="#ff8a65"></path>
+                    </svg>
+                </span>
+                <div class="packages-page-intro-copy">
+                    <h1 class="display-5 fw-bold mb-2">Event Packages</h1>
+                    <p class="lead text-muted mb-0">Choose a package, review the live inclusions, and start your order.</p>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -77,16 +189,25 @@
                 {% endif %}
                 {% endwith %}
                 <div class="card-body package-catalog-body d-flex flex-column">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div class="mb-2">
                         <h4 class="h5 mb-0">{{ package.name }}</h4>
-                        <span class="badge text-bg-light text-capitalize">{{ package.get_package_type_display }}</span>
                     </div>
-                    <div class="small text-muted mb-2">Product Code: {{ package.product_code|default:'Not assigned' }}</div>
                     <p class="text-muted mb-3">{{ package.description|default:'Package order with customizable inclusions and cake options.' }}</p>
-                    {% if package.included_items %}
+                    {% if package.package_inclusion_items %}
                     <div class="small text-muted mb-3">
-                        <div class="fw-semibold text-dark mb-1">Included items</div>
-                        <div>{{ package.included_items|linebreaksbr }}</div>
+                        <div class="fw-semibold text-dark mb-2">Included in This Package</div>
+                        <div class="package-included-list">
+                            {% for item in package.package_inclusion_items|slice:":4" %}
+                            <div class="package-included-list-item">
+                                {% if item.image_url %}
+                                <div class="package-included-list-thumb">
+                                    <img src="{{ item.image_url }}" alt="{{ item.display_label }}">
+                                </div>
+                                {% endif %}
+                                <div>{{ item.display_label }}</div>
+                            </div>
+                            {% endfor %}
+                        </div>
                     </div>
                     {% endif %}
                     <div class="mt-auto d-flex justify-content-between align-items-center">

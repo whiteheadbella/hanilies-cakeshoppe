@@ -1,0 +1,72 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Add Homepage Hero Image{% endblock %}
+{% block page_title %}Add Homepage Hero Image{% endblock %}
+{% block page_icon %}image{% endblock %}
+
+{% block content %}
+<div class="module-card">
+    <div class="module-header">
+        <h2><i class="fas fa-camera-retro"></i> Upload Celebration Image</h2>
+    </div>
+    <div style="padding: 25px;">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label>Image Title <span class="text-danger">*</span></label>
+                <input type="text" name="title" class="form-control" placeholder="Birthday table styling" required>
+                <small class="text-muted">Use a short label for the zoom caption on the homepage collage.</small>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Celebration Image <span class="text-danger">*</span></label>
+                        <input type="file" name="image" class="form-control" accept="image/*" required>
+                        <small class="text-muted">Portrait and landscape photos both work. The collage crops and gently zooms each image automatically.</small>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Display Order</label>
+                        <input type="number" name="display_order" class="form-control" value="0" min="0">
+                        <small class="text-muted">Lower numbers appear earlier in the homepage collage.</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox-inline">
+                    <input type="checkbox" name="is_active" checked> Active on homepage
+                </label>
+                <br>
+                <small class="text-muted">Only active images are considered for the public hero banner.</small>
+            </div>
+
+            <hr>
+
+            <div class="form-group">
+                <button type="submit" class="btn-primary">
+                    <i class="fas fa-save"></i> Save Hero Image
+                </button>
+                <a href="{% url 'admin_home_hero_images' %}" class="btn-secondary" style="background: #6c757d; color: white; padding: 10px 25px; border-radius: 50px; text-decoration: none; margin-left: 10px;">
+                    <i class="fas fa-times"></i> Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .text-danger {
+        color: #dc2626;
+    }
+    .text-muted {
+        color: #6b7280;
+    }
+    .checkbox-inline {
+        cursor: pointer;
+    }
+</style>
+{% endblock %}

@@ -30,7 +30,7 @@
                 <select name="package_type" class="form-control" required>
                     <option value="christening">Christening</option>
                     <option value="kids_birthday">Kid's Birthday</option>
-                    <option value="adults_party">Adult's Party</option>
+                    <option value="adults_party">Adult Birthday Party</option>
                     <option value="wedding">Wedding</option>
                 </select>
             </div>
@@ -77,13 +77,9 @@
                 </div>
             </div>
             
-            <div class="form-group">
-                <label>Package Features/Inclusions <span class="text-danger">*</span></label>
-                <textarea name="features" class="form-control" rows="10" placeholder="Enter each feature on a new line&#10;&#10;Example:&#10;1 tier Round Cake 8&quot;&#10;18 pcs. Cupcake with icing &amp; topper&#10;18 pcs. Lolli Balloon with print&#10;18 pcs. Souvenir baby bottle with celebrant's picture&#10;20 pcs. Invitations&#10;Table Set Up &amp; Backdrop Decor (2x3 tarpaulin or Name of Celebrant)&#10;Free Use of Stage Lights &amp; Accessories" required></textarea>
-                <small class="text-muted">Enter one feature per line. These will be displayed as a checklist for customers.</small>
-            </div>
+            {% include "admin/includes/package_inclusion_builder.html" with package_inclusion_editor_items=package_inclusion_editor_items builder_title="Package Inclusion Builder" builder_help="Add the package inclusions with quantity, optional photo, and customer-ready labels." %}
 
-            {% include "admin/includes/product_option_builder.html" with option_editor_groups=option_editor_groups hidden_input_name="customization_options_payload" builder_title="Package Upsell Builder" builder_help="Configure the optional add-ons and bundled cake customization choices available during package booking." %}
+            {% include "admin/includes/product_option_builder.html" with option_editor_groups=option_editor_groups hidden_input_name="customization_options_payload" builder_title="Package Upsell Builder" builder_help="Configure the optional add-ons and bundled cake customization choices available during package booking." show_option_images=True %}
             
             <hr>
             
@@ -118,10 +114,6 @@
         border: 1px solid #dee2e6;
         border-radius: 10px;
         font-family: 'Poppins', sans-serif;
-    }
-    textarea.form-control {
-        font-family: monospace;
-        font-size: 13px;
     }
 </style>
 {% endblock %}

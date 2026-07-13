@@ -244,12 +244,10 @@
                         {% if selected_order_type == 'cake' %}
                         <div class="label">Cake Product</div>
                         <div class="value-strong">{{ selected_order.cake.name|default:'Custom Cake' }}</div>
-                        <div>Product Code: {{ selected_order.cake.product_code|default:'Not assigned' }}</div>
                         <div>Category: {{ selected_order.cake.get_category_display|default:'-' }}</div>
                         {% else %}
                         <div class="label">Package Product</div>
                         <div class="value-strong">{{ selected_order.package.name|default:'Custom Package' }}</div>
-                        <div>Product Code: {{ selected_order.package.product_code|default:'Not assigned' }}</div>
                         <div>Type: {{ selected_order.package.get_package_type_display|default:'-' }}</div>
                         {% endif %}
                     </div>

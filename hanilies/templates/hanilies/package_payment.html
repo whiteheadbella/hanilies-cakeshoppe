@@ -36,7 +36,6 @@
                                 <div>
                                     <div class="small text-muted">Selected package</div>
                                     <div class="h5 mb-1">{{ package.name }}</div>
-                                    <div class="small text-muted">Product Code: {{ package.product_code|default:'Not assigned' }}</div>
                                     <div class="text-muted text-capitalize">{{ draft.event_type|default:package.package_type }}</div>
                                 </div>
                                 <div class="text-md-end">
@@ -165,10 +164,6 @@
                                         <div>{{ package.name }}</div>
                                     </div>
                                     <div class="col-md-6">
-                                        <div class="fw-semibold text-muted">Product Code</div>
-                                        <div>{{ package.product_code|default:'Not assigned' }}</div>
-                                    </div>
-                                    <div class="col-md-6">
                                         <div class="fw-semibold text-muted">Grand Total</div>
                                         <div class="fw-bold text-gold-pink">P{{ grand_total }}</div>
                                     </div>
@@ -185,17 +180,25 @@
                                         {% endif %}
                                     </div>
                                     <div class="col-md-6">
-                                        <div class="fw-semibold text-muted">Cake Flavor</div>
-                                        <div>{{ draft.cake_flavor|default:'Not specified' }}</div>
+                                        <div class="fw-semibold text-muted">Optional Package Items</div>
+                                        {% if draft.selected_inclusion_labels %}
+                                        <div>{{ draft.selected_inclusion_labels|join:', ' }}</div>
+                                        {% else %}
+                                        <div>No optional package items selected</div>
+                                        {% endif %}
                                     </div>
                                     <div class="col-md-6">
-                                        <div class="fw-semibold text-muted">Cake Frosting</div>
-                                        <div>{{ draft.cake_frosting|default:'Not specified' }}</div>
+                                        <div class="fw-semibold text-muted">Cake Flavor</div>
+                                        <div>{{ draft.cake_flavor|default:'Not specified' }}</div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="fw-semibold text-muted">Cake Filling</div>
                                         <div>{{ draft.cake_filling|default:'None' }}</div>
                                     </div>
+                                        <div class="col-md-6">
+                                            <div class="fw-semibold text-muted">Cake Frosting</div>
+                                            <div>{{ draft.cake_frosting|default:'Not specified' }}</div>
+                                        </div>
                                     <div class="col-md-6">
                                         <div class="fw-semibold text-muted">Cake Message</div>
                                         <div>{{ draft.cake_message|default:'None' }}</div>
@@ -274,7 +277,16 @@
                     <div class="mb-3">
                         <div class="small text-muted">Package</div>
                         <div class="fw-semibold">{{ package.name }}</div>
-                        <div class="small text-muted">Code: {{ package.product_code|default:'Not assigned' }}</div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="small text-muted">Optional Package Items</div>
+                        {% if draft.selected_inclusion_labels %}
+                            {% for label in draft.selected_inclusion_labels %}
+                            <div class="small">{{ label }}</div>
+                            {% endfor %}
+                        {% else %}
+                        <div class="small text-muted">No optional package items selected.</div>
+                        {% endif %}
                     </div>
                     <div class="mb-3">
                         <div class="small text-muted">Selected Add-ons</div>
@@ -293,6 +305,18 @@
                         <div class="small">Message: {{ draft.cake_message|default:'None' }}</div>
                     </div>
                     <hr>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Base Package</span>
+                        <span>P{{ package_base_total }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Optional Package Items</span>
+                        <span>P{{ inclusions_total }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Selected Add-ons</span>
+                        <span>P{{ addons_total }}</span>
+                    </div>
                     <div class="d-flex justify-content-between mb-2">
                         <span>Package Subtotal</span>
                         <span>P{{ subtotal }}</span>

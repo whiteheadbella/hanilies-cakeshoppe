@@ -39,7 +39,6 @@
                                 <div>
                                     <div class="fw-semibold">Cake Order #{{ order.id }}</div>
                                     <div class="small">{{ order.cake.name|default:'Custom Cake' }}</div>
-                                    <div class="small text-muted">Code: {{ order.cake.product_code|default:'Not assigned' }}</div>
                                 </div>
                                 <div class="d-flex flex-column align-items-end gap-1">
                                     <span class="badge text-bg-light">{{ order.get_order_status_display }}</span>
@@ -56,7 +55,6 @@
                                 <div>
                                     <div class="fw-semibold">Package Order #{{ order.id }}</div>
                                     <div class="small">{{ order.package.name|default:'Custom Package' }}</div>
-                                    <div class="small text-muted">Code: {{ order.package.product_code|default:'Not assigned' }}</div>
                                 </div>
                                 <div class="d-flex flex-column align-items-end gap-1">
                                     <span class="badge text-bg-light">{{ order.get_order_status_display }}</span>
@@ -157,7 +155,6 @@
                         <div class="col-md-6">
                             <div class="small text-muted">Cake</div>
                             <div class="fw-semibold">{{ selected_order.cake.name|default:'Custom Cake' }}</div>
-                            <div class="small text-muted">Product Code: {{ selected_order.cake.product_code|default:'Not assigned' }}</div>
                             <div>Flavor: {{ selected_order.flavor }}</div>
                             <div>Frosting: {{ selected_order.frosting }}</div>
                             <div>Quantity: {{ selected_order.quantity }}</div>
@@ -173,7 +170,6 @@
                         <div class="col-md-6">
                             <div class="small text-muted">Package</div>
                             <div class="fw-semibold">{{ selected_order.package.name|default:'Custom Package' }}</div>
-                            <div class="small text-muted">Product Code: {{ selected_order.package.product_code|default:'Not assigned' }}</div>
                             <div>Event Type: {{ selected_order.get_event_type_display }}</div>
                             <div>Event Date: {{ selected_order.event_date|date:'F d, Y' }}</div>
                         </div>

@@ -1,0 +1,361 @@
+<div class="package-inclusion-builder mt-4" data-hidden-input-name="package_inclusions_payload">
+    <input type="hidden" name="package_inclusions_payload" class="package-inclusion-builder-payload">
+    <textarea name="features" class="package-inclusion-summary-input" hidden></textarea>
+
+    <div class="module-header mt-4">
+        <h2><i class="fas fa-box-open"></i> {{ builder_title|default:'Package Inclusion Builder' }}</h2>
+        <p class="small text-muted mb-0">{{ builder_help|default:'Add the package items, quantities, optional prices, and photos. Use 0.00 for items that stay automatically included in the base package price.' }}</p>
+    </div>
+
+    <div class="package-inclusion-builder-grid">
+        <section class="package-inclusion-panel">
+            <div class="package-inclusion-panel__header">
+                <div>
+                    <h3>Included Items</h3>
+                    <p>Use 0.00 for always-included items. Add a price only when the customer should choose the item.</p>
+                </div>
+                <button type="button" class="btn-secondary package-inclusion-add">+ Add Inclusion</button>
+            </div>
+            <div class="table-responsive">
+                <table class="package-inclusion-table">
+                    <thead>
+                        <tr>
+                            <th>Item Name</th>
+                            <th>Qty</th>
+                            <th>Price (P)</th>
+                            <th>Image</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in package_inclusion_editor_items %}
+                        <tr class="package-inclusion-row">
+                            <td><input type="text" class="form-control" data-field="label" value="{{ item.label }}" placeholder="Included item name"></td>
+                            <td><input type="number" class="form-control" data-field="quantity" value="{{ item.quantity|default:1 }}" min="1" step="1"></td>
+                            <td><input type="number" class="form-control" data-field="price" value="{{ item.price|default:'0.00' }}" min="0" step="0.01" placeholder="0.00"></td>
+                            <td>
+                                <div class="package-inclusion-image-control">
+                                    <div class="package-inclusion-image-preview{% if item.image_url %} has-image{% endif %}">
+                                        {% if item.image_url %}
+                                        <img src="{{ item.image_url }}" alt="{{ item.label }}">
+                                        {% else %}
+                                        <span>No image</span>
+                                        {% endif %}
+                                    </div>
+                                    <input type="hidden" data-field="image" value="{{ item.image|default:'' }}">
+                                    <input type="hidden" data-field="image_url" value="{{ item.image_url|default:'' }}">
+                                    <input type="file" class="form-control package-inclusion-image-input" data-field="image_upload" accept="image/*">
+                                </div>
+                            </td>
+                            <td><button type="button" class="btn-link text-danger package-inclusion-remove">Remove</button></td>
+                        </tr>
+                        {% empty %}
+                        <tr class="package-inclusion-empty">
+                            <td colspan="5">No included items added yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <aside class="package-inclusion-preview">
+            <h3>Customer Preview</h3>
+            <p class="text-muted small">Zero-price items stay included automatically. Priced items become optional package items on the customer page.</p>
+            <div class="package-inclusion-preview__body">No included items added</div>
+        </aside>
+    </div>
+</div>
+
+<style>
+    .package-inclusion-builder-grid {
+        display: grid;
+        gap: 24px;
+        grid-template-columns: minmax(0, 2.35fr) minmax(280px, 1fr);
+        margin-top: 24px;
+    }
+    .package-inclusion-panel {
+        padding: 18px;
+        border: 1px solid #f1d0d8;
+        border-radius: 18px;
+        background: linear-gradient(180deg, rgba(255, 245, 247, 0.92), #ffffff 72%);
+    }
+    .package-inclusion-panel__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+        margin-bottom: 12px;
+    }
+    .package-inclusion-panel__header h3,
+    .package-inclusion-preview h3 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 700;
+    }
+    .package-inclusion-panel__header p,
+    .package-inclusion-preview p {
+        margin: 4px 0 0;
+    }
+    .package-inclusion-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .package-inclusion-table th,
+    .package-inclusion-table td {
+        padding: 10px 8px;
+        vertical-align: middle;
+    }
+    .package-inclusion-table thead th {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        color: #d14a72;
+        border-bottom: 1px dashed #efb9c8;
+    }
+    .package-inclusion-row + .package-inclusion-row td,
+    .package-inclusion-empty td {
+        border-top: 1px dashed #f2d6de;
+    }
+    .package-inclusion-empty td {
+        color: #7c7f88;
+        text-align: center;
+        font-size: 0.92rem;
+    }
+    .package-inclusion-image-control {
+        display: grid;
+        gap: 8px;
+        min-width: 140px;
+    }
+    .package-inclusion-image-preview {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 74px;
+        padding: 8px;
+        border: 1px dashed #efb9c8;
+        border-radius: 12px;
+        background: #fff8fa;
+        color: #8b7280;
+        font-size: 0.82rem;
+        text-align: center;
+    }
+    .package-inclusion-image-preview.has-image {
+        padding: 4px;
+        border-style: solid;
+        background: #ffffff;
+    }
+    .package-inclusion-image-preview img {
+        width: 100%;
+        height: 64px;
+        object-fit: cover;
+        border-radius: 8px;
+    }
+    .package-inclusion-preview {
+        position: sticky;
+        top: 100px;
+        align-self: start;
+        padding: 18px;
+        border: 1px solid #d7e0ea;
+        border-radius: 18px;
+        background: #f8fbff;
+    }
+    .package-inclusion-preview__body {
+        display: grid;
+        gap: 10px;
+    }
+    .package-inclusion-preview__item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 14px;
+        border: 1px solid #e1e8f0;
+        background: #ffffff;
+        color: #4d5160;
+    }
+    .package-inclusion-preview__thumb {
+        width: 52px;
+        height: 52px;
+        border-radius: 12px;
+        overflow: hidden;
+        background: #fff6f8;
+        border: 1px solid #f1d0d8;
+        flex-shrink: 0;
+    }
+    .package-inclusion-preview__thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .package-inclusion-preview__meta strong {
+        display: block;
+        font-size: 0.92rem;
+    }
+    .package-inclusion-preview__meta span {
+        color: #7b8190;
+        font-size: 0.82rem;
+    }
+    @media (max-width: 1100px) {
+        .package-inclusion-builder-grid {
+            grid-template-columns: 1fr;
+        }
+        .package-inclusion-preview {
+            position: static;
+        }
+    }
+</style>
+
+<script>
+    (function () {
+        function buildImagePreviewMarkup(item) {
+            if (item.imageUrl) {
+                return `<div class="package-inclusion-image-preview has-image"><img src="${item.imageUrl}" alt="${item.label}"></div>`;
+            }
+            return '<div class="package-inclusion-image-preview"><span>No image</span></div>';
+        }
+
+        function buildRow(item) {
+            const row = document.createElement('tr');
+            row.className = 'package-inclusion-row';
+            row.innerHTML = `
+                <td><input type="text" class="form-control" data-field="label" value="${item.label || ''}" placeholder="Included item name"></td>
+                <td><input type="number" class="form-control" data-field="quantity" value="${item.quantity || 1}" min="1" step="1"></td>
+                <td><input type="number" class="form-control" data-field="price" value="${item.price || '0.00'}" min="0" step="0.01" placeholder="0.00"></td>
+                <td>
+                    <div class="package-inclusion-image-control">
+                        ${buildImagePreviewMarkup(item)}
+                        <input type="hidden" data-field="image" value="${item.image || ''}">
+                        <input type="hidden" data-field="image_url" value="${item.imageUrl || ''}">
+                        <input type="file" class="form-control package-inclusion-image-input" data-field="image_upload" accept="image/*">
+                    </div>
+                </td>
+                <td><button type="button" class="btn-link text-danger package-inclusion-remove">Remove</button></td>
+            `;
+            return row;
+        }
+
+        function initializeBuilder(builder) {
+            const payloadInput = builder.querySelector('.package-inclusion-builder-payload');
+            const summaryInput = builder.querySelector('.package-inclusion-summary-input');
+            const tbody = builder.querySelector('tbody');
+            const previewBody = builder.querySelector('.package-inclusion-preview__body');
+
+            function buildEmptyRowMarkup() {
+                return '<tr class="package-inclusion-empty"><td colspan="5">No included items added yet.</td></tr>';
+            }
+
+            function assignImageFieldNames(rows) {
+                rows.forEach((row, index) => {
+                    const imageInput = row.querySelector('[data-field="image_upload"]');
+                    if (imageInput) {
+                        imageInput.name = `package_inclusion_image__${index}`;
+                    }
+                });
+            }
+
+            function updateImagePreview(row, file) {
+                const preview = row.querySelector('.package-inclusion-image-preview');
+                const imageUrlField = row.querySelector('[data-field="image_url"]');
+                if (!preview || !file) {
+                    return;
+                }
+                if (imageUrlField) {
+                    imageUrlField.value = URL.createObjectURL(file);
+                }
+                preview.classList.add('has-image');
+                preview.innerHTML = '<img src="' + imageUrlField.value + '" alt="Included item preview">';
+            }
+
+            function syncPayload() {
+                const rows = Array.from(tbody.querySelectorAll('.package-inclusion-row'));
+                assignImageFieldNames(rows);
+
+                const items = rows.map((row) => {
+                    const label = row.querySelector('[data-field="label"]').value.trim();
+                    const quantityInput = row.querySelector('[data-field="quantity"]').value.trim();
+                    const priceInput = row.querySelector('[data-field="price"]').value.trim();
+                    const quantity = Number.parseInt(quantityInput || '1', 10);
+                    const price = Number.parseFloat(priceInput || '0');
+                    const imageField = row.querySelector('[data-field="image"]');
+                    const imageUrlField = row.querySelector('[data-field="image_url"]');
+                    const item = {
+                        label,
+                        quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1,
+                        price: Number.isFinite(price) && price > 0 ? price.toFixed(2) : '0.00',
+                    };
+                    if (imageField && imageField.value.trim()) {
+                        item.image = imageField.value.trim();
+                    }
+                    if (imageUrlField && imageUrlField.value.trim()) {
+                        item.imageUrl = imageUrlField.value.trim();
+                    }
+                    return item;
+                }).filter((item) => item.label);
+
+                payloadInput.value = JSON.stringify(items);
+                summaryInput.value = items.map((item) => item.quantity > 1 ? `${item.quantity} x ${item.label}` : item.label).join('\n');
+
+                if (!items.length) {
+                    previewBody.textContent = 'No included items added';
+                } else {
+                    previewBody.innerHTML = items.map((item) => {
+                        const thumbMarkup = item.image
+                            ? `<div class="package-inclusion-preview__thumb"><img src="${item.imageUrl || item.image}" alt="${item.label}"></div>`
+                            : '';
+                        return `
+                            <div class="package-inclusion-preview__item">
+                                ${thumbMarkup}
+                                <div class="package-inclusion-preview__meta">
+                                    <strong>${item.quantity > 1 ? `${item.quantity} x ${item.label}` : item.label}</strong>
+                                    <span>${parseFloat(item.price || '0') > 0 ? `P${Number.parseFloat(item.price).toFixed(2)} each` : 'Included in the package'}</span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                if (!rows.length) {
+                    tbody.innerHTML = buildEmptyRowMarkup();
+                }
+            }
+
+            builder.addEventListener('click', (event) => {
+                const addButton = event.target.closest('.package-inclusion-add');
+                if (addButton) {
+                    const emptyRow = tbody.querySelector('.package-inclusion-empty');
+                    if (emptyRow) {
+                        emptyRow.remove();
+                    }
+                    tbody.appendChild(buildRow({ label: '', quantity: 1 }));
+                    syncPayload();
+                    return;
+                }
+
+                const removeButton = event.target.closest('.package-inclusion-remove');
+                if (removeButton) {
+                    removeButton.closest('.package-inclusion-row').remove();
+                    if (!tbody.querySelector('.package-inclusion-row')) {
+                        tbody.innerHTML = buildEmptyRowMarkup();
+                    }
+                    syncPayload();
+                }
+            });
+
+            builder.addEventListener('input', (event) => {
+                if (event.target.matches('[data-field="label"], [data-field="quantity"], [data-field="price"]')) {
+                    syncPayload();
+                }
+            });
+
+            builder.addEventListener('change', (event) => {
+                if (event.target.matches('[data-field="image_upload"]') && event.target.files[0]) {
+                    updateImagePreview(event.target.closest('.package-inclusion-row'), event.target.files[0]);
+                }
+            });
+
+            syncPayload();
+        }
+
+        document.querySelectorAll('.package-inclusion-builder').forEach(initializeBuilder);
+    }());
+</script>

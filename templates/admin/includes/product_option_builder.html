@@ -1,4 +1,4 @@
-<div class="product-option-builder mt-4" data-hidden-input-name="{{ hidden_input_name|default:'customization_options_payload' }}">
+<div class="product-option-builder mt-4" data-hidden-input-name="{{ hidden_input_name|default:'customization_options_payload' }}" data-show-option-images="{% if show_option_images %}true{% else %}false{% endif %}">
     <input type="hidden" name="{{ hidden_input_name|default:'customization_options_payload' }}" class="product-option-builder-payload">
 
     <div class="module-header mt-4">
@@ -25,6 +25,9 @@
                             <tr>
                                 <th>{{ group.item_label }} Name</th>
                                 <th>Price (P)</th>
+                                {% if show_option_images %}
+                                <th>Option Image</th>
+                                {% endif %}
                                 <th></th>
                             </tr>
                         </thead>
@@ -33,11 +36,26 @@
                             <tr class="product-option-row">
                                 <td><input type="text" class="form-control" data-field="label" value="{{ item.label }}" placeholder="{{ group.item_label }} name"></td>
                                 <td><input type="number" class="form-control" data-field="price" value="{{ item.price }}" step="0.01" min="0" placeholder="0.00"></td>
+                                {% if show_option_images %}
+                                <td>
+                                    <div class="product-option-image-control">
+                                        <div class="product-option-image-preview{% if item.image_url %} has-image{% endif %}">
+                                            {% if item.image_url %}
+                                            <img src="{{ item.image_url }}" alt="{{ item.label }}">
+                                            {% else %}
+                                            <span>No image</span>
+                                            {% endif %}
+                                        </div>
+                                        <input type="hidden" data-field="image" value="{{ item.image|default:'' }}">
+                                        <input type="file" class="form-control product-option-image-input" data-field="image_upload" accept="image/*">
+                                    </div>
+                                </td>
+                                {% endif %}
                                 <td><button type="button" class="btn-link text-danger product-option-remove">Remove</button></td>
                             </tr>
                             {% empty %}
                             <tr class="product-option-empty">
-                                <td colspan="3">No {{ group.label|lower }} added yet.</td>
+                                <td colspan="{% if show_option_images %}4{% else %}3{% endif %}">No {{ group.label|lower }} added yet.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -157,6 +175,35 @@
         color: #8a2448;
         font-size: 0.85rem;
     }
+    .product-option-image-control {
+        display: grid;
+        gap: 8px;
+        min-width: 140px;
+    }
+    .product-option-image-preview {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 74px;
+        padding: 8px;
+        border: 1px dashed #efb9c8;
+        border-radius: 12px;
+        background: #fff8fa;
+        color: #8b7280;
+        font-size: 0.82rem;
+        text-align: center;
+    }
+    .product-option-image-preview.has-image {
+        padding: 4px;
+        border-style: solid;
+        background: #ffffff;
+    }
+    .product-option-image-preview img {
+        width: 100%;
+        height: 64px;
+        object-fit: cover;
+        border-radius: 8px;
+    }
     @media (max-width: 1100px) {
         .product-option-builder-grid {
             grid-template-columns: 1fr;
@@ -169,12 +216,39 @@
 
 <script>
     (function () {
+        function buildImageMarkup(item) {
+            if (!item.showImages) {
+                return '';
+            }
+
+            const previewMarkup = item.imageUrl
+                ? `<div class="product-option-image-preview has-image"><img src="${item.imageUrl}" alt="${item.label}"></div>`
+                : '<div class="product-option-image-preview"><span>No image</span></div>';
+
+            return `
+                <td>
+                    <div class="product-option-image-control">
+                        ${previewMarkup}
+                        <input type="hidden" data-field="image" value="${item.image || ''}">
+                        <input type="file" class="form-control product-option-image-input" data-field="image_upload" accept="image/*">
+                    </div>
+                </td>
+            `;
+        }
+
         function buildRow(group, item) {
             const row = document.createElement('tr');
             row.className = 'product-option-row';
+            const showImages = group.closest('.product-option-builder').dataset.showOptionImages === 'true';
             row.innerHTML = `
                 <td><input type="text" class="form-control" data-field="label" value="${item.label}" placeholder="${group.dataset.itemLabel} name"></td>
                 <td><input type="number" class="form-control" data-field="price" value="${item.price}" step="0.01" min="0" placeholder="0.00"></td>
+                ${buildImageMarkup({
+                    showImages,
+                    image: item.image || '',
+                    imageUrl: item.imageUrl || '',
+                    label: item.label || group.dataset.itemLabel,
+                })}
                 <td><button type="button" class="btn-link text-danger product-option-remove">Remove</button></td>
             `;
             return row;
@@ -183,6 +257,35 @@
         function initializeBuilder(builder) {
             const payloadInput = builder.querySelector('.product-option-builder-payload');
             const groups = Array.from(builder.querySelectorAll('.product-option-group'));
+            const showOptionImages = builder.dataset.showOptionImages === 'true';
+
+            function buildEmptyRowMarkup(group) {
+                const colspan = showOptionImages ? 4 : 3;
+                return `<tr class="product-option-empty"><td colspan="${colspan}">No ${group.dataset.groupLabel.toLowerCase()} added yet.</td></tr>`;
+            }
+
+            function assignImageFieldNames(group, rows) {
+                if (!showOptionImages) {
+                    return;
+                }
+
+                rows.forEach((row, index) => {
+                    const imageInput = row.querySelector('[data-field="image_upload"]');
+                    if (imageInput) {
+                        imageInput.name = `option_image__${group.dataset.groupKey}__${index}`;
+                    }
+                });
+            }
+
+            function updateImagePreview(row, file) {
+                const preview = row.querySelector('.product-option-image-preview');
+                if (!preview || !file) {
+                    return;
+                }
+
+                preview.classList.add('has-image');
+                preview.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="Option image preview">`;
+            }
 
             function syncPreviewAndPayload() {
                 const payload = {};
@@ -191,14 +294,21 @@
                     const groupKey = group.dataset.groupKey;
                     const tbody = group.querySelector('tbody');
                     const rows = Array.from(tbody.querySelectorAll('.product-option-row'));
+                    assignImageFieldNames(group, rows);
                     const items = rows.map((row) => {
                         const label = row.querySelector('[data-field="label"]').value.trim();
                         const priceInput = row.querySelector('[data-field="price"]').value.trim();
                         const parsedPrice = Number.parseFloat(priceInput || '0');
-                        return {
+                        const item = {
                             label,
                             price: Number.isFinite(parsedPrice) ? parsedPrice.toFixed(2) : '0.00',
                         };
+                        const imagePathInput = row.querySelector('[data-field="image"]');
+                        const imagePath = imagePathInput ? imagePathInput.value.trim() : '';
+                        if (imagePath) {
+                            item.image = imagePath;
+                        }
+                        return item;
                     }).filter((item) => item.label);
 
                     if (items.length) {
@@ -216,7 +326,7 @@
                     }
 
                     if (!rows.length) {
-                        tbody.innerHTML = `<tr class="product-option-empty"><td colspan="3">No ${group.dataset.groupLabel.toLowerCase()} added yet.</td></tr>`;
+                        tbody.innerHTML = buildEmptyRowMarkup(group);
                     }
                 });
 
@@ -243,7 +353,7 @@
                     removeButton.closest('.product-option-row').remove();
                     if (!group.querySelector('.product-option-row')) {
                         const tbody = group.querySelector('tbody');
-                        tbody.innerHTML = `<tr class="product-option-empty"><td colspan="3">No ${group.dataset.groupLabel.toLowerCase()} added yet.</td></tr>`;
+                        tbody.innerHTML = buildEmptyRowMarkup(group);
                     }
                     syncPreviewAndPayload();
                 }
@@ -252,6 +362,12 @@
             builder.addEventListener('input', (event) => {
                 if (event.target.matches('[data-field="label"], [data-field="price"]')) {
                     syncPreviewAndPayload();
+                }
+            });
+
+            builder.addEventListener('change', (event) => {
+                if (event.target.matches('[data-field="image_upload"]') && event.target.files[0]) {
+                    updateImagePreview(event.target.closest('.product-option-row'), event.target.files[0]);
                 }
             });
 

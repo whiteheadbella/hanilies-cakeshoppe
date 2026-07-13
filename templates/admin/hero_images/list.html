@@ -1,0 +1,96 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Homepage Hero{% endblock %}
+{% block page_title %}Homepage Hero Collage{% endblock %}
+{% block page_icon %}images{% endblock %}
+
+{% block content %}
+<div class="module-card">
+    <div class="module-header" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <div>
+            <h2><i class="fas fa-images"></i> Celebration Hero Images</h2>
+            <p class="text-muted mb-0">The first four active images are used on the public homepage collage.</p>
+        </div>
+        <a href="{% url 'admin_home_hero_add' %}" class="btn-primary" style="text-decoration: none;">
+            <i class="fas fa-plus"></i> Add Hero Image
+        </a>
+    </div>
+    <table class="module-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Preview</th>
+                <th>Title</th>
+                <th>Display Order</th>
+                <th>Status</th>
+                <th>Updated</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for hero_image in hero_images %}
+            <tr>
+                <td>{{ hero_image.id }}</td>
+                <td>
+                    <img src="{{ hero_image.image.url }}" alt="{{ hero_image.title }}" style="width: 72px; height: 72px; object-fit: cover; border-radius: 16px; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);">
+                </td>
+                <td>
+                    <strong>{{ hero_image.title }}</strong>
+                </td>
+                <td>{{ hero_image.display_order }}</td>
+                <td>
+                    {% if hero_image.is_active %}
+                    <span class="status-badge status-active">Active</span>
+                    {% else %}
+                    <span class="status-badge status-muted">Hidden</span>
+                    {% endif %}
+                </td>
+                <td>{{ hero_image.updated_at|date:"M d, Y g:i A" }}</td>
+                <td>
+                    <a href="{% url 'admin_home_hero_edit' hero_image.id %}" style="color: #FF69B4; margin-right: 10px;">
+                        <i class="fas fa-edit"></i> Edit
+                    </a>
+                    <form method="post" action="{% url 'admin_home_hero_delete' hero_image.id %}" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" style="background: none; border: none; padding: 0; color: #dc2626; cursor: pointer; font: inherit;" onclick="return confirm('Delete this hero image?');">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" class="text-center">No homepage hero images yet. <a href="{% url 'admin_home_hero_add' %}">Upload the first celebration image</a>.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<style>
+    .text-center {
+        text-align: center;
+    }
+    .text-muted {
+        color: #6b7280;
+    }
+    .mb-0 {
+        margin-bottom: 0;
+    }
+    .status-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        font-weight: 500;
+    }
+    .status-active {
+        background: #d1fae5;
+        color: #10b981;
+    }
+    .status-muted {
+        background: #f3f4f6;
+        color: #6b7280;
+    }
+</style>
+{% endblock %}

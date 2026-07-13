@@ -2,12 +2,777 @@
 
 {% block title %}Customize Your Cake{% endblock %}
 
+{% block extra_css %}
+<style>
+    .cake-customize-page {
+        background:
+            radial-gradient(circle at top right, rgba(212, 175, 55, 0.16), transparent 28%),
+            linear-gradient(180deg, #fffaf7 0%, #fff6f9 48%, #ffffff 100%);
+    }
+
+    .cake-customize-hero {
+        background: linear-gradient(135deg, rgba(255, 236, 240, 0.98), rgba(255, 248, 238, 0.96));
+        border: 1px solid rgba(214, 174, 106, 0.24);
+        border-radius: 32px;
+        box-shadow: 0 24px 60px rgba(133, 88, 106, 0.10);
+        overflow: hidden;
+        padding: 2.5rem;
+        position: relative;
+    }
+
+    .cake-customize-hero::after {
+        background: radial-gradient(circle, rgba(214, 174, 106, 0.18) 0%, rgba(214, 174, 106, 0) 72%);
+        content: '';
+        height: 280px;
+        position: absolute;
+        right: -60px;
+        top: -80px;
+        width: 280px;
+    }
+
+    .checkout-kicker {
+        align-items: center;
+        color: #b46a7b;
+        display: inline-flex;
+        font-size: 0.76rem;
+        font-weight: 700;
+        gap: 0.55rem;
+        letter-spacing: 0.14em;
+        margin-bottom: 1rem;
+        text-transform: uppercase;
+    }
+
+    .checkout-kicker::before {
+        background: linear-gradient(90deg, #c98c62, #f1c96b);
+        border-radius: 999px;
+        content: '';
+        height: 2px;
+        width: 44px;
+    }
+
+    .checkout-lead {
+        color: #6d5964;
+        font-size: 1.05rem;
+        line-height: 1.7;
+        margin-bottom: 0;
+        max-width: 44rem;
+    }
+
+    .checkout-route-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.85rem;
+        margin-top: 1.5rem;
+    }
+
+    .checkout-route-pill {
+        background: rgba(255, 255, 255, 0.74);
+        border: 1px solid rgba(214, 174, 106, 0.24);
+        border-radius: 999px;
+        color: #7f5d4d;
+        display: inline-flex;
+        font-size: 0.92rem;
+        font-weight: 600;
+        gap: 0.5rem;
+        padding: 0.72rem 1rem;
+    }
+
+    .checkout-hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.85rem;
+        justify-content: flex-lg-end;
+        margin-top: 1.5rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .checkout-shell {
+        margin-top: 1.75rem;
+    }
+
+    .checkout-main-card,
+    .checkout-summary-card {
+        background: rgba(255, 255, 255, 0.94);
+        border: 1px solid rgba(214, 174, 106, 0.18);
+        border-radius: 30px;
+        box-shadow: 0 22px 60px rgba(117, 86, 99, 0.10);
+        overflow: hidden;
+    }
+
+    .checkout-card-header {
+        align-items: center;
+        background: linear-gradient(135deg, #d79c74, #d6ae6a 65%, #f3d699);
+        color: #fff;
+        display: flex;
+        justify-content: space-between;
+        padding: 1.3rem 1.5rem;
+    }
+
+    .checkout-card-header h5 {
+        font-size: 1.08rem;
+        margin: 0;
+    }
+
+    .checkout-header-note {
+        font-size: 0.84rem;
+        font-weight: 600;
+        opacity: 0.9;
+    }
+
+    .checkout-card-body {
+        padding: 1.5rem;
+    }
+
+    .selected-cake-spotlight {
+        background: linear-gradient(135deg, rgba(255, 245, 239, 0.98), rgba(255, 250, 252, 0.98));
+        border: 1px solid rgba(214, 174, 106, 0.22);
+        border-radius: 26px;
+        display: grid;
+        gap: 1.25rem;
+        grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
+        margin-bottom: 1.5rem;
+        padding: 1.2rem;
+    }
+
+    .checkout-process {
+        align-items: center;
+        display: grid;
+        gap: 0.9rem;
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+        margin-bottom: 1.4rem;
+    }
+
+    .checkout-process-step {
+        align-items: center;
+        background: linear-gradient(180deg, rgba(255, 249, 244, 0.96), rgba(255, 255, 255, 1));
+        border: 1px solid rgba(214, 174, 106, 0.2);
+        border-radius: 22px;
+        color: inherit;
+        display: flex;
+        gap: 0.9rem;
+        min-height: 78px;
+        outline: none;
+        padding: 0.95rem 1rem;
+        text-align: left;
+        width: 100%;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    }
+
+    button.checkout-process-step {
+        appearance: none;
+        cursor: pointer;
+    }
+
+    .checkout-process-step.is-active,
+    .checkout-process-step.is-complete {
+        border-color: rgba(211, 138, 116, 0.5);
+        box-shadow: 0 16px 30px rgba(124, 89, 102, 0.09);
+        transform: translateY(-1px);
+    }
+
+    .checkout-process-step.is-active {
+        background: linear-gradient(135deg, rgba(255, 238, 233, 0.98), rgba(255, 250, 245, 1));
+    }
+
+    .checkout-process-step.is-complete {
+        background: linear-gradient(135deg, rgba(252, 240, 230, 0.98), rgba(255, 252, 248, 1));
+    }
+
+    .checkout-process-step:focus-visible {
+        box-shadow: 0 0 0 3px rgba(211, 138, 116, 0.18), 0 16px 30px rgba(124, 89, 102, 0.09);
+    }
+
+    .checkout-process-marker {
+        align-items: center;
+        background: rgba(255, 255, 255, 0.96);
+        border: 1px solid rgba(214, 174, 106, 0.22);
+        border-radius: 18px;
+        color: #b46a7b;
+        display: inline-flex;
+        font-size: 0.9rem;
+        font-weight: 700;
+        height: 48px;
+        justify-content: center;
+        min-width: 48px;
+        transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    }
+
+    .checkout-process-step.is-active .checkout-process-marker,
+    .checkout-process-step.is-complete .checkout-process-marker {
+        background: linear-gradient(135deg, #efc17f, #d38a74);
+        border-color: transparent;
+        color: #fff;
+    }
+
+    .checkout-process-text small {
+        color: #9c8793;
+        display: block;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        margin-bottom: 0.2rem;
+        text-transform: uppercase;
+    }
+
+    .checkout-process-text strong {
+        color: #4e3e48;
+        display: block;
+        font-size: 1rem;
+        line-height: 1.25;
+    }
+
+    .checkout-process-connector {
+        background: linear-gradient(90deg, rgba(214, 174, 106, 0.3), rgba(211, 138, 116, 0.5));
+        border-radius: 999px;
+        height: 2px;
+        min-width: 36px;
+        width: 100%;
+    }
+
+    .selected-cake-media {
+        background: #fff;
+        border-radius: 22px;
+        box-shadow: inset 0 0 0 1px rgba(214, 174, 106, 0.18);
+        min-height: 220px;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .selected-cake-media img {
+        display: block;
+        height: 100%;
+        object-fit: cover;
+        width: 100%;
+    }
+
+    .selected-cake-body {
+        display: flex;
+        flex-direction: column;
+        gap: 0.9rem;
+        justify-content: center;
+    }
+
+    .selected-cake-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.7rem;
+    }
+
+    .selected-cake-meta span,
+    .selected-cake-status {
+        background: rgba(255, 255, 255, 0.88);
+        border: 1px solid rgba(214, 174, 106, 0.22);
+        border-radius: 999px;
+        color: #7f5d4d;
+        font-size: 0.84rem;
+        font-weight: 600;
+        padding: 0.45rem 0.8rem;
+    }
+
+    .selected-cake-price {
+        color: #c37d53;
+        font-size: 1.85rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+
+    .selected-cake-description {
+        color: #6f6470;
+        margin: 0;
+    }
+
+    .checkout-grid {
+        display: grid;
+        gap: 1.25rem;
+    }
+
+    .checkout-section {
+        background: #fff;
+        border: 1px solid rgba(214, 174, 106, 0.16);
+        border-radius: 24px;
+        padding: 1.35rem;
+    }
+
+    .checkout-section-heading {
+        align-items: flex-start;
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.15rem;
+    }
+
+    .checkout-step-badge {
+        align-items: center;
+        background: linear-gradient(135deg, #efc17f, #d38a74);
+        border-radius: 18px;
+        color: #fff;
+        display: inline-flex;
+        font-size: 0.85rem;
+        font-weight: 700;
+        height: 42px;
+        justify-content: center;
+        min-width: 42px;
+        padding: 0 0.75rem;
+    }
+
+    .checkout-section-heading h6 {
+        font-size: 1.03rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .checkout-section-heading p {
+        color: #7a6a73;
+        margin-bottom: 0;
+    }
+
+    .checkout-field-note {
+        color: #9c8793;
+        font-size: 0.84rem;
+        margin-top: 0.45rem;
+    }
+
+    .checkout-section-footer {
+        align-items: center;
+        border-top: 1px dashed rgba(214, 174, 106, 0.28);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.9rem;
+        justify-content: space-between;
+        margin-top: 1.15rem;
+        padding-top: 1rem;
+    }
+
+    .checkout-section-footer .checkout-field-note {
+        margin-top: 0;
+    }
+
+    .attribute-selector-stack {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .attribute-selector-section {
+        background: linear-gradient(180deg, rgba(255, 249, 244, 0.92), rgba(255, 255, 255, 1));
+        border: 1px solid rgba(214, 174, 106, 0.16);
+        border-radius: 22px;
+        padding: 0.95rem;
+    }
+
+    .attribute-selector-header {
+        align-items: flex-start;
+        display: flex;
+        gap: 1rem;
+        justify-content: space-between;
+        margin-bottom: 0.9rem;
+    }
+
+    .attribute-selector-header h6 {
+        color: #d86f8b;
+        font-size: 0.94rem;
+        font-weight: 700;
+        margin-bottom: 0.2rem;
+    }
+
+    .attribute-selector-header p {
+        display: none;
+    }
+
+    .attribute-indicator {
+        align-items: center;
+        border-radius: 999px;
+        display: inline-flex;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        padding: 0.45rem 0.7rem;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .attribute-indicator.is-required {
+        background: rgba(244, 213, 219, 0.88);
+        color: #ab5f76;
+    }
+
+    .attribute-indicator.is-optional {
+        background: rgba(244, 233, 212, 0.9);
+        color: #8a694b;
+    }
+
+    .attribute-card-grid {
+        display: grid;
+        gap: 0.75rem;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    }
+
+    .attribute-card {
+        display: block;
+        margin: 0;
+        position: relative;
+    }
+
+    .attribute-card-input {
+        opacity: 0;
+        pointer-events: none;
+        position: absolute;
+    }
+
+    .attribute-card-body {
+        background: rgba(255, 255, 255, 0.96);
+        align-items: center;
+        border: 1px solid rgba(225, 124, 155, 0.26);
+        border-radius: 20px;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        min-height: 100%;
+        padding: 0.9rem 0.75rem;
+        text-align: center;
+        transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    }
+
+    .attribute-card:hover .attribute-card-body {
+        border-color: rgba(225, 124, 155, 0.34);
+        box-shadow: 0 14px 28px rgba(137, 94, 110, 0.08);
+        transform: translateY(-1px);
+    }
+
+    .attribute-card-media {
+        align-items: center;
+        background: linear-gradient(135deg, rgba(255, 243, 236, 0.95), rgba(255, 250, 252, 1));
+        border: 2px solid rgba(232, 176, 196, 0.36);
+        border-radius: 22px;
+        display: flex;
+        height: 76px;
+        justify-content: center;
+        margin-bottom: 0.15rem;
+        overflow: hidden;
+        position: relative;
+        width: 76px;
+    }
+
+    .attribute-card-media img {
+        border-radius: 16px;
+        display: block;
+        height: calc(100% - 10px);
+        object-fit: cover;
+        width: calc(100% - 10px);
+    }
+
+    .attribute-card-input:checked + .attribute-card-body {
+        background: linear-gradient(180deg, rgba(255, 239, 245, 0.96), rgba(255, 248, 251, 1));
+        border-color: #e17c9b;
+        box-shadow: 0 0 0 3px rgba(225, 124, 155, 0.12), 0 16px 30px rgba(137, 94, 110, 0.10);
+    }
+
+    .attribute-card-input:focus-visible + .attribute-card-body {
+        box-shadow: 0 0 0 3px rgba(211, 138, 116, 0.18);
+    }
+
+    .attribute-card-title-row {
+        align-items: center;
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        justify-content: center;
+    }
+
+    .attribute-card-title {
+        color: #4e3e48;
+        display: block;
+        font-size: 0.85rem;
+        font-weight: 700;
+        line-height: 1.25;
+    }
+
+    .attribute-card-price {
+        background: transparent;
+        border-radius: 0;
+        color: #d86f8b;
+        flex-shrink: 0;
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 0;
+    }
+
+    .attribute-card-note {
+        display: none;
+    }
+
+    .attribute-card-meta {
+        display: none;
+    }
+
+    .checkout-section .form-control,
+    .checkout-section .form-select {
+        border-color: rgba(214, 174, 106, 0.24);
+        border-radius: 16px;
+        min-height: 52px;
+        padding-left: 0.95rem;
+        padding-right: 0.95rem;
+    }
+
+    .checkout-section textarea.form-control {
+        min-height: 120px;
+        padding-top: 0.85rem;
+    }
+
+    .checkout-section .form-control:focus,
+    .checkout-section .form-select:focus {
+        border-color: rgba(211, 138, 116, 0.72);
+        box-shadow: 0 0 0 0.22rem rgba(215, 156, 116, 0.18);
+    }
+
+    .addon-grid,
+    .payment-grid {
+        display: grid;
+        gap: 0.9rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .addon-option,
+    .payment-option {
+        background: linear-gradient(180deg, rgba(255, 250, 246, 0.98), rgba(255, 255, 255, 1));
+        border: 1px solid rgba(214, 174, 106, 0.22);
+        border-radius: 20px;
+        margin: 0;
+        min-height: 100%;
+        padding: 1rem;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+
+    .addon-option:hover,
+    .payment-option:hover {
+        border-color: rgba(211, 138, 116, 0.48);
+        box-shadow: 0 16px 30px rgba(124, 89, 102, 0.08);
+        transform: translateY(-2px);
+    }
+
+    .addon-option .form-check-input,
+    .payment-option .form-check-input {
+        margin-top: 0.2rem;
+    }
+
+    .qr-panel {
+        background: linear-gradient(135deg, rgba(255, 246, 238, 0.92), rgba(255, 255, 255, 1));
+        border: 1px solid rgba(214, 174, 106, 0.24);
+        border-radius: 24px;
+        padding: 1.2rem;
+    }
+
+    .qr-preview-card {
+        background: #fff;
+        border: 1px solid rgba(214, 174, 106, 0.18);
+        border-radius: 20px;
+        padding: 1rem;
+    }
+
+    .review-panel-modern {
+        background: linear-gradient(180deg, rgba(255, 249, 241, 0.96), rgba(255, 255, 255, 0.98));
+        border: 1px solid rgba(214, 174, 106, 0.22);
+        border-radius: 24px;
+    }
+
+    .review-grid div {
+        word-break: break-word;
+    }
+
+    .checkout-summary-card {
+        position: sticky;
+        top: 100px;
+    }
+
+    .summary-cake-frame {
+        border-radius: 0 0 28px 28px;
+        margin-bottom: 1.25rem;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .summary-cake-frame img {
+        display: block;
+        height: 220px;
+        object-fit: cover;
+        width: 100%;
+    }
+
+    .summary-cake-overlay {
+        background: linear-gradient(180deg, rgba(72, 45, 39, 0.05), rgba(72, 45, 39, 0.74));
+        bottom: 0;
+        color: #fff;
+        left: 0;
+        padding: 1.1rem 1.15rem;
+        position: absolute;
+        right: 0;
+    }
+
+    .summary-chip-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+        margin: 1rem 0 1.25rem;
+    }
+
+    .summary-chip {
+        background: rgba(255, 245, 239, 0.95);
+        border: 1px solid rgba(214, 174, 106, 0.24);
+        border-radius: 999px;
+        color: #7f5d4d;
+        font-size: 0.82rem;
+        font-weight: 600;
+        padding: 0.45rem 0.75rem;
+    }
+
+    .summary-stack {
+        display: grid;
+        gap: 0.9rem;
+    }
+
+    .summary-block {
+        background: rgba(255, 249, 244, 0.92);
+        border: 1px solid rgba(214, 174, 106, 0.18);
+        border-radius: 20px;
+        padding: 0.95rem 1rem;
+    }
+
+    .summary-block-label {
+        color: #9c8793;
+        display: block;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        margin-bottom: 0.25rem;
+        text-transform: uppercase;
+    }
+
+    .summary-block-value {
+        color: #4e3e48;
+        font-size: 1rem;
+        font-weight: 600;
+    }
+
+    .summary-cost-list {
+        border-top: 1px dashed rgba(214, 174, 106, 0.35);
+        margin-top: 1.2rem;
+        padding-top: 1.2rem;
+    }
+
+    .summary-cost-row {
+        align-items: center;
+        display: flex;
+        font-size: 0.96rem;
+        justify-content: space-between;
+        margin-bottom: 0.85rem;
+    }
+
+    .summary-cost-row strong,
+    .summary-total {
+        color: #b96e4a;
+    }
+
+    .summary-total {
+        font-size: 1.2rem;
+        font-weight: 700;
+    }
+
+    .summary-helper {
+        background: linear-gradient(135deg, rgba(255, 242, 231, 0.9), rgba(255, 250, 244, 1));
+        border: 1px solid rgba(214, 174, 106, 0.2);
+        border-radius: 20px;
+        color: #745c4d;
+        font-size: 0.9rem;
+        margin-top: 1rem;
+        padding: 0.95rem 1rem;
+    }
+
+    .summary-helper strong {
+        color: #9f674d;
+    }
+
+    @media (max-width: 991.98px) {
+        .cake-customize-hero {
+            padding: 2rem 1.4rem;
+        }
+
+        .selected-cake-spotlight {
+            grid-template-columns: 1fr;
+        }
+
+        .selected-cake-media {
+            min-height: 260px;
+        }
+
+        .checkout-summary-card {
+            position: static;
+            top: auto;
+        }
+    }
+
+    @media (max-width: 767.98px) {
+        .checkout-card-body {
+            padding: 1.15rem;
+        }
+
+        .checkout-card-header {
+            align-items: flex-start;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .addon-grid,
+        .payment-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .checkout-section {
+            padding: 1rem;
+        }
+
+        .checkout-section-footer {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .checkout-section-heading {
+            gap: 0.8rem;
+        }
+
+        .checkout-process {
+            gap: 0.7rem;
+            grid-template-columns: 1fr;
+        }
+
+        .attribute-selector-header {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .checkout-process-connector {
+            display: none;
+        }
+
+        .summary-cake-frame img {
+            height: 200px;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container py-4">
-    <div class="row mb-4">
-        <div class="col-lg-8">
-            <h1 class="display-5 fw-bold mb-2">Customize Your Cake</h1>
-            <p class="lead text-muted mb-0">Complete the form below, review every detail, then confirm your cake order.</p>
+<div class="cake-customize-page py-4 py-lg-5">
+<div class="container">
+    <div class="cake-customize-hero">
+        <div class="row align-items-center g-4">
+            <div class="col-lg-8 position-relative">
+                <h1 class="display-5 fw-bold mb-0">Customize Your Cake</h1>
+            </div>
+            <div class="col-lg-4">
+                <div class="checkout-hero-actions">
+                    <a href="{% url 'cakes' %}" class="btn btn-outline-gold">Back to Cakes</a>
+                    <a href="{% url 'order_tracking' %}" class="btn btn-gold">Track Orders</a>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -20,236 +785,436 @@
         {% endfor %}
     {% endif %}
 
-    <div class="row g-4">
+    <div class="row g-4 checkout-shell">
         <div class="col-lg-8">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-gold-pink text-white py-3">
-                    <h5 class="mb-0"><i class="fas fa-cake me-2"></i>Order Details</h5>
+            <div class="checkout-main-card">
+                <div class="checkout-card-header">
+                    <h5><i class="fas fa-cake-candles me-2"></i>Order Details</h5>
+                    <div class="checkout-header-note">Modern checkout layout, existing checkout behavior</div>
                 </div>
-                <div class="card-body p-4">
+                <div class="checkout-card-body">
                     <form method="post" enctype="multipart/form-data" id="cake-order-form">
                         {% csrf_token %}
                         <input type="hidden" name="cake_id" value="{{ cake.id }}">
 
-                        <div class="alert alert-light border mb-4">
-                            <div class="d-flex flex-column flex-md-row justify-content-between gap-3 align-items-md-center">
+                        <div class="checkout-process" id="cake-checkout-process" aria-label="Checkout steps">
+                            <button type="button" class="checkout-process-step is-active" id="cake-checkout-step-customize" data-cake-checkout-step="customize">
+                                <span class="checkout-process-marker">1</span>
+                                <div class="checkout-process-text">
+                                    <small>Step 1</small>
+                                    <strong>Customize</strong>
+                                </div>
+                            </button>
+                            <span class="checkout-process-connector" aria-hidden="true"></span>
+                            <button type="button" class="checkout-process-step" id="cake-checkout-step-review" data-cake-checkout-step="review">
+                                <span class="checkout-process-marker">2</span>
+                                <div class="checkout-process-text">
+                                    <small>Step 2</small>
+                                    <strong>Review Design</strong>
+                                </div>
+                            </button>
+                            <span class="checkout-process-connector" aria-hidden="true"></span>
+                            <button type="button" class="checkout-process-step" id="cake-checkout-step-confirm" data-cake-checkout-step="confirm">
+                                <span class="checkout-process-marker">3</span>
+                                <div class="checkout-process-text">
+                                    <small>Step 3</small>
+                                    <strong>Confirm</strong>
+                                </div>
+                            </button>
+                        </div>
+
+                        <div class="selected-cake-spotlight">
+                            <div class="selected-cake-media image-zoom-frame">
+                                <img src="{{ cake.image_url }}" alt="{{ cake.name }}" class="img-fluid">
+                                <a class="image-zoom-trigger" href="{{ cake.image_url }}" target="_blank" rel="noopener" data-zoom-src="{{ cake.image_url }}" data-zoom-title="{{ cake.name }}">
+                                    <i class="fas fa-search-plus"></i> Zoom
+                                </a>
+                            </div>
+                            <div class="selected-cake-body">
                                 <div>
-                                    <div class="small text-muted">Selected cake</div>
-                                    <div class="h5 mb-1">{{ cake.name }}</div>
-                                    <div class="small text-muted">Product Code: {{ cake.product_code|default:'Not assigned' }}</div>
-                                    <div class="text-muted text-capitalize">{{ cake.get_category_display }}</div>
+                                    <div class="small text-muted text-uppercase fw-semibold mb-2">Selected Cake</div>
+                                    <div class="h3 mb-2">{{ cake.name }}</div>
+                                    <p class="selected-cake-description">{{ cake.description|default:'Create a polished order using the live customization options below. The form still posts to the same route and keeps the current payment verification process.' }}</p>
                                 </div>
-                                <div class="text-md-end">
-                                    <div class="small text-muted">Base price</div>
-                                    <div class="h4 text-gold-pink mb-0">P{{ cake.price }}</div>
+                                <div class="selected-cake-meta">
+                                    <span>{{ cake.get_category_display }}</span>
+                                    <span>Lead time: 3 to 30 days</span>
                                 </div>
-                            </div>
-                        </div>
-
-                        <div class="row g-3 mb-4">
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Theme / Occasion</label>
-                                <select class="form-select" name="theme" id="theme">
-                                    <option value="">Select Theme</option>
-                                    {% for theme in theme_options %}
-                                    <option>{{ theme }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Size</label>
-                                <select class="form-select" name="size" id="size">
-                                    <option value="">Select Size</option>
-                                    {% for option in cake_size_options %}
-                                    <option value="{{ option.value }}" data-price="{{ option.price }}">{{ option.label }}{% if option.price != '0.00' %} (+ P{{ option.price }}){% endif %}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold">Shape</label>
-                                <select class="form-select" name="shape" id="shape">
-                                    {% for option in cake_shape_options %}
-                                    <option value="{{ option.value }}" data-price="{{ option.price }}">{{ option.label }}{% if option.price != '0.00' %} (+ P{{ option.price }}){% endif %}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold">Flavor</label>
-                                <select class="form-select" name="flavor" id="flavor">
-                                    {% for option in cake_flavor_options %}
-                                    <option value="{{ option.value }}" data-price="{{ option.price }}">{{ option.label }}{% if option.price != '0.00' %} (+ P{{ option.price }}){% endif %}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold">Frosting</label>
-                                <select class="form-select" name="frosting" id="frosting">
-                                    {% for option in cake_frosting_options %}
-                                    <option value="{{ option.value }}" data-price="{{ option.price }}">{{ option.label }}{% if option.price != '0.00' %} (+ P{{ option.price }}){% endif %}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Filling</label>
-                                <select class="form-select" name="filling" id="filling">
-                                    <option value="">None</option>
-                                    {% for option in cake_filling_options %}
-                                    <option value="{{ option.value }}" data-price="{{ option.price }}">{{ option.label }}{% if option.price != '0.00' %} (+ P{{ option.price }}){% endif %}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Color Palette</label>
-                                <input type="text" class="form-control" name="color_palette" placeholder="Example: Blush pink and gold">
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label fw-semibold">Message on Cake</label>
-                                <input type="text" class="form-control" name="message_on_cake" maxlength="200" placeholder="Example: Happy Birthday Maria">
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label fw-semibold">Design Reference</label>
-                                <input type="file" class="form-control" name="design_reference" accept="image/*">
-                            </div>
-                        </div>
-
-                        <h6 class="fw-bold mb-3">Decoration Add-ons</h6>
-                        <div class="row g-2 mb-4">
-                            {% for option in decoration_options %}
-                            <div class="col-md-6">
-                                <label class="form-check border rounded p-3 h-100">
-                                    <input class="form-check-input addon-checkbox" type="checkbox" name="decorations" value="{{ option.key }}" data-price="{{ option.price }}">
-                                    <span class="form-check-label ms-2">
-                                        <strong>{{ option.label }}</strong><br>
-                                        <span class="text-muted">+ P{{ option.price }}</span>
-                                    </span>
-                                </label>
-                            </div>
-                            {% endfor %}
-                        </div>
-
-                        <div class="row g-3 mb-4">
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Quantity</label>
-                                <input type="number" min="1" value="1" class="form-control" name="quantity" id="quantity">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Pickup / Delivery Date</label>
-                                <input type="date" class="form-control" name="delivery_date" id="delivery_date" value="{{ defaults.delivery_date }}" min="{{ cake_order_window.min }}" max="{{ cake_order_window.max }}" required>
-                                <div class="small text-muted mt-1">Choose a date from {{ cake_order_window.min }} to {{ cake_order_window.max }}.</div>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">House No. / Street</label>
-                                <input type="text" class="form-control" name="delivery_street_address" value="{{ defaults.delivery_street_address }}" placeholder="Example: 123 Mabini Street" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Barangay</label>
-                                <input type="text" class="form-control" name="delivery_barangay" value="{{ defaults.delivery_barangay }}" placeholder="Example: Poblacion 1" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">City / Municipality</label>
-                                <select class="form-select" name="delivery_city" required>
-                                    <option value="">Select a service area</option>
-                                    {% for city, province in delivery_area_choices %}
-                                    <option value="{{ city }}" {% if defaults.delivery_city == city %}selected{% endif %}>{{ city }} ({{ province }})</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Landmark</label>
-                                <input type="text" class="form-control" name="delivery_landmark" value="{{ defaults.delivery_landmark }}" placeholder="Example: Near City Hall">
-                            </div>
-                            <div class="col-12">
-                                <div class="small text-muted">Deliveries are accepted only within the listed service areas.</div>
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label fw-semibold">Special Instructions</label>
-                                <textarea class="form-control" name="special_instructions" rows="3" placeholder="Additional notes, allergies, or design reminders"></textarea>
-                            </div>
-                        </div>
-
-                        <h6 class="fw-bold mb-3">Contact Information</h6>
-                        <div class="row g-3 mb-4">
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold">Contact Name</label>
-                                <input type="text" class="form-control" name="contact_name" value="{{ defaults.contact_name }}" required>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold">Phone Number</label>
-                                <input type="text" class="form-control" name="contact_phone" value="{{ defaults.contact_phone }}" required>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold">Email Address</label>
-                                <input type="email" class="form-control" name="contact_email" value="{{ defaults.contact_email }}" required>
-                            </div>
-                        </div>
-
-                        <h6 class="fw-bold mb-3">Payment Plan</h6>
-                        <div class="row g-3 mb-4">
-                            <div class="col-md-6">
-                                <label class="form-check border rounded p-3 h-100 payment-option">
-                                    <input class="form-check-input payment-radio" type="radio" name="payment_method" value="cod" {% if selected_payment_method != 'gcash' %}checked{% endif %}>
-                                    <span class="form-check-label ms-2">
-                                        <strong>{{ payment_plan_labels.cod }}</strong><br>
-                                        <span class="text-muted">Pay a 50% GCash deposit now. The remaining balance will be collected during pickup or delivery.</span>
-                                    </span>
-                                </label>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-check border rounded p-3 h-100 payment-option">
-                                    <input class="form-check-input payment-radio" type="radio" name="payment_method" value="gcash" {% if selected_payment_method == 'gcash' %}checked{% endif %}>
-                                    <span class="form-check-label ms-2">
-                                        <strong>{{ payment_plan_labels.gcash }}</strong><br>
-                                        <span class="text-muted">Settle the whole order amount through GCash during checkout.</span>
-                                    </span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <div id="gcash-fields" class="border rounded p-3 mb-4">
-                            <div class="row g-3">
-                                <div class="col-md-4">
-                                    <label class="form-label fw-semibold">Order Number</label>
-                                    <input type="text" class="form-control" value="{{ checkout_order_number }}" readonly>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label fw-semibold">Amount Due</label>
-                                    <input type="text" class="form-control" id="cake-payment-amount-display" value="{{ gcash_preview.amount_label }}" readonly>
-                                    <input type="hidden" name="payment_amount" id="cake-payment-amount" value="{{ gcash_preview.amount }}">
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label fw-semibold">Payment Reference Number</label>
-                                    <input type="text" class="form-control" value="{{ checkout_payment_reference }}" readonly>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-semibold">GCash Reference Number</label>
-                                    <input type="text" class="form-control" name="reference_number" placeholder="Enter the exact payment reference number shown above">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-semibold">Proof of Payment</label>
-                                    <input type="file" class="form-control" name="proof_image" accept="image/jpeg,image/png">
-                                </div>
-                                <div class="col-12">
-                                    <div class="alert alert-light border mb-0">
-                                        <div class="row g-3 align-items-center">
-                                            <div class="col-md-4 text-center">
-                                                <div class="image-zoom-frame d-inline-block rounded-4">
-                                                    <img id="cake-gcash-qr-image" src="{{ gcash_preview.qr_code_data_uri }}" alt="GCash payment QR" class="img-fluid bg-white border rounded p-2" style="max-width: 220px;">
-                                                    <a id="cake-gcash-qr-zoom" class="image-zoom-trigger" href="{{ gcash_preview.qr_code_data_uri }}" target="_blank" rel="noopener" data-zoom-src="{{ gcash_preview.qr_code_data_uri }}" data-zoom-title="GCash QR Code">
-                                                        <i class="fas fa-search-plus"></i> Zoom
-                                                    </a>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-8">
-                                                <div class="small mb-1"><strong>Account Name:</strong> {{ gcash_account.account_name }}</div>
-                                                <div class="small mb-1"><strong>GCash Number:</strong> {{ gcash_account.account_number }}</div>
-                                            </div>
-                                        </div>
+                                <div class="d-flex flex-wrap justify-content-between align-items-end gap-3">
+                                    <span class="selected-cake-status">Live summary updates as fields change</span>
+                                    <div>
+                                        <div class="small text-muted text-uppercase fw-semibold">Base price</div>
+                                        <div class="selected-cake-price">P{{ cake.price }}</div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div id="cake-review-panel" class="card border-0 bg-light-subtle mb-4 d-none">
+                        <div class="checkout-grid">
+                            <section class="checkout-section" id="cake-styling-section">
+                                <div class="checkout-section-heading">
+                                    <span class="checkout-step-badge">01</span>
+                                    <div>
+                                        <h6 class="fw-bold">Cake Styling Details</h6>
+                                        <p>Keep the existing option inputs, but present them in a cleaner builder-style section.</p>
+                                    </div>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold">Theme / Occasion</label>
+                                        <select class="form-select" name="theme" id="theme">
+                                            <option value="">Select Theme</option>
+                                            {% for theme in theme_options %}
+                                            <option>{{ theme }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold">Color Palette</label>
+                                        <input type="text" class="form-control" name="color_palette" placeholder="Example: Blush pink and gold">
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="attribute-selector-stack">
+                                            <div class="attribute-selector-section">
+                                                <div class="attribute-selector-header">
+                                                    <div>
+                                                        <h6 class="fw-bold">Choose Size</h6>
+                                                        <p>Choose one cake size.</p>
+                                                    </div>
+                                                    <span class="attribute-indicator is-required">Required</span>
+                                                </div>
+                                                <div class="attribute-card-grid">
+                                                    {% for option in cake_size_options %}
+                                                    <label class="attribute-card">
+                                                        <input class="attribute-card-input cake-attribute-input" type="radio" name="size" value="{{ option.value }}" data-price="{{ option.price }}" data-label="{{ option.label }}" {% if forloop.first %}checked required{% endif %}>
+                                                        <span class="attribute-card-body">
+                                                            {% if option.image_url %}
+                                                            <span class="attribute-card-media">
+                                                                <img src="{{ option.image_url }}" alt="{{ option.label }} size option">
+                                                            </span>
+                                                            {% endif %}
+                                                            <span class="attribute-card-title-row">
+                                                                <span class="attribute-card-title">{{ option.label }}</span>
+                                                                <span class="attribute-card-price">{% if option.price != '0.00' %}+ P{{ option.price }}{% else %}Included{% endif %}</span>
+                                                            </span>
+                                                            <span class="attribute-card-note">Single-select card for cake size.</span>
+                                                            {% if option.price != '0.00' %}<span class="attribute-card-meta">Adds to the base cake price.</span>{% endif %}
+                                                        </span>
+                                                    </label>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+
+                                            <div class="attribute-selector-section">
+                                                <div class="attribute-selector-header">
+                                                    <div>
+                                                        <h6 class="fw-bold">Choose Shape</h6>
+                                                        <p>Select one cake shape.</p>
+                                                    </div>
+                                                    <span class="attribute-indicator is-required">Required</span>
+                                                </div>
+                                                <div class="attribute-card-grid">
+                                                    {% for option in cake_shape_options %}
+                                                    <label class="attribute-card">
+                                                        <input class="attribute-card-input cake-attribute-input" type="radio" name="shape" value="{{ option.value }}" data-price="{{ option.price }}" data-label="{{ option.label }}" {% if forloop.first %}checked{% endif %}>
+                                                        <span class="attribute-card-body">
+                                                            {% if option.image_url %}
+                                                            <span class="attribute-card-media">
+                                                                <img src="{{ option.image_url }}" alt="{{ option.label }} shape option">
+                                                            </span>
+                                                            {% endif %}
+                                                            <span class="attribute-card-title-row">
+                                                                <span class="attribute-card-title">{{ option.label }}</span>
+                                                                <span class="attribute-card-price">{% if option.price != '0.00' %}+ P{{ option.price }}{% else %}Included{% endif %}</span>
+                                                            </span>
+                                                            <span class="attribute-card-note">One shape only per order.</span>
+                                                        </span>
+                                                    </label>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+
+                                            <div class="attribute-selector-section">
+                                                <div class="attribute-selector-header">
+                                                    <div>
+                                                        <h6 class="fw-bold">Choose Flavor</h6>
+                                                        <p>Choose one flavor.</p>
+                                                    </div>
+                                                    <span class="attribute-indicator is-required">Required</span>
+                                                </div>
+                                                <div class="attribute-card-grid">
+                                                    {% for option in cake_flavor_options %}
+                                                    <label class="attribute-card">
+                                                        <input class="attribute-card-input cake-attribute-input" type="radio" name="flavor" value="{{ option.value }}" data-price="{{ option.price }}" data-label="{{ option.label }}" {% if forloop.first %}checked{% endif %}>
+                                                        <span class="attribute-card-body">
+                                                            {% if option.image_url %}
+                                                            <span class="attribute-card-media">
+                                                                <img src="{{ option.image_url }}" alt="{{ option.label }} flavor option">
+                                                            </span>
+                                                            {% endif %}
+                                                            <span class="attribute-card-title-row">
+                                                                <span class="attribute-card-title">{{ option.label }}</span>
+                                                                <span class="attribute-card-price">{% if option.price != '0.00' %}+ P{{ option.price }}{% else %}Included{% endif %}</span>
+                                                            </span>
+                                                            <span class="attribute-card-note">Choose one flavor profile.</span>
+                                                        </span>
+                                                    </label>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+
+                                            <div class="attribute-selector-section">
+                                                <div class="attribute-selector-header">
+                                                    <div>
+                                                        <h6 class="fw-bold">Choose Frosting</h6>
+                                                        <p>Choose one frosting.</p>
+                                                    </div>
+                                                    <span class="attribute-indicator is-required">Required</span>
+                                                </div>
+                                                <div class="attribute-card-grid">
+                                                    {% for option in cake_frosting_options %}
+                                                    <label class="attribute-card">
+                                                        <input class="attribute-card-input cake-attribute-input" type="radio" name="frosting" value="{{ option.value }}" data-price="{{ option.price }}" data-label="{{ option.label }}" {% if forloop.first %}checked{% endif %}>
+                                                        <span class="attribute-card-body">
+                                                            {% if option.image_url %}
+                                                            <span class="attribute-card-media">
+                                                                <img src="{{ option.image_url }}" alt="{{ option.label }} frosting option">
+                                                            </span>
+                                                            {% endif %}
+                                                            <span class="attribute-card-title-row">
+                                                                <span class="attribute-card-title">{{ option.label }}</span>
+                                                                <span class="attribute-card-price">{% if option.price != '0.00' %}+ P{{ option.price }}{% else %}Included{% endif %}</span>
+                                                            </span>
+                                                            <span class="attribute-card-note">Choose the exterior finish for the cake.</span>
+                                                        </span>
+                                                    </label>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+
+                                            <div class="attribute-selector-section">
+                                                <div class="attribute-selector-header">
+                                                    <div>
+                                                        <h6 class="fw-bold">Choose Filling</h6>
+                                                        <p>This attribute is optional.</p>
+                                                    </div>
+                                                    <span class="attribute-indicator is-optional">Optional</span>
+                                                </div>
+                                                <div class="attribute-card-grid">
+                                                    <label class="attribute-card">
+                                                        <input class="attribute-card-input cake-attribute-input" type="radio" name="filling" value="" data-price="0" data-label="None" checked>
+                                                        <span class="attribute-card-body">
+                                                            <span class="attribute-card-title-row">
+                                                                <span class="attribute-card-title">No Filling</span>
+                                                                <span class="attribute-card-price">Included</span>
+                                                            </span>
+                                                            <span class="attribute-card-note">Keep the cake without a filling layer.</span>
+                                                        </span>
+                                                    </label>
+                                                    {% for option in cake_filling_options %}
+                                                    <label class="attribute-card">
+                                                        <input class="attribute-card-input cake-attribute-input" type="radio" name="filling" value="{{ option.value }}" data-price="{{ option.price }}" data-label="{{ option.label }}">
+                                                        <span class="attribute-card-body">
+                                                            {% if option.image_url %}
+                                                            <span class="attribute-card-media">
+                                                                <img src="{{ option.image_url }}" alt="{{ option.label }} filling option">
+                                                            </span>
+                                                            {% endif %}
+                                                            <span class="attribute-card-title-row">
+                                                                <span class="attribute-card-title">{{ option.label }}</span>
+                                                                <span class="attribute-card-price">{% if option.price != '0.00' %}+ P{{ option.price }}{% else %}Included{% endif %}</span>
+                                                            </span>
+                                                            <span class="attribute-card-note">Optional filling upgrade.</span>
+                                                        </span>
+                                                    </label>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label fw-semibold">Message on Cake</label>
+                                        <input type="text" class="form-control" name="message_on_cake" maxlength="200" placeholder="Example: Happy Birthday Maria">
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label fw-semibold">Design Reference</label>
+                                        <input type="file" class="form-control" name="design_reference" accept="image/*">
+                                        <div class="checkout-field-note">Upload an inspiration image if the customer has a target style, theme, or exact cake reference.</div>
+                                    </div>
+                                </div>
+                                <div class="checkout-section-footer">
+                                    <div class="checkout-field-note">Once the cake styling details are set, continue to Step 2 so the customer can review the full design summary before confirming.</div>
+                                    <button type="button" class="btn btn-outline-gold" id="cake-style-review-button">Continue to Review Design</button>
+                                </div>
+                            </section>
+
+                            <section class="checkout-section">
+                                <div class="checkout-section-heading">
+                                    <span class="checkout-step-badge">02</span>
+                                    <div>
+                                        <h6 class="fw-bold">Decoration Add-ons</h6>
+                                        <p>Let customers pick premium extras without making the form feel crowded.</p>
+                                    </div>
+                                </div>
+                                <div class="addon-grid">
+                                    {% for option in decoration_options %}
+                                    <label class="form-check addon-option">
+                                        <input class="form-check-input addon-checkbox" type="checkbox" name="decorations" value="{{ option.key }}" data-price="{{ option.price }}">
+                                        <span class="form-check-label ms-2">
+                                            <strong>{{ option.label }}</strong><br>
+                                            <span class="text-muted">+ P{{ option.price }}</span>
+                                        </span>
+                                    </label>
+                                    {% endfor %}
+                                </div>
+                            </section>
+
+                            <section class="checkout-section">
+                                <div class="checkout-section-heading">
+                                    <span class="checkout-step-badge">03</span>
+                                    <div>
+                                        <h6 class="fw-bold">Delivery and Pickup Details</h6>
+                                        <p>The structured address fields and booking window stay the same, but they are grouped more clearly.</p>
+                                    </div>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold">Quantity</label>
+                                        <input type="number" min="1" value="1" class="form-control" name="quantity" id="quantity">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold">Pickup / Delivery Date</label>
+                                        <input type="date" class="form-control" name="delivery_date" id="delivery_date" value="{{ defaults.delivery_date }}" min="{{ cake_order_window.min }}" max="{{ cake_order_window.max }}" required>
+                                        <div class="checkout-field-note">Choose a date from {{ cake_order_window.min }} to {{ cake_order_window.max }}.</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold">House No. / Street</label>
+                                        <input type="text" class="form-control" name="delivery_street_address" value="{{ defaults.delivery_street_address }}" placeholder="Example: 123 Mabini Street" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold">Barangay</label>
+                                        <input type="text" class="form-control" name="delivery_barangay" value="{{ defaults.delivery_barangay }}" placeholder="Example: Poblacion 1" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold">City / Municipality</label>
+                                        <select class="form-select" name="delivery_city" required>
+                                            <option value="">Select a service area</option>
+                                            {% for city, province in delivery_area_choices %}
+                                            <option value="{{ city }}" {% if defaults.delivery_city == city %}selected{% endif %}>{{ city }} ({{ province }})</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold">Landmark</label>
+                                        <input type="text" class="form-control" name="delivery_landmark" value="{{ defaults.delivery_landmark }}" placeholder="Example: Near City Hall">
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="checkout-field-note">Deliveries are accepted only within the listed service areas.</div>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label fw-semibold">Special Instructions</label>
+                                        <textarea class="form-control" name="special_instructions" rows="3" placeholder="Additional notes, allergies, or design reminders"></textarea>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section class="checkout-section">
+                                <div class="checkout-section-heading">
+                                    <span class="checkout-step-badge">04</span>
+                                    <div>
+                                        <h6 class="fw-bold">Contact Information</h6>
+                                        <p>Preserve the same required customer details for notifications and tracking.</p>
+                                    </div>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-semibold">Contact Name</label>
+                                        <input type="text" class="form-control" name="contact_name" value="{{ defaults.contact_name }}" required>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-semibold">Phone Number</label>
+                                        <input type="text" class="form-control" name="contact_phone" value="{{ defaults.contact_phone }}" required>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-semibold">Email Address</label>
+                                        <input type="email" class="form-control" name="contact_email" value="{{ defaults.contact_email }}" required>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section class="checkout-section">
+                                <div class="checkout-section-heading">
+                                    <span class="checkout-step-badge">05</span>
+                                    <div>
+                                        <h6 class="fw-bold">Payment Plan</h6>
+                                        <p>Customers still pay through the same manual GCash proof flow, with live due-now updates and QR preview.</p>
+                                    </div>
+                                </div>
+                                <div class="payment-grid mb-4">
+                                    <label class="form-check payment-option">
+                                        <input class="form-check-input payment-radio" type="radio" name="payment_method" value="cod" {% if selected_payment_method != 'gcash' %}checked{% endif %}>
+                                        <span class="form-check-label ms-2">
+                                            <strong>{{ payment_plan_labels.cod }}</strong><br>
+                                            <span class="text-muted">Pay a 50% GCash deposit now. The remaining balance will be collected during pickup or delivery.</span>
+                                        </span>
+                                    </label>
+                                    <label class="form-check payment-option">
+                                        <input class="form-check-input payment-radio" type="radio" name="payment_method" value="gcash" {% if selected_payment_method == 'gcash' %}checked{% endif %}>
+                                        <span class="form-check-label ms-2">
+                                            <strong>{{ payment_plan_labels.gcash }}</strong><br>
+                                            <span class="text-muted">Settle the whole order amount through GCash during checkout.</span>
+                                        </span>
+                                    </label>
+                                </div>
+
+                                <div id="gcash-fields" class="qr-panel mb-0">
+                                    <div class="row g-3">
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-semibold">Order Number</label>
+                                            <input type="text" class="form-control" value="{{ checkout_order_number }}" readonly>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-semibold">Amount Due</label>
+                                            <input type="text" class="form-control" id="cake-payment-amount-display" value="{{ gcash_preview.amount_label }}" readonly>
+                                            <input type="hidden" name="payment_amount" id="cake-payment-amount" value="{{ gcash_preview.amount }}">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-semibold">Payment Reference Number</label>
+                                            <input type="text" class="form-control" value="{{ checkout_payment_reference }}" readonly>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-semibold">GCash Reference Number</label>
+                                            <input type="text" class="form-control" name="reference_number" placeholder="Enter the exact payment reference number shown above">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-semibold">Proof of Payment</label>
+                                            <input type="file" class="form-control" name="proof_image" accept="image/jpeg,image/png">
+                                        </div>
+                                        <div class="col-12">
+                                            <div class="qr-preview-card">
+                                                <div class="row g-3 align-items-center">
+                                                    <div class="col-md-4 text-center">
+                                                        <div class="image-zoom-frame d-inline-block rounded-4">
+                                                            <img id="cake-gcash-qr-image" src="{{ gcash_preview.qr_code_data_uri }}" alt="GCash payment QR" class="img-fluid bg-white border rounded p-2" style="max-width: 220px;">
+                                                            <a id="cake-gcash-qr-zoom" class="image-zoom-trigger" href="{{ gcash_preview.qr_code_data_uri }}" target="_blank" rel="noopener" data-zoom-src="{{ gcash_preview.qr_code_data_uri }}" data-zoom-title="GCash QR Code">
+                                                                <i class="fas fa-search-plus"></i> Zoom
+                                                            </a>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-8">
+                                                        <div class="small mb-1"><strong>Account Name:</strong> {{ gcash_account.account_name }}</div>
+                                                        <div class="small mb-1"><strong>GCash Number:</strong> {{ gcash_account.account_number }}</div>
+                                                        <div class="checkout-field-note mb-0">The order stays pending until the GCash deposit or full payment is approved by the admin panel.</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+                        </div>
+
+                        <div id="cake-review-panel" class="card review-panel-modern border-0 mb-4 mt-4 d-none">
                             <div class="card-body">
                                 <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
                                     <div>
@@ -258,14 +1223,10 @@
                                     </div>
                                     <span class="badge text-bg-warning">Confirmation Required</span>
                                 </div>
-                                <div class="row g-3 small">
+                                <div class="row g-3 small review-grid">
                                     <div class="col-md-6">
                                         <div class="fw-semibold text-muted">Cake</div>
                                         <div>{{ cake.name }}</div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="fw-semibold text-muted">Product Code</div>
-                                        <div>{{ cake.product_code|default:'Not assigned' }}</div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="fw-semibold text-muted">Total</div>
@@ -381,75 +1342,90 @@
         </div>
 
         <div class="col-lg-4">
-            <div class="card border-0 shadow-sm sticky-top" style="top: 100px;">
-                <div class="card-header bg-gold-pink text-white py-3">
-                    <h5 class="mb-0"><i class="fas fa-receipt me-2"></i>Order Summary</h5>
+            <div class="checkout-summary-card">
+                <div class="checkout-card-header">
+                    <h5><i class="fas fa-receipt me-2"></i>Order Summary</h5>
+                    <div class="checkout-header-note">Live route-safe summary</div>
                 </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <div class="small text-muted">Cake</div>
-                        <div class="fw-semibold">{{ cake.name }}</div>
-                        <div class="small text-muted">Code: {{ cake.product_code|default:'Not assigned' }}</div>
+                <div class="checkout-card-body pt-0">
+                    <div class="summary-cake-frame image-zoom-frame">
+                        <img src="{{ cake.image_url }}" alt="{{ cake.name }}" class="img-fluid">
+                        <a class="image-zoom-trigger" href="{{ cake.image_url }}" target="_blank" rel="noopener" data-zoom-src="{{ cake.image_url }}" data-zoom-title="{{ cake.name }}">
+                            <i class="fas fa-search-plus"></i> Zoom
+                        </a>
+                        <div class="summary-cake-overlay">
+                            <div class="small text-uppercase fw-semibold mb-1">Selected Cake</div>
+                            <div class="h5 mb-1">{{ cake.name }}</div>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <div class="small text-muted">Selected Theme</div>
-                        <div id="summary-theme">Not selected</div>
+
+                    <div class="summary-chip-list">
+                        <span class="summary-chip">{{ cake.get_category_display }}</span>
+                        <span class="summary-chip">Booking window: 3 to 30 days</span>
+                        <span class="summary-chip">Admin verifies payment proof</span>
                     </div>
-                    <div class="mb-3">
-                        <div class="small text-muted">Selected Size</div>
-                        <div id="summary-size">Not selected</div>
+
+                    <div class="summary-stack">
+                        <div class="summary-block">
+                            <span class="summary-block-label">Selected Theme</span>
+                            <div class="summary-block-value" id="summary-theme">Not selected</div>
+                        </div>
+                        <div class="summary-block">
+                            <span class="summary-block-label">Selected Size</span>
+                            <div class="summary-block-value" id="summary-size">Not selected</div>
+                        </div>
+                        <div class="summary-block">
+                            <span class="summary-block-label">Quantity</span>
+                            <div class="summary-block-value" id="summary-quantity">1</div>
+                        </div>
+                        <div class="summary-block">
+                            <span class="summary-block-label">Payment</span>
+                            <div class="summary-block-value" id="summary-payment">{% if selected_payment_method == 'gcash' %}{{ payment_plan_labels.gcash }}{% else %}{{ payment_plan_labels.cod }}{% endif %}</div>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <div class="small text-muted">Quantity</div>
-                        <div id="summary-quantity">1</div>
+
+                    <div class="summary-cost-list">
+                        <div class="summary-cost-row">
+                            <span>Base Cake x Quantity</span>
+                            <span id="summary-base">P{{ cake.price }}</span>
+                        </div>
+                        <div class="summary-cost-row">
+                            <span>Customization Add-ons</span>
+                            <span id="summary-customization">P0.00</span>
+                        </div>
+                        <div class="summary-cost-row">
+                            <span>Decoration Add-ons</span>
+                            <span id="summary-addons">P0.00</span>
+                        </div>
+                        <div class="summary-cost-row">
+                            <span>Amount Due Now</span>
+                            <strong id="summary-deposit">P{{ default_deposit_amount }}</strong>
+                        </div>
+                        <div class="summary-cost-row">
+                            <span>Balance Due Later</span>
+                            <strong id="summary-balance">P{{ default_deposit_amount }}</strong>
+                        </div>
+                        <div class="summary-cost-row mb-0 pt-1">
+                            <span class="fw-semibold">Order Total</span>
+                            <span class="summary-total" id="summary-total">P{{ cake.price }}</span>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <div class="small text-muted">Payment</div>
-                            <div id="summary-payment">{% if selected_payment_method == 'gcash' %}{{ payment_plan_labels.gcash }}{% else %}{{ payment_plan_labels.cod }}{% endif %}</div>
-                    </div>
-                    <hr>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>Base Cake x Quantity</span>
-                        <span id="summary-base">P{{ cake.price }}</span>
-                    </div>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>Customization Add-ons</span>
-                        <span id="summary-customization">P0.00</span>
-                    </div>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>Decoration Add-ons</span>
-                        <span id="summary-addons">P0.00</span>
-                    </div>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>Amount Due Now</span>
-                        <span id="summary-deposit">P{{ default_deposit_amount }}</span>
-                    </div>
-                    <div class="d-flex justify-content-between mb-3">
-                        <span>Balance Due Later</span>
-                        <strong id="summary-balance">P{{ default_deposit_amount }}</strong>
-                    </div>
-                    <div class="d-flex justify-content-between mb-3">
-                        <span>Order Total</span>
-                        <strong class="text-gold-pink" id="summary-total">P{{ cake.price }}</strong>
-                    </div>
-                    <div class="small text-muted">The order stays pending until the GCash deposit or full payment is approved by the admin panel.</div>
+
                 </div>
             </div>
         </div>
     </div>
+</div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
     const baseCakePrice = parseFloat('{{ cake.price }}');
+    const cakeCheckoutSteps = Array.from(document.querySelectorAll('[data-cake-checkout-step]'));
+    const cakeAttributeInputs = Array.from(document.querySelectorAll('.cake-attribute-input'));
     const quantityInput = document.getElementById('quantity');
     const themeSelect = document.getElementById('theme');
-    const sizeSelect = document.getElementById('size');
-    const shapeSelect = document.getElementById('shape');
-    const flavorSelect = document.getElementById('flavor');
-    const frostingSelect = document.getElementById('frosting');
-    const fillingSelect = document.getElementById('filling');
     const addonCheckboxes = document.querySelectorAll('.addon-checkbox');
     const paymentRadios = document.querySelectorAll('.payment-radio');
     const gcashFields = document.getElementById('gcash-fields');
@@ -459,7 +1435,11 @@
     const cakeReviewPanel = document.getElementById('cake-review-panel');
     const cakePrimaryActions = document.getElementById('cake-primary-actions');
     const cakeConfirmActions = document.getElementById('cake-confirm-actions');
+    const cakeCustomizeStepButton = document.getElementById('cake-checkout-step-customize');
+    const cakeReviewStepButton = document.getElementById('cake-checkout-step-review');
+    const cakeConfirmStepButton = document.getElementById('cake-checkout-step-confirm');
     const cakeReviewButton = document.getElementById('cake-review-button');
+    const cakeStyleReviewButton = document.getElementById('cake-style-review-button');
     const cakeEditButton = document.getElementById('cake-edit-button');
     const cakeConfirmButton = document.getElementById('cake-confirm-button');
     const cakeReferenceInput = cakeOrderForm.querySelector('input[name="reference_number"]');
@@ -471,6 +1451,7 @@
     const cakeBarangayInput = cakeOrderForm.querySelector('input[name="delivery_barangay"]');
     const cakeCityInput = cakeOrderForm.querySelector('select[name="delivery_city"]');
     const cakeLandmarkInput = cakeOrderForm.querySelector('input[name="delivery_landmark"]');
+    const cakeStylingSection = document.getElementById('cake-styling-section');
     const paymentQrPreviewUrl = '{{ payment_qr_preview_url }}';
     const cakeOrderLabel = '{{ cake.name|escapejs }} cake order';
     const cakeGeneratedOrderNumber = '{{ checkout_order_number|escapejs }}';
@@ -482,19 +1463,45 @@
     let cakeQrRefreshTimer;
     let cakeReviewReady = false;
 
+    function setCakeCheckoutStep(stepName) {
+        const stepOrder = ['customize', 'review', 'confirm'];
+        const activeIndex = stepOrder.indexOf(stepName);
+        cakeCheckoutSteps.forEach((step, index) => {
+            step.classList.remove('is-active', 'is-complete');
+            if (index < activeIndex) {
+                step.classList.add('is-complete');
+            } else if (index === activeIndex) {
+                step.classList.add('is-active');
+            }
+        });
+    }
+
     if (cakeOrderForm) {
         cakeOrderForm.enctype = 'multipart/form-data';
     }
 
+    function getSelectedCakeAttributeInput(attributeName) {
+        return cakeOrderForm.querySelector(`input[name="${attributeName}"]:checked`);
+    }
+
+    function getSelectedCakeAttributeLabel(attributeName, fallbackText = 'Not selected') {
+        const selectedInput = getSelectedCakeAttributeInput(attributeName);
+        return selectedInput?.dataset.label || selectedInput?.value || fallbackText;
+    }
+
+    function getSelectedCakeAttributePrice(attributeName) {
+        const selectedInput = getSelectedCakeAttributeInput(attributeName);
+        return parseFloat(selectedInput?.dataset.price || '0');
+    }
+
     function getCakeTotals() {
         const quantity = Math.max(parseInt(quantityInput.value || '1', 10), 1);
-        const pricedSelects = [sizeSelect, shapeSelect, flavorSelect, frostingSelect, fillingSelect];
+        const pricedAttributes = ['size', 'shape', 'flavor', 'frosting', 'filling'];
         let customizationTotal = 0;
         let addonTotal = 0;
 
-        pricedSelects.forEach((select) => {
-            const option = select.options[select.selectedIndex];
-            customizationTotal += parseFloat(option?.dataset.price || '0');
+        pricedAttributes.forEach((attributeName) => {
+            customizationTotal += getSelectedCakeAttributePrice(attributeName);
         });
 
         addonCheckboxes.forEach((checkbox) => {
@@ -526,7 +1533,7 @@
         const { quantity, customizationTotal, addonTotal, total } = getCakeTotals();
         const { dueNow, balanceDue } = getCakePaymentBreakdown();
         document.getElementById('summary-theme').textContent = themeSelect.value || 'Not selected';
-        document.getElementById('summary-size').textContent = sizeSelect.value || 'Not selected';
+        document.getElementById('summary-size').textContent = getSelectedCakeAttributeLabel('size');
         document.getElementById('summary-quantity').textContent = quantity;
         document.getElementById('summary-customization').textContent = `P${customizationTotal.toFixed(2)}`;
         document.getElementById('summary-addons').textContent = `P${addonTotal.toFixed(2)}`;
@@ -577,11 +1584,16 @@
         scheduleCakeQrRefresh(dueNow);
     }
 
-    function resetCakeReviewState() {
+    function resetCakeReviewState(nextStep = 'customize') {
         cakeReviewReady = false;
         cakeReviewPanel.classList.add('d-none');
         cakePrimaryActions.classList.remove('d-none');
         cakeConfirmActions.classList.add('d-none');
+        setCakeCheckoutStep(nextStep);
+    }
+
+    function isCakeStylingField(target) {
+        return Boolean(target && cakeStylingSection && cakeStylingSection.contains(target));
     }
 
     function formatCakeDeliveryAddress() {
@@ -617,12 +1629,12 @@
         const { quantity, total } = getCakeTotals();
 
         document.getElementById('review-cake-theme').textContent = themeSelect.value || 'Not selected';
-        document.getElementById('review-cake-size').textContent = sizeSelect.value || 'Not selected';
+        document.getElementById('review-cake-size').textContent = getSelectedCakeAttributeLabel('size');
         document.getElementById('review-cake-quantity').textContent = quantity;
-        document.getElementById('review-cake-shape').textContent = shapeSelect.value || 'Not selected';
-        document.getElementById('review-cake-flavor').textContent = flavorSelect.value || 'Not selected';
-        document.getElementById('review-cake-frosting').textContent = frostingSelect.value || 'Not selected';
-        document.getElementById('review-cake-filling').textContent = fillingSelect.value || 'None';
+        document.getElementById('review-cake-shape').textContent = getSelectedCakeAttributeLabel('shape');
+        document.getElementById('review-cake-flavor').textContent = getSelectedCakeAttributeLabel('flavor');
+        document.getElementById('review-cake-frosting').textContent = getSelectedCakeAttributeLabel('frosting');
+        document.getElementById('review-cake-filling').textContent = getSelectedCakeAttributeLabel('filling', 'None');
         document.getElementById('review-cake-color').textContent = cakeOrderForm.querySelector('input[name="color_palette"]').value.trim() || 'Not specified';
         document.getElementById('review-cake-decorations').textContent = selectedDecorations.join(', ') || 'None selected';
         document.getElementById('review-cake-message').textContent = cakeOrderForm.querySelector('input[name="message_on_cake"]').value.trim() || 'None';
@@ -641,9 +1653,9 @@
         document.getElementById('review-cake-total').textContent = `P${total.toFixed(2)}`;
     }
 
-    function showCakeReview() {
+    function showCakeCheckoutStage(targetStep = 'review') {
         if (!cakeOrderForm.reportValidity()) {
-            return;
+            return false;
         }
 
         populateCakeReview();
@@ -651,38 +1663,65 @@
         cakeReviewPanel.classList.remove('d-none');
         cakePrimaryActions.classList.add('d-none');
         cakeConfirmActions.classList.remove('d-none');
+        setCakeCheckoutStep(targetStep);
         cakeReviewPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        if (targetStep === 'confirm') {
+            cakeConfirmButton.focus();
+        }
+
+        return true;
+    }
+
+    function showCakeReview() {
+        showCakeCheckoutStage('review');
     }
 
     themeSelect.addEventListener('change', updateCakeSummary);
-    sizeSelect.addEventListener('change', updateCakeSummary);
-    shapeSelect.addEventListener('change', updateCakeSummary);
-    flavorSelect.addEventListener('change', updateCakeSummary);
-    frostingSelect.addEventListener('change', updateCakeSummary);
-    fillingSelect.addEventListener('change', updateCakeSummary);
+    cakeAttributeInputs.forEach((input) => input.addEventListener('change', updateCakeSummary));
     quantityInput.addEventListener('input', updateCakeSummary);
     addonCheckboxes.forEach((checkbox) => checkbox.addEventListener('change', updateCakeSummary));
     paymentRadios.forEach((radio) => radio.addEventListener('change', updatePaymentSummary));
+    cakeCustomizeStepButton.addEventListener('click', () => {
+        resetCakeReviewState();
+        cakeOrderForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    cakeReviewStepButton.addEventListener('click', () => {
+        showCakeCheckoutStage('review');
+    });
+    cakeConfirmStepButton.addEventListener('click', () => {
+        showCakeCheckoutStage('confirm');
+    });
     cakeReviewButton.addEventListener('click', showCakeReview);
+    cakeStyleReviewButton.addEventListener('click', showCakeReview);
     cakeEditButton.addEventListener('click', () => {
         resetCakeReviewState();
         cakeOrderForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
     cakeConfirmButton.addEventListener('click', () => {
         cakeReviewReady = true;
+        setCakeCheckoutStep('confirm');
     });
     cakeOrderForm.addEventListener('submit', (event) => {
         if (!cakeReviewReady) {
             event.preventDefault();
-            showCakeReview();
+            showCakeCheckoutStage('confirm');
+            return;
         }
+
+        setCakeCheckoutStep('confirm');
     });
-    cakeOrderForm.addEventListener('input', resetCakeReviewState);
-    cakeOrderForm.addEventListener('change', resetCakeReviewState);
+    function handleCakeFormEdit(event) {
+        resetCakeReviewState(isCakeStylingField(event.target) ? 'review' : 'customize');
+    }
+
+    cakeOrderForm.addEventListener('input', handleCakeFormEdit);
+    cakeOrderForm.addEventListener('change', handleCakeFormEdit);
 
     const deliveryDateInput = document.getElementById('delivery_date');
     deliveryDateInput.setAttribute('min', '{{ cake_order_window.min }}');
     deliveryDateInput.setAttribute('max', '{{ cake_order_window.max }}');
+    setCakeCheckoutStep('customize');
     updateCakeSummary();
     updatePaymentSummary();
 </script>

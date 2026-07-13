@@ -93,7 +93,6 @@
                                                 {% endif %}
                                             </div>
                                             <div class="text-muted small mt-1">{{ item.title }}</div>
-                                            <div class="small text-muted">Code: {% if item.order_type == 'cake' %}{{ item.order.cake.product_code|default:'Not assigned' }}{% else %}{{ item.order.package.product_code|default:'Not assigned' }}{% endif %}</div>
                                             <div class="small text-muted mt-2">Placed {{ item.order.created_at|date:"M d, Y h:i A" }}</div>
                                             {% if item.schedule_label %}
                                             <div class="small text-muted">
@@ -325,7 +324,6 @@
                                                 {% endif %}
                                             </div>
                                             <div class="text-muted small mt-1">{{ item.title }}</div>
-                                            <div class="small text-muted">Code: {% if item.order_type == 'cake' %}{{ item.order.cake.product_code|default:'Not assigned' }}{% else %}{{ item.order.package.product_code|default:'Not assigned' }}{% endif %}</div>
                                             <div class="small text-muted mt-2">Placed {{ item.order.created_at|date:"M d, Y h:i A" }}</div>
                                             {% if item.schedule_label %}
                                             <div class="small text-muted">

@@ -9,6 +9,7 @@ from urllib.parse import urlencode
 from io import BytesIO
 
 from django.conf import settings
+from django.core.files.storage import default_storage
 from django.core.paginator import Paginator
 from django.core.mail import send_mail
 from django.shortcuts import render, redirect, get_object_or_404
@@ -41,7 +42,7 @@ from .forms import (
     build_cake_booking_window,
     build_package_booking_window,
 )
-from .models import UserProfile, Notification, Cake, CakeOrder, CakeCustomization, Package, PackageOrder, PackageThumbnail, Payment, RefundRequest, ActivityLog
+from .models import HomeHeroImage, HomeStripImage, UserProfile, Notification, Cake, CakeOrder, CakeCustomization, Package, PackageOrder, PackageThumbnail, Payment, RefundRequest, ActivityLog
 from .payment_qr import build_gcash_checkout_details, get_gcash_profile
 
 
@@ -355,6 +356,7 @@ DEPOSIT_RATE = Decimal('0.50')
 FULL_ACCESS_ROLE_VALUES = {'owner', 'admin', 'manager', 'supervisor'}
 STAFF_ROLE_VALUES = {'owner', 'admin', 'manager',
                      'supervisor', 'baker', 'packager', 'cashier'}
+HOME_HERO_ROLE_VALUES = FULL_ACCESS_ROLE_VALUES
 USER_MANAGEMENT_ROLE_VALUES = FULL_ACCESS_ROLE_VALUES
 AUDIT_TRAIL_ROLE_VALUES = FULL_ACCESS_ROLE_VALUES
 PAYMENT_REVIEW_ROLE_VALUES = FULL_ACCESS_ROLE_VALUES | {'cashier'}
@@ -398,6 +400,10 @@ PAYMENT_PROOF_ALLOWED_CONTENT_TYPES = {
 ADMIN_MENU_ITEMS = [
     {'name': 'Dashboard', 'url': 'admin_dashboard',
         'icon': 'tachometer-alt', 'roles': STAFF_ROLE_VALUES},
+    {'name': 'Homepage Hero', 'url': 'admin_home_hero_images',
+        'icon': 'images', 'roles': HOME_HERO_ROLE_VALUES},
+    {'name': 'Homepage Strip', 'url': 'admin_home_strip_images',
+        'icon': 'panorama', 'roles': HOME_HERO_ROLE_VALUES},
     {'name': 'Cakes', 'url': 'admin_cakes', 'icon': 'birthday-cake',
         'roles': CAKE_PRODUCT_ROLE_VALUES},
     {'name': 'Cake Orders', 'url': 'admin_cake_orders', 'icon': 'shopping-cart',
@@ -1556,6 +1562,283 @@ def _get_selected_option_labels(selected_keys, options):
     return labels, total
 
 
+def _parse_positive_int(value, default=1, minimum=0):
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        parsed = default
+    return max(parsed, minimum)
+
+
+def _normalize_package_inclusion_items(raw_items):
+    items = []
+    used_keys = set()
+    for raw_item in raw_items or []:
+        if isinstance(raw_item, str):
+            label = raw_item.strip()
+            quantity = 1
+            image_path = ''
+            price = '0.00'
+            preferred_key = ''
+        elif isinstance(raw_item, dict):
+            label = str(
+                raw_item.get('label')
+                or raw_item.get('name')
+                or raw_item.get('value')
+                or ''
+            ).strip()
+            quantity = _parse_positive_int(
+                raw_item.get('quantity'),
+                default=1,
+                minimum=1,
+            )
+            image_path = str(raw_item.get('image') or '').strip()
+            price = str(raw_item.get('price') or '0.00').strip()
+            preferred_key = str(raw_item.get('key') or '').strip()
+        else:
+            continue
+
+        if not label:
+            continue
+
+        item = {
+            'key': _build_unique_option_key(label, used_keys, preferred_key),
+            'label': label,
+            'quantity': quantity,
+            'price': f'{_parse_decimal(price):.2f}',
+        }
+        if image_path:
+            item['image'] = image_path
+        items.append(item)
+    return items
+
+
+def _parse_legacy_package_inclusion_text(raw_text):
+    return _normalize_package_inclusion_items(
+        [line for line in (raw_text or '').splitlines() if line.strip()]
+    )
+
+
+def _format_package_inclusion_label(item):
+    quantity = _parse_positive_int(item.get('quantity'), default=1, minimum=1)
+    label = str(item.get('label') or '').strip()
+    if not label:
+        return ''
+    return f'{quantity} x {label}' if quantity > 1 else label
+
+
+def _format_package_inclusion_lines(items):
+    return [
+        formatted_label
+        for formatted_label in (_format_package_inclusion_label(item) for item in items)
+        if formatted_label
+    ]
+
+
+def _build_package_inclusion_image_field_name(index):
+    return f'package_inclusion_image__{index}'
+
+
+def _get_package_inclusion_items(package_or_items, *, for_display=True):
+    if isinstance(package_or_items, list):
+        normalized = _normalize_package_inclusion_items(package_or_items)
+    else:
+        customization_options = getattr(
+            package_or_items, 'customization_options', {}) or {}
+        normalized = _normalize_package_inclusion_items(
+            customization_options.get('included_items', [])
+        )
+        if not normalized:
+            fallback_text = getattr(package_or_items, 'included_items', '') or getattr(
+                package_or_items, 'features', '')
+            normalized = _parse_legacy_package_inclusion_text(fallback_text)
+
+    if not for_display:
+        return normalized
+
+    return [
+        {
+            **item,
+            'display_label': _format_package_inclusion_label(item),
+            'price_decimal': _parse_decimal(item.get('price')),
+            **({'image_url': default_storage.url(item['image'])}
+               if item.get('image') else {}),
+        }
+        for item in normalized
+    ]
+
+
+def _split_package_inclusion_items(inclusion_items):
+    display_items = _get_package_inclusion_items(
+        inclusion_items, for_display=True)
+    always_included_items = []
+    optional_items = []
+
+    for item in display_items:
+        if _parse_decimal(item.get('price')) > 0:
+            optional_items.append(item)
+        else:
+            always_included_items.append(item)
+
+    return always_included_items, optional_items
+
+
+def _build_package_inclusion_editor_items(raw_items):
+    return _get_package_inclusion_items(raw_items, for_display=True)
+
+
+def _parse_package_inclusion_payload(payload):
+    payload = (payload or '').strip()
+    if not payload:
+        return []
+
+    try:
+        raw_items = json.loads(payload)
+    except json.JSONDecodeError as exc:
+        raise ValueError('Package inclusions could not be read.') from exc
+
+    if not isinstance(raw_items, list):
+        raise ValueError('Package inclusions are invalid.')
+
+    return _normalize_package_inclusion_items(raw_items)
+
+
+def _collect_package_inclusion_image_paths(inclusion_items):
+    image_paths = set()
+    for item in _normalize_package_inclusion_items(inclusion_items):
+        image_path = str(item.get('image') or '').strip()
+        if image_path:
+            image_paths.add(image_path)
+    return image_paths
+
+
+def _apply_package_inclusion_image_uploads(inclusion_items, request_files, *, object_id):
+    normalized = _normalize_package_inclusion_items(inclusion_items)
+    for index, item in enumerate(normalized):
+        uploaded_image = request_files.get(
+            _build_package_inclusion_image_field_name(index)
+        )
+        if uploaded_image:
+            item['image'] = _save_option_image(
+                uploaded_image,
+                'package-inclusions',
+                object_id,
+                'included-items',
+                item['label'],
+            )
+        elif not str(item.get('image') or '').strip():
+            item.pop('image', None)
+    return normalized
+
+
+def _resolve_package_inclusion_submission(post_data, fallback_text=''):
+    inclusion_items = _parse_package_inclusion_payload(
+        post_data.get('package_inclusions_payload')
+    )
+    if not inclusion_items:
+        inclusion_items = _parse_legacy_package_inclusion_text(
+            fallback_text or post_data.get('features', '')
+        )
+    return inclusion_items
+
+
+def _build_package_inclusion_lookup(inclusion_items):
+    return {
+        item['key']: {
+            'label': item['label'],
+            'quantity': _parse_positive_int(item.get('quantity'), default=1, minimum=1),
+            'price': _parse_decimal(item.get('price')),
+        }
+        for item in _normalize_package_inclusion_items(inclusion_items)
+        if item.get('key')
+    }
+
+
+def _build_selected_package_inclusions(post_data, inclusion_items):
+    inclusion_lookup = _build_package_inclusion_lookup(inclusion_items)
+    selected_keys = []
+    selected_quantities = {}
+    clicked_keys = [
+        str(key).strip() for key in post_data.getlist('selected_inclusions')
+        if str(key).strip()
+    ]
+
+    for key in inclusion_lookup.keys():
+        raw_quantity = post_data.get(f'inclusion_quantity__{key}', '').strip()
+        quantity = _parse_positive_int(
+            raw_quantity if raw_quantity else 0,
+            default=0,
+            minimum=0,
+        )
+        if key in clicked_keys and quantity <= 0:
+            quantity = inclusion_lookup[key]['quantity']
+        if quantity <= 0:
+            continue
+        selected_keys.append(key)
+        selected_quantities[key] = quantity
+
+    for key in clicked_keys:
+        if key in inclusion_lookup and key not in selected_quantities:
+            selected_keys.append(key)
+            selected_quantities[key] = inclusion_lookup[key]['quantity']
+
+    labels = []
+    total = Decimal('0.00')
+    for key in selected_keys:
+        inclusion = inclusion_lookup.get(key)
+        if not inclusion:
+            continue
+        quantity = selected_quantities.get(key, inclusion['quantity'])
+        labels.append(
+            f'{quantity} x {inclusion["label"]}' if quantity > 1 else inclusion['label']
+        )
+        total += inclusion['price'] * quantity
+
+    return selected_keys, selected_quantities, labels, total
+
+
+def _build_selected_package_addons(post_data, option_lookup):
+    selected_keys = []
+    selected_quantities = {}
+    checkbox_keys = [
+        str(key).strip() for key in post_data.getlist('selected_addons')
+        if str(key).strip()
+    ]
+
+    for key in option_lookup.keys():
+        raw_quantity = post_data.get(f'addon_quantity__{key}', '').strip()
+        quantity = _parse_positive_int(
+            raw_quantity if raw_quantity else 0,
+            default=0,
+            minimum=0,
+        )
+        if key in checkbox_keys and quantity <= 0:
+            quantity = 1
+        if quantity <= 0:
+            continue
+        selected_keys.append(key)
+        selected_quantities[key] = quantity
+
+    for key in checkbox_keys:
+        if key in option_lookup and key not in selected_quantities:
+            selected_keys.append(key)
+            selected_quantities[key] = 1
+
+    labels = []
+    total = Decimal('0.00')
+    for key in selected_keys:
+        option = option_lookup.get(key)
+        if not option:
+            continue
+        quantity = selected_quantities.get(key, 1)
+        labels.append(
+            f'{quantity} x {option["label"]}' if quantity > 1 else option['label']
+        )
+        total += option['price'] * quantity
+
+    return selected_keys, selected_quantities, labels, total
+
+
 def _build_unique_option_key(label, used_keys, preferred_key=''):
     base_key = slugify(preferred_key or label) or 'option'
     candidate = base_key
@@ -1578,6 +1861,7 @@ def _normalize_option_items(raw_items, spec):
             price = '0.00'
             preferred_key = ''
             preferred_value = ''
+            image_path = ''
         elif isinstance(raw_item, dict):
             label = str(
                 raw_item.get('label')
@@ -1589,6 +1873,7 @@ def _normalize_option_items(raw_items, spec):
             price = f'{_parse_decimal(raw_item.get("price", "0.00")):.2f}'
             preferred_key = str(raw_item.get('key') or '').strip()
             preferred_value = str(raw_item.get('value') or '').strip()
+            image_path = str(raw_item.get('image') or '').strip()
         else:
             continue
 
@@ -1599,6 +1884,8 @@ def _normalize_option_items(raw_items, spec):
             'label': label,
             'price': f'{_parse_decimal(price):.2f}',
         }
+        if image_path:
+            item['image'] = image_path
         if input_type == 'checkbox':
             item['key'] = _build_unique_option_key(
                 label, used_keys, preferred_key)
@@ -1619,12 +1906,61 @@ def _normalize_option_groups(raw_groups, specs):
     return normalized
 
 
+def _build_option_merge_identity(item, input_type):
+    if input_type == 'checkbox':
+        return (item.get('key') or item.get('label') or '').strip().lower()
+
+    return (
+        item.get('value')
+        or item.get('label')
+        or ''
+    ).strip().lower()
+
+
+def _merge_option_item_lists(default_items, configured_items, input_type):
+    merged_items = []
+    configured_by_identity = {}
+    configured_order = []
+
+    for item in configured_items:
+        identity = _build_option_merge_identity(item, input_type)
+        if not identity:
+            continue
+        configured_by_identity[identity] = item
+        configured_order.append(identity)
+
+    consumed_identities = set()
+
+    for default_item in default_items:
+        identity = _build_option_merge_identity(default_item, input_type)
+        if identity and identity in configured_by_identity:
+            merged_items.append(
+                {**default_item, **configured_by_identity[identity]})
+            consumed_identities.add(identity)
+        else:
+            merged_items.append(default_item)
+
+    for identity in configured_order:
+        if identity in consumed_identities:
+            continue
+        merged_items.append(configured_by_identity[identity])
+
+    return merged_items
+
+
 def _build_option_editor_groups(raw_groups, specs):
     normalized = _normalize_option_groups(raw_groups, specs)
     return [
         {
             **spec,
-            'items': normalized.get(spec['key'], []),
+            'items': [
+                {
+                    **item,
+                    **({'image_url': default_storage.url(item['image'])}
+                       if item.get('image') else {}),
+                }
+                for item in normalized.get(spec['key'], [])
+            ],
         }
         for spec in specs
     ]
@@ -1652,9 +1988,93 @@ def _merge_option_groups(raw_groups, default_groups, specs):
     defaults = _normalize_option_groups(default_groups, specs)
     merged = {}
     for spec in specs:
-        merged[spec['key']] = configured.get(
-            spec['key']) or defaults.get(spec['key'], [])
+        default_items = defaults.get(spec['key'], [])
+        configured_items = configured.get(spec['key'], [])
+        if configured_items:
+            merged[spec['key']] = _merge_option_item_lists(
+                default_items,
+                configured_items,
+                spec['input_type'],
+            )
+        else:
+            merged[spec['key']] = default_items
     return merged
+
+
+def _build_storefront_option_groups(raw_groups, default_groups, specs):
+    merged = _merge_option_groups(raw_groups, default_groups, specs)
+    return {
+        spec['key']: [
+            {
+                **item,
+                **({'image_url': default_storage.url(item['image'])}
+                   if item.get('image') else {}),
+            }
+            for item in merged.get(spec['key'], [])
+        ]
+        for spec in specs
+    }
+
+
+def _build_option_image_field_name(group_key, index):
+    return f'option_image__{group_key}__{index}'
+
+
+def _collect_option_image_paths(raw_groups, specs):
+    normalized = _normalize_option_groups(raw_groups, specs)
+    image_paths = set()
+    for spec in specs:
+        for item in normalized.get(spec['key'], []):
+            image_path = str(item.get('image') or '').strip()
+            if image_path:
+                image_paths.add(image_path)
+    return image_paths
+
+
+def _save_option_image(uploaded_image, product_prefix, object_id, group_key, label):
+    validation_error = _validate_optional_design_reference_upload(
+        uploaded_image)
+    if validation_error:
+        raise ValueError(validation_error)
+
+    _, extension = os.path.splitext(uploaded_image.name or '')
+    extension = extension.lower() or '.jpg'
+    safe_label = slugify(label) or 'option'
+    file_name = f'{safe_label}-{os.urandom(3).hex()}{extension}'
+    return default_storage.save(
+        f'{product_prefix}/{object_id}/{group_key}/{file_name}',
+        uploaded_image,
+    )
+
+
+def _apply_option_image_uploads(option_groups, specs, request_files, *, product_prefix, object_id):
+    normalized = _normalize_option_groups(option_groups, specs)
+    for spec in specs:
+        group_items = normalized.get(spec['key'], [])
+        for index, item in enumerate(group_items):
+            uploaded_image = request_files.get(
+                _build_option_image_field_name(spec['key'], index))
+            if uploaded_image:
+                item['image'] = _save_option_image(
+                    uploaded_image,
+                    product_prefix,
+                    object_id,
+                    spec['key'],
+                    item['label'],
+                )
+            elif not str(item.get('image') or '').strip():
+                item.pop('image', None)
+    return normalized
+
+
+def _delete_option_images(image_paths):
+    for image_path in image_paths:
+        if not image_path:
+            continue
+        try:
+            default_storage.delete(image_path)
+        except Exception:
+            continue
 
 
 def _build_checkbox_option_lookup(option_items):
@@ -1706,7 +2126,7 @@ def _resolve_selected_option(selected_value, option_items):
 
 
 def _get_cake_storefront_options(cake):
-    return _merge_option_groups(
+    return _build_storefront_option_groups(
         getattr(cake, 'customization_options', {}),
         DEFAULT_CAKE_CUSTOMIZATION_OPTIONS,
         CAKE_CUSTOMIZATION_GROUP_SPECS,
@@ -1714,7 +2134,7 @@ def _get_cake_storefront_options(cake):
 
 
 def _get_package_storefront_options(package):
-    return _merge_option_groups(
+    return _build_storefront_option_groups(
         getattr(package, 'customization_options', {}),
         DEFAULT_PACKAGE_CUSTOMIZATION_OPTIONS,
         PACKAGE_CUSTOMIZATION_GROUP_SPECS,
@@ -2841,6 +3261,57 @@ def _build_home_stats():
     ]
 
 
+def _build_home_hero_collage():
+    uploaded_images = list(
+        HomeHeroImage.objects.filter(is_active=True).order_by(
+            'display_order', 'id')[:4]
+    )
+    if uploaded_images:
+        return [
+            {
+                'image_url': hero_image.image.url,
+                'title': hero_image.title,
+            }
+            for hero_image in uploaded_images
+            if hero_image.image
+        ]
+
+    fallback_images = []
+    fallback_cakes = _get_public_cake_queryset().exclude(
+        Q(image='') | Q(image__isnull=True)
+    ).order_by('name')[:2]
+    fallback_packages = _get_public_package_queryset().exclude(
+        Q(image='') | Q(image__isnull=True)
+    ).order_by('name')[:2]
+
+    for cake in fallback_cakes:
+        fallback_images.append({
+            'image_url': cake.image.url,
+            'title': cake.name,
+        })
+    for package in fallback_packages:
+        fallback_images.append({
+            'image_url': package.image.url,
+            'title': package.name,
+        })
+
+    return fallback_images[:4]
+
+
+def _build_home_strip_image():
+    strip_image = HomeStripImage.objects.filter(
+        is_active=True,
+    ).order_by('display_order', 'id').first()
+
+    if not strip_image or not strip_image.image:
+        return None
+
+    return {
+        'image_url': strip_image.image.url,
+        'title': strip_image.title,
+    }
+
+
 # ============================================
 # MAIN SITE PAGES
 # ============================================
@@ -2858,6 +3329,8 @@ def home(request):
         order_count=Count('orders')).order_by('-order_count', 'name')[:3])
 
     context = {
+        'hero_collage_images': _build_home_hero_collage(),
+        'home_strip_image': _build_home_strip_image(),
         'hero_stats': _build_home_stats(),
         'recommendation_headline': recommendation_profile['headline'],
         'recommendation_subheadline': recommendation_profile['subheadline'],
@@ -2924,6 +3397,10 @@ def packages(request):
     if search_term:
         package_list = package_list.filter(
             Q(name__icontains=search_term) | Q(description__icontains=search_term))
+
+    package_list = list(package_list)
+    for package in package_list:
+        package.package_inclusion_items = _get_package_inclusion_items(package)
 
     context = {
         'packages': package_list,
@@ -3601,12 +4078,47 @@ def package_order(request):
     selected_package = get_object_or_404(package_queryset, id=selected_package_id) if selected_package_id and str(
         selected_package_id).isdigit() else package_queryset.order_by('name').first()
     package_option_groups = _get_package_storefront_options(selected_package)
+    selected_addon_quantities = draft.get('selected_addon_quantities', {})
+    selected_addons = set(draft.get('selected_addons', []))
+    selected_inclusion_quantities = draft.get(
+        'selected_inclusion_quantities', {})
+    selected_inclusions = set(draft.get('selected_inclusions', []))
+    addon_options = []
+    for option in package_option_groups['addons']:
+        option_key = option.get('key')
+        option_copy = dict(option)
+        selected_quantity = _parse_positive_int(
+            selected_addon_quantities.get(option_key),
+            default=1 if option_key in selected_addons else 0,
+            minimum=0,
+        )
+        option_copy['selected_quantity'] = selected_quantity
+        option_copy['is_selected'] = selected_quantity > 0
+        addon_options.append(option_copy)
     addon_option_lookup = _build_checkbox_option_lookup(
         package_option_groups['addons'])
+    package_inclusion_items = _get_package_inclusion_items(selected_package)
+    included_package_items, optional_package_items = _split_package_inclusion_items(
+        package_inclusion_items,
+    )
+    package_inclusion_options = []
+    for item in optional_package_items:
+        item_key = item.get('key')
+        item_copy = dict(item)
+        default_quantity = _parse_positive_int(
+            item.get('quantity'), default=1, minimum=1)
+        selected_quantity = _parse_positive_int(
+            selected_inclusion_quantities.get(item_key),
+            default=default_quantity if item_key in selected_inclusions else 0,
+            minimum=0,
+        )
+        item_copy['default_quantity'] = default_quantity
+        item_copy['selected_quantity'] = selected_quantity
+        item_copy['is_selected'] = selected_quantity > 0
+        package_inclusion_options.append(item_copy)
 
     if request.method == 'POST':
-        event_type = request.POST.get(
-            'event_type', selected_package.package_type)
+        event_type = selected_package.package_type
         if event_type not in PUBLIC_EVENT_TYPE_VALUES:
             messages.error(
                 request, 'Selected event type is no longer available for package bookings.')
@@ -3614,21 +4126,34 @@ def package_order(request):
                 'package': selected_package,
                 'packages': package_queryset.order_by('name'),
                 'event_types': PUBLIC_EVENT_TYPES,
-                'addon_options': package_option_groups['addons'],
+                'included_package_items': included_package_items,
+                'package_inclusion_options': package_inclusion_options,
+                'addon_options': addon_options,
+                'package_inclusion_items': package_inclusion_items,
                 'draft': draft,
             }
             return render(request, 'hanilies/package_order.html', context)
 
-        selected_addons = request.POST.getlist('selected_addons')
-        addon_labels, addon_total = _get_selected_option_labels(
-            selected_addons, addon_option_lookup)
+        selected_inclusions, selected_inclusion_quantities, inclusion_labels, inclusion_total = _build_selected_package_inclusions(
+            request.POST,
+            optional_package_items,
+        )
+        selected_addons, selected_addon_quantities, addon_labels, addon_total = _build_selected_package_addons(
+            request.POST,
+            addon_option_lookup,
+        )
         updated_draft = {
             'package_id': str(selected_package.id),
             'event_type': event_type,
+            'selected_inclusions': selected_inclusions,
+            'selected_inclusion_quantities': selected_inclusion_quantities,
+            'selected_inclusion_labels': inclusion_labels,
+            'inclusions_total': str(inclusion_total),
             'selected_addons': selected_addons,
+            'selected_addon_quantities': selected_addon_quantities,
             'selected_addon_labels': addon_labels,
             'addons_total': str(addon_total),
-            'base_total': str(selected_package.base_price + addon_total),
+            'base_total': str(selected_package.base_price + inclusion_total + addon_total),
         }
         existing_draft = _get_package_draft(request)
         existing_draft.update(updated_draft)
@@ -3639,7 +4164,10 @@ def package_order(request):
         'package': selected_package,
         'packages': package_queryset.order_by('name'),
         'event_types': PUBLIC_EVENT_TYPES,
-        'addon_options': package_option_groups['addons'],
+        'included_package_items': included_package_items,
+        'package_inclusion_options': package_inclusion_options,
+        'addon_options': addon_options,
+        'package_inclusion_items': package_inclusion_items,
         'draft': draft,
     }
     return render(request, 'hanilies/package_order.html', context)
@@ -3725,8 +4253,14 @@ def package_payment(request):
     selected_package = get_object_or_404(
         _get_public_package_queryset(), id=package_id)
     defaults = _get_profile_defaults(request.user)
-    subtotal = _parse_decimal(
+    package_base_total = _parse_decimal(selected_package.base_price)
+    inclusions_total = _parse_decimal(draft.get('inclusions_total', '0.00'))
+    addons_total = _parse_decimal(draft.get('addons_total', '0.00'))
+    stored_subtotal = _parse_decimal(
         draft.get('base_total', selected_package.base_price))
+    subtotal = package_base_total + inclusions_total + addons_total
+    if not draft.get('inclusions_total') and not draft.get('addons_total'):
+        subtotal = stored_subtotal
     custom_total = _parse_decimal(draft.get('cake_custom_total', '0.00'))
     grand_total = subtotal + custom_total
     deposit_amount, balance_due = _calculate_deposit_breakdown(grand_total)
@@ -3809,7 +4343,10 @@ def package_payment(request):
                     contact_phone=form_values['contact_phone'],
                     contact_email=form_values['contact_email'],
                     selected_addons='\n'.join(
-                        draft.get('selected_addon_labels', [])),
+                        [
+                            *draft.get('selected_inclusion_labels', []),
+                            *draft.get('selected_addon_labels', []),
+                        ]),
                     cake_flavor=draft.get('cake_flavor', ''),
                     cake_frosting=draft.get('cake_frosting', ''),
                     cake_filling=draft.get('cake_filling', ''),
@@ -3843,6 +4380,9 @@ def package_payment(request):
         'defaults': defaults,
         'form_values': form_values,
         'package_order_window': package_order_window,
+        'package_base_total': package_base_total,
+        'inclusions_total': inclusions_total,
+        'addons_total': addons_total,
         'subtotal': subtotal,
         'custom_total': custom_total,
         'grand_total': grand_total,
@@ -3944,6 +4484,296 @@ def admin_dashboard(request):
 
     return render(request, 'admin/dashboard.html', context)
 
+
+# ============================================
+# ADMIN HOMEPAGE HERO
+# ============================================
+
+@login_required
+def admin_home_hero_images(request):
+    """List homepage hero collage images."""
+    access_denied = _require_admin_roles(request, HOME_HERO_ROLE_VALUES)
+    if access_denied:
+        return access_denied
+
+    hero_images = HomeHeroImage.objects.order_by('display_order', 'id')
+    return render(request, 'admin/hero_images/list.html', {
+        'hero_images': hero_images,
+        'admin_menu': get_admin_menu(request),
+    })
+
+
+@login_required
+def admin_home_hero_add(request):
+    """Add a homepage hero collage image."""
+    access_denied = _require_admin_roles(request, HOME_HERO_ROLE_VALUES)
+    if access_denied:
+        return access_denied
+
+    if request.method == 'POST':
+        title = (request.POST.get('title') or '').strip()
+        if not title:
+            messages.error(request, 'Title is required.')
+            return render(request, 'admin/hero_images/add.html', {
+                'admin_menu': get_admin_menu(request),
+            })
+
+        if 'image' not in request.FILES:
+            messages.error(request, 'Please upload a celebration image.')
+            return render(request, 'admin/hero_images/add.html', {
+                'admin_menu': get_admin_menu(request),
+            })
+
+        try:
+            hero_image = HomeHeroImage.objects.create(
+                title=title,
+                image=request.FILES['image'],
+                display_order=int(request.POST.get('display_order') or 0),
+                is_active=request.POST.get('is_active') == 'on',
+            )
+        except ValueError:
+            messages.error(request, 'Display order must be a whole number.')
+            return render(request, 'admin/hero_images/add.html', {
+                'admin_menu': get_admin_menu(request),
+            })
+
+        _log_staff_activity(
+            request.user,
+            'home_hero_created',
+            f'Added homepage hero image "{hero_image.title}".',
+            'home_hero_image',
+            hero_image.id,
+        )
+        messages.success(
+            request, f'Homepage hero image "{hero_image.title}" added successfully!')
+        return redirect('admin_home_hero_images')
+
+    return render(request, 'admin/hero_images/add.html', {
+        'admin_menu': get_admin_menu(request),
+    })
+
+
+@login_required
+def admin_home_hero_edit(request, hero_image_id):
+    """Edit a homepage hero collage image."""
+    access_denied = _require_admin_roles(request, HOME_HERO_ROLE_VALUES)
+    if access_denied:
+        return access_denied
+
+    hero_image = get_object_or_404(HomeHeroImage, id=hero_image_id)
+
+    if request.method == 'POST':
+        title = (request.POST.get('title') or '').strip()
+        if not title:
+            messages.error(request, 'Title is required.')
+            return render(request, 'admin/hero_images/edit.html', {
+                'hero_image': hero_image,
+                'admin_menu': get_admin_menu(request),
+            })
+
+        try:
+            hero_image.title = title
+            hero_image.display_order = int(
+                request.POST.get('display_order') or 0)
+            hero_image.is_active = request.POST.get('is_active') == 'on'
+
+            if 'image' in request.FILES:
+                if hero_image.image:
+                    hero_image.image.delete(save=False)
+                hero_image.image = request.FILES['image']
+
+            hero_image.save()
+        except ValueError:
+            messages.error(request, 'Display order must be a whole number.')
+            return render(request, 'admin/hero_images/edit.html', {
+                'hero_image': hero_image,
+                'admin_menu': get_admin_menu(request),
+            })
+
+        _log_staff_activity(
+            request.user,
+            'home_hero_updated',
+            f'Updated homepage hero image "{hero_image.title}".',
+            'home_hero_image',
+            hero_image.id,
+        )
+        messages.success(
+            request, f'Homepage hero image "{hero_image.title}" updated successfully!')
+        return redirect('admin_home_hero_images')
+
+    return render(request, 'admin/hero_images/edit.html', {
+        'hero_image': hero_image,
+        'admin_menu': get_admin_menu(request),
+    })
+
+
+@login_required
+@require_POST
+def admin_home_hero_delete(request, hero_image_id):
+    """Delete a homepage hero collage image."""
+    access_denied = _require_admin_roles(request, HOME_HERO_ROLE_VALUES)
+    if access_denied:
+        return access_denied
+
+    hero_image = get_object_or_404(HomeHeroImage, id=hero_image_id)
+    hero_title = hero_image.title
+    if hero_image.image:
+        hero_image.image.delete(save=False)
+    hero_image.delete()
+    _log_staff_activity(
+        request.user,
+        'home_hero_deleted',
+        f'Deleted homepage hero image "{hero_title}".',
+        'home_hero_image',
+        hero_image_id,
+    )
+    messages.success(
+        request, f'Homepage hero image "{hero_title}" deleted successfully!')
+    return redirect('admin_home_hero_images')
+
+
+@login_required
+def admin_home_strip_images(request):
+    """List homepage strip images."""
+    access_denied = _require_admin_roles(request, HOME_HERO_ROLE_VALUES)
+    if access_denied:
+        return access_denied
+
+    strip_images = HomeStripImage.objects.order_by('display_order', 'id')
+    return render(request, 'admin/home_strip/list.html', {
+        'strip_images': strip_images,
+        'admin_menu': get_admin_menu(request),
+    })
+
+
+@login_required
+def admin_home_strip_add(request):
+    """Add a homepage strip image."""
+    access_denied = _require_admin_roles(request, HOME_HERO_ROLE_VALUES)
+    if access_denied:
+        return access_denied
+
+    if request.method == 'POST':
+        title = (request.POST.get('title') or '').strip()
+        if not title:
+            messages.error(request, 'Title is required.')
+            return render(request, 'admin/home_strip/add.html', {
+                'admin_menu': get_admin_menu(request),
+            })
+
+        if 'image' not in request.FILES:
+            messages.error(request, 'Please upload a strip image.')
+            return render(request, 'admin/home_strip/add.html', {
+                'admin_menu': get_admin_menu(request),
+            })
+
+        try:
+            strip_image = HomeStripImage.objects.create(
+                title=title,
+                image=request.FILES['image'],
+                display_order=int(request.POST.get('display_order') or 0),
+                is_active=request.POST.get('is_active') == 'on',
+            )
+        except ValueError:
+            messages.error(request, 'Display order must be a whole number.')
+            return render(request, 'admin/home_strip/add.html', {
+                'admin_menu': get_admin_menu(request),
+            })
+
+        _log_staff_activity(
+            request.user,
+            'home_strip_created',
+            f'Added homepage strip image "{strip_image.title}".',
+            'home_strip_image',
+            strip_image.id,
+        )
+        messages.success(
+            request, f'Homepage strip image "{strip_image.title}" added successfully!')
+        return redirect('admin_home_strip_images')
+
+    return render(request, 'admin/home_strip/add.html', {
+        'admin_menu': get_admin_menu(request),
+    })
+
+
+@login_required
+def admin_home_strip_edit(request, strip_image_id):
+    """Edit a homepage strip image."""
+    access_denied = _require_admin_roles(request, HOME_HERO_ROLE_VALUES)
+    if access_denied:
+        return access_denied
+
+    strip_image = get_object_or_404(HomeStripImage, id=strip_image_id)
+
+    if request.method == 'POST':
+        title = (request.POST.get('title') or '').strip()
+        if not title:
+            messages.error(request, 'Title is required.')
+            return render(request, 'admin/home_strip/edit.html', {
+                'strip_image': strip_image,
+                'admin_menu': get_admin_menu(request),
+            })
+
+        try:
+            strip_image.title = title
+            strip_image.display_order = int(
+                request.POST.get('display_order') or 0)
+            strip_image.is_active = request.POST.get('is_active') == 'on'
+
+            if 'image' in request.FILES:
+                if strip_image.image:
+                    strip_image.image.delete(save=False)
+                strip_image.image = request.FILES['image']
+
+            strip_image.save()
+        except ValueError:
+            messages.error(request, 'Display order must be a whole number.')
+            return render(request, 'admin/home_strip/edit.html', {
+                'strip_image': strip_image,
+                'admin_menu': get_admin_menu(request),
+            })
+
+        _log_staff_activity(
+            request.user,
+            'home_strip_updated',
+            f'Updated homepage strip image "{strip_image.title}".',
+            'home_strip_image',
+            strip_image.id,
+        )
+        messages.success(
+            request, f'Homepage strip image "{strip_image.title}" updated successfully!')
+        return redirect('admin_home_strip_images')
+
+    return render(request, 'admin/home_strip/edit.html', {
+        'strip_image': strip_image,
+        'admin_menu': get_admin_menu(request),
+    })
+
+
+@login_required
+@require_POST
+def admin_home_strip_delete(request, strip_image_id):
+    """Delete a homepage strip image."""
+    access_denied = _require_admin_roles(request, HOME_HERO_ROLE_VALUES)
+    if access_denied:
+        return access_denied
+
+    strip_image = get_object_or_404(HomeStripImage, id=strip_image_id)
+    strip_title = strip_image.title
+    if strip_image.image:
+        strip_image.image.delete(save=False)
+    strip_image.delete()
+    _log_staff_activity(
+        request.user,
+        'home_strip_deleted',
+        f'Deleted homepage strip image "{strip_title}".',
+        'home_strip_image',
+        strip_image_id,
+    )
+    messages.success(
+        request, f'Homepage strip image "{strip_title}" deleted successfully!')
+    return redirect('admin_home_strip_images')
+
 # ============================================
 # ADMIN CAKES
 # ============================================
@@ -4017,6 +4847,16 @@ def admin_cake_add(request):
                 cake.image = request.FILES['image']
 
             cake.save()
+            customization_options = _apply_option_image_uploads(
+                customization_options,
+                CAKE_CUSTOMIZATION_GROUP_SPECS,
+                request.FILES,
+                product_prefix='cake-options',
+                object_id=cake.id,
+            )
+            if customization_options != cake.customization_options:
+                cake.customization_options = customization_options
+                cake.save(update_fields=['customization_options'])
             _log_staff_activity(
                 request.user,
                 'cake_created',
@@ -4064,6 +4904,10 @@ def admin_cake_edit(request, cake_id):
 
     if request.method == 'POST':
         try:
+            previous_option_images = _collect_option_image_paths(
+                cake.customization_options,
+                CAKE_CUSTOMIZATION_GROUP_SPECS,
+            )
             customization_options = _parse_customization_options_payload(
                 request.POST.get('customization_options_payload'),
                 CAKE_CUSTOMIZATION_GROUP_SPECS,
@@ -4104,7 +4948,22 @@ def admin_cake_edit(request, cake_id):
                     cake.image.delete(save=False)
                     cake.image = None
 
+            customization_options = _apply_option_image_uploads(
+                customization_options,
+                CAKE_CUSTOMIZATION_GROUP_SPECS,
+                request.FILES,
+                product_prefix='cake-options',
+                object_id=cake.id,
+            )
+            cake.customization_options = customization_options
+
             cake.save()
+            updated_option_images = _collect_option_image_paths(
+                customization_options,
+                CAKE_CUSTOMIZATION_GROUP_SPECS,
+            )
+            _delete_option_images(
+                previous_option_images - updated_option_images)
             _log_staff_activity(
                 request.user,
                 'cake_updated',
@@ -4344,17 +5203,34 @@ def admin_package_add(request):
                 request.POST.get('customization_options_payload'),
                 PACKAGE_CUSTOMIZATION_GROUP_SPECS,
             )
+            package_inclusion_items = _resolve_package_inclusion_submission(
+                request.POST,
+            )
+            if not package_inclusion_items:
+                raise ValueError(
+                    'Add at least one package feature or inclusion.')
             if package_type not in PUBLIC_PACKAGE_TYPE_VALUES:
                 messages.error(
                     request, 'Selected package type is no longer available.')
                 return render(request, 'admin/packages/add.html', {
                     'admin_menu': get_admin_menu(request),
                     'thumbnail_slots': _build_package_thumbnail_slots(),
+                    'package_inclusion_editor_items': _build_package_inclusion_editor_items(
+                        package_inclusion_items,
+                    ),
                     'option_editor_groups': _build_option_editor_groups(
                         customization_options,
                         PACKAGE_CUSTOMIZATION_GROUP_SPECS,
                     ),
                 })
+
+            inclusion_summary = '\n'.join(
+                _format_package_inclusion_lines(package_inclusion_items)
+            )
+            customization_options = {
+                **customization_options,
+                'included_items': package_inclusion_items,
+            }
 
             package = Package(
                 name=request.POST.get('name'),
@@ -4362,11 +5238,28 @@ def admin_package_add(request):
                 description=request.POST.get('description'),
                 base_price=request.POST.get('base_price'),
                 status=request.POST.get('status', 'active'),
-                features=request.POST.get('features', ''),
+                features=inclusion_summary,
+                included_items=inclusion_summary,
                 customization_options=customization_options,
                 image=request.FILES.get('image'),
             )
             package.save()
+            package_inclusion_items = _apply_package_inclusion_image_uploads(
+                package_inclusion_items,
+                request.FILES,
+                object_id=package.id,
+            )
+            customization_options = _apply_option_image_uploads(
+                customization_options,
+                PACKAGE_CUSTOMIZATION_GROUP_SPECS,
+                request.FILES,
+                product_prefix='package-options',
+                object_id=package.id,
+            )
+            customization_options['included_items'] = package_inclusion_items
+            if customization_options != package.customization_options:
+                package.customization_options = customization_options
+                package.save(update_fields=['customization_options'])
             _sync_package_thumbnails(package, request.FILES)
             _log_staff_activity(
                 request.user,
@@ -4386,6 +5279,9 @@ def admin_package_add(request):
     return render(request, 'admin/packages/add.html', {
         'admin_menu': get_admin_menu(request),
         'thumbnail_slots': _build_package_thumbnail_slots(),
+        'package_inclusion_editor_items': _build_package_inclusion_editor_items(
+            [],
+        ),
         'option_editor_groups': _build_option_editor_groups(
             {},
             PACKAGE_CUSTOMIZATION_GROUP_SPECS,
@@ -4406,11 +5302,25 @@ def admin_package_edit(request, package_id):
 
     if request.method == 'POST':
         try:
+            previous_option_images = _collect_option_image_paths(
+                package.customization_options,
+                PACKAGE_CUSTOMIZATION_GROUP_SPECS,
+            )
+            previous_inclusion_images = _collect_package_inclusion_image_paths(
+                _get_package_inclusion_items(package, for_display=False),
+            )
             package_type = request.POST.get('package_type')
             customization_options = _parse_customization_options_payload(
                 request.POST.get('customization_options_payload'),
                 PACKAGE_CUSTOMIZATION_GROUP_SPECS,
             )
+            package_inclusion_items = _resolve_package_inclusion_submission(
+                request.POST,
+                fallback_text=package.features,
+            )
+            if not package_inclusion_items:
+                raise ValueError(
+                    'Add at least one package feature or inclusion.')
             if package_type not in PUBLIC_PACKAGE_TYPE_VALUES:
                 messages.error(
                     request, 'Selected package type is no longer available.')
@@ -4418,23 +5328,50 @@ def admin_package_edit(request, package_id):
                     'package': package,
                     'admin_menu': get_admin_menu(request),
                     'thumbnail_slots': _build_package_thumbnail_slots(package),
+                    'package_inclusion_editor_items': _build_package_inclusion_editor_items(
+                        package_inclusion_items,
+                    ),
                     'option_editor_groups': _build_option_editor_groups(
                         customization_options,
                         PACKAGE_CUSTOMIZATION_GROUP_SPECS,
                     ),
                 })
 
+            inclusion_summary = '\n'.join(
+                _format_package_inclusion_lines(package_inclusion_items)
+            )
+            customization_options = {
+                **customization_options,
+                'included_items': package_inclusion_items,
+            }
+
             package.name = request.POST.get('name')
             package.package_type = package_type
             package.description = request.POST.get('description')
             package.base_price = request.POST.get('base_price')
             package.status = request.POST.get('status')
-            package.features = request.POST.get('features', '')
+            package.features = inclusion_summary
+            package.included_items = inclusion_summary
             package.customization_options = customization_options
 
             uploaded_image = request.FILES.get('image')
             if uploaded_image:
                 package.image = uploaded_image
+
+            package_inclusion_items = _apply_package_inclusion_image_uploads(
+                package_inclusion_items,
+                request.FILES,
+                object_id=package.id,
+            )
+            customization_options = _apply_option_image_uploads(
+                customization_options,
+                PACKAGE_CUSTOMIZATION_GROUP_SPECS,
+                request.FILES,
+                product_prefix='package-options',
+                object_id=package.id,
+            )
+            customization_options['included_items'] = package_inclusion_items
+            package.customization_options = customization_options
 
             package.save()
             thumbnail_removals = {
@@ -4444,6 +5381,19 @@ def admin_package_edit(request, package_id):
             }
             _sync_package_thumbnails(
                 package, request.FILES, thumbnail_removals)
+            updated_option_images = _collect_option_image_paths(
+                customization_options,
+                PACKAGE_CUSTOMIZATION_GROUP_SPECS,
+            )
+            _delete_option_images(
+                previous_option_images - updated_option_images,
+            )
+            updated_inclusion_images = _collect_package_inclusion_image_paths(
+                package_inclusion_items,
+            )
+            _delete_option_images(
+                previous_inclusion_images - updated_inclusion_images,
+            )
             _log_staff_activity(
                 request.user,
                 'package_updated',
@@ -4463,6 +5413,9 @@ def admin_package_edit(request, package_id):
         'package': package,
         'admin_menu': get_admin_menu(request),
         'thumbnail_slots': _build_package_thumbnail_slots(package),
+        'package_inclusion_editor_items': _build_package_inclusion_editor_items(
+            _get_package_inclusion_items(package, for_display=False),
+        ),
         'option_editor_groups': _build_option_editor_groups(
             package.customization_options,
             PACKAGE_CUSTOMIZATION_GROUP_SPECS,

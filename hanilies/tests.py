@@ -30,7 +30,7 @@ from .forms import (
     build_package_booking_window,
 )
 from .management.commands.demo_bot import Command as DemoBotCommand
-from .models import ActivityLog, Cake, CakeCustomization, CakeOrder, Notification, Package, PackageOrder, PackageThumbnail, Payment, RefundRequest, UserProfile
+from .models import ActivityLog, Cake, CakeCustomization, CakeOrder, HomeHeroImage, HomeStripImage, Notification, Package, PackageOrder, PackageThumbnail, Payment, RefundRequest, UserProfile
 from .payment_qr import build_gcash_checkout_details
 from .views import CAKE_DECORATION_OPTIONS, _get_selected_option_labels, _parse_delivery_datetime
 
@@ -385,6 +385,34 @@ class CakeOrderViewUnitTests(TestCase):
         self.assertContains(response, 'Review Cake Order')
         self.assertContains(response, 'Confirm Cake Order')
 
+    def test_cake_customize_get_keeps_related_routes_in_page(self):
+        response = self.client.get(reverse('cake_customize'), {
+            'cake_id': str(self.cake.id),
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse('cakes'))
+        self.assertContains(response, reverse('order_tracking'))
+        self.assertContains(response, reverse('payment_qr_preview'))
+        self.assertContains(response, 'Customize')
+        self.assertContains(response, 'Review Design')
+        self.assertContains(response, 'Confirm')
+        self.assertContains(response, 'Choose Size')
+        self.assertContains(response, 'Choose Shape')
+        self.assertContains(response, 'Choose Flavor')
+        self.assertContains(response, 'Choose Frosting')
+        self.assertContains(response, 'Choose Filling')
+        self.assertContains(response, 'Required')
+        self.assertContains(response, 'Optional')
+        self.assertContains(
+            response, 'id="cake-checkout-step-customize"', html=False)
+        self.assertContains(
+            response, 'id="cake-checkout-step-review"', html=False)
+        self.assertContains(
+            response, 'id="cake-checkout-step-confirm"', html=False)
+        self.assertContains(response, 'id="cake-order-form"', html=False)
+        self.assertContains(response, 'id="summary-total"', html=False)
+
     def test_cake_customize_get_renders_special_occasions_theme_option(self):
         response = self.client.get(reverse('cake_customize'), {
             'cake_id': str(self.cake.id),
@@ -577,6 +605,7 @@ class CakeOrderViewUnitTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Deluxe 10 inches')
+        self.assertContains(response, '6 inches')
         self.assertContains(response, 'Sugar Pearls')
 
         generated_reference = response.context['checkout_payment_reference']
@@ -609,6 +638,95 @@ class CakeOrderViewUnitTests(TestCase):
         self.assertEqual(cake_order.size, 'Deluxe 10 inches')
         self.assertEqual(CakeCustomization.objects.get(
         ).additional_decorations, 'Sugar Pearls')
+
+    def test_cake_customize_keeps_default_attribute_options_when_customized_items_exist(self):
+        self.cake.customization_options = {
+            'flavors': [
+                {
+                    'label': 'Vanilla',
+                    'price': '150.00',
+                    'image': 'cake-options/demo/flavors/vanilla.jpg',
+                },
+            ],
+            'sizes': [
+                {
+                    'label': '8 inches',
+                    'price': '200.00',
+                    'image': 'cake-options/demo/sizes/eight-inch.jpg',
+                },
+            ],
+        }
+        self.cake.save(update_fields=['customization_options'])
+
+        response = self.client.get(reverse('cake_customize'), {
+            'cake_id': str(self.cake.id),
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Vanilla')
+        self.assertContains(response, 'Chocolate')
+        self.assertContains(response, '8 inches')
+        self.assertContains(response, '10 inches')
+        self.assertContains(
+            response, '/media/cake-options/demo/flavors/vanilla.jpg')
+        self.assertContains(
+            response, '/media/cake-options/demo/sizes/eight-inch.jpg')
+
+    def test_cake_customize_renders_uploaded_option_images_in_attribute_cards(self):
+        self.cake.customization_options = {
+            'sizes': [
+                {
+                    'label': 'Tall 8 inches',
+                    'price': '120.00',
+                    'image': 'cake-options/demo/sizes/tall-eight.jpg',
+                },
+            ],
+            'shapes': [
+                {
+                    'label': 'Heart',
+                    'price': '90.00',
+                    'image': 'cake-options/demo/shapes/heart-shape.jpg',
+                },
+            ],
+            'flavors': [
+                {
+                    'label': 'Strawberry',
+                    'price': '50.00',
+                    'image': 'cake-options/demo/flavors/strawberry-flavor.jpg',
+                },
+            ],
+            'frostings': [
+                {
+                    'label': 'Ganache',
+                    'price': '75.00',
+                    'image': 'cake-options/demo/frostings/ganache-frosting.jpg',
+                },
+            ],
+            'fillings': [
+                {
+                    'label': 'Mango',
+                    'price': '60.00',
+                    'image': 'cake-options/demo/fillings/mango-filling.jpg',
+                },
+            ],
+        }
+        self.cake.save(update_fields=['customization_options'])
+
+        response = self.client.get(reverse('cake_customize'), {
+            'cake_id': str(self.cake.id),
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response, '/media/cake-options/demo/sizes/tall-eight.jpg')
+        self.assertContains(
+            response, '/media/cake-options/demo/shapes/heart-shape.jpg')
+        self.assertContains(
+            response, '/media/cake-options/demo/flavors/strawberry-flavor.jpg')
+        self.assertContains(
+            response, '/media/cake-options/demo/frostings/ganache-frosting.jpg')
+        self.assertContains(
+            response, '/media/cake-options/demo/fillings/mango-filling.jpg')
 
     def test_cake_customize_get_uses_30_day_booking_window(self):
         response = self.client.get(reverse('cake_customize'))
@@ -755,6 +873,65 @@ class PackageFlowUnitTests(TestCase):
         self.assertEqual(draft['addons_total'], '550.00')
         self.assertEqual(draft['base_total'], '7050.00')
 
+    def test_package_order_post_uses_addon_quantities_for_totals_and_labels(self):
+        response = self.client.post(reverse('package_order'), {
+            'package_id': str(self.package.id),
+            'event_type': 'kids_birthday',
+            'addon_quantity__brownies': '2',
+            'addon_quantity__cookies': '1',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers['Location'], reverse(
+            'package_cake_customize'))
+
+        draft = self.client.session['package_order_draft']
+        self.assertEqual(draft['selected_addons'], ['brownies', 'cookies'])
+        self.assertEqual(
+            draft['selected_addon_quantities'],
+            {'brownies': 2, 'cookies': 1},
+        )
+        self.assertEqual(
+            draft['selected_addon_labels'],
+            ['2 x Chocofudge Brownies', 'Chocochip Cookies'],
+        )
+        self.assertEqual(draft['addons_total'], '850.00')
+        self.assertEqual(draft['base_total'], '7350.00')
+
+    def test_package_order_post_uses_selected_inclusions_for_totals_and_labels(self):
+        self.package.customization_options = {
+            'included_items': [
+                {
+                    'key': 'mini-cupcakes',
+                    'label': 'Mini Cupcakes',
+                    'quantity': 12,
+                    'price': '25.00',
+                },
+            ],
+        }
+        self.package.save(update_fields=['customization_options'])
+
+        response = self.client.post(reverse('package_order'), {
+            'package_id': str(self.package.id),
+            'event_type': 'kids_birthday',
+            'selected_inclusions': ['mini-cupcakes'],
+            'inclusion_quantity__mini-cupcakes': '12',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        draft = self.client.session['package_order_draft']
+        self.assertEqual(draft['selected_inclusions'], ['mini-cupcakes'])
+        self.assertEqual(
+            draft['selected_inclusion_quantities'],
+            {'mini-cupcakes': 12},
+        )
+        self.assertEqual(
+            draft['selected_inclusion_labels'],
+            ['12 x Mini Cupcakes'],
+        )
+        self.assertEqual(draft['inclusions_total'], '300.00')
+        self.assertEqual(draft['base_total'], '6800.00')
+
     def test_order_package_route_alias_uses_same_package_flow(self):
         response = self.client.post(reverse('order_package'), {
             'package_id': str(self.package.id),
@@ -771,18 +948,18 @@ class PackageFlowUnitTests(TestCase):
         self.assertEqual(draft['selected_addon_labels'],
                          ['Chocofudge Brownies'])
 
-    def test_package_order_rejects_removed_corporate_event_type(self):
+    def test_package_order_post_uses_selected_package_event_type(self):
         response = self.client.post(reverse('package_order'), {
             'package_id': str(self.package.id),
             'event_type': 'corporate',
         })
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(
-            response,
-            'Selected event type is no longer available for package bookings.',
-        )
-        self.assertNotIn('package_order_draft', self.client.session)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers['Location'], reverse(
+            'package_cake_customize'))
+
+        draft = self.client.session['package_order_draft']
+        self.assertEqual(draft['event_type'], self.package.package_type)
 
     def test_order_package_route_blocks_corporate_package_ids(self):
         corporate_package = Package.objects.create(
@@ -813,6 +990,91 @@ class PackageFlowUnitTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, 'Corporate Legacy Bundle')
         self.assertContains(response, self.package.name)
+        self.assertContains(response, 'Adult Birthday Party')
+        self.assertNotContains(response, "Adult's Party")
+        self.assertContains(response, 'data-packages-page-intro')
+        self.assertContains(response, 'packages-page-intro-icon')
+        self.assertContains(response, 'packages-page-intro-icon-art')
+        self.assertContains(response, 'start your order.')
+
+    def test_package_order_renders_uploaded_addon_option_images(self):
+        self.package.customization_options = {
+            'addons': [
+                {
+                    'key': 'brownies',
+                    'label': 'Chocofudge Brownies',
+                    'price': '300.00',
+                    'image': 'package-options/999/addons/brownies-option.jpg',
+                },
+            ],
+        }
+        self.package.save(update_fields=['customization_options'])
+
+        response = self.client.get(reverse('package_order'), {
+            'package_id': str(self.package.id),
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'package-addon-media')
+        self.assertContains(
+            response,
+            '/media/package-options/999/addons/brownies-option.jpg',
+        )
+        self.assertContains(response, 'alt="Chocofudge Brownies add-on"')
+
+    def test_package_order_renders_structured_included_items(self):
+        self.package.customization_options = {
+            'included_items': [
+                {
+                    'key': 'themed-cupcakes',
+                    'label': 'Themed Cupcakes',
+                    'quantity': 12,
+                    'price': '35.00',
+                    'image': 'package-inclusions/999/included-items/cupcakes.jpg',
+                },
+            ],
+        }
+        self.package.included_items = '12 x Themed Cupcakes'
+        self.package.save(
+            update_fields=['customization_options', 'included_items'])
+
+        response = self.client.get(reverse('package_order'), {
+            'package_id': str(self.package.id),
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '12 x Themed Cupcakes')
+        self.assertContains(
+            response,
+            '/media/package-inclusions/999/included-items/cupcakes.jpg',
+        )
+        self.assertContains(response, 'Optional Package Items')
+        self.assertContains(response, 'name="selected_inclusions"')
+        self.assertContains(response, 'P35.00 each')
+
+    def test_package_order_auto_includes_zero_price_items_without_selector(self):
+        self.package.customization_options = {
+            'included_items': [
+                {
+                    'key': 'cake-slices',
+                    'label': 'Cake Slices',
+                    'quantity': 24,
+                    'price': '0.00',
+                },
+            ],
+        }
+        self.package.save(update_fields=['customization_options'])
+
+        response = self.client.get(reverse('package_order'), {
+            'package_id': str(self.package.id),
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Included in This Package')
+        self.assertContains(response, '24 x Cake Slices')
+        self.assertContains(response, 'Automatically included in')
+        self.assertNotContains(
+            response, 'name="selected_inclusions" value="cake-slices"', html=False)
 
     def test_package_payment_post_creates_order_and_clears_session_draft(self):
         session = self.client.session
@@ -1074,6 +1336,55 @@ class PackageFlowUnitTests(TestCase):
         self.assertEqual(draft['cake_flavor'], 'Cookies and Cream')
         self.assertEqual(draft['cake_decoration_labels'], ['Mini Macaroons'])
         self.assertEqual(draft['cake_custom_total'], '475.00')
+
+    def test_package_cake_customize_renders_card_based_option_images(self):
+        self.package.customization_options = {
+            'cake_sizes': [
+                {
+                    'value': 'signature',
+                    'label': 'Signature Upgrade',
+                    'price': '250.00',
+                    'image': 'package-options/321/cake_sizes/signature-upgrade.jpg',
+                },
+            ],
+            'cake_shapes': [
+                {
+                    'label': 'Round',
+                    'price': '0.00',
+                    'image': 'package-options/321/cake_shapes/round.jpg',
+                },
+            ],
+            'cake_flavors': [
+                {
+                    'label': 'Cookies and Cream',
+                    'price': '75.00',
+                    'image': 'package-options/321/cake_flavors/cookies-and-cream.jpg',
+                },
+            ],
+        }
+        self.package.save(update_fields=['customization_options'])
+
+        session = self.client.session
+        session['package_order_draft'] = {
+            'package_id': str(self.package.id),
+            'base_total': '6500.00',
+        }
+        session.save()
+
+        response = self.client.get(reverse('package_cake_customize'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Customize Your Package Cake')
+        self.assertContains(response, 'Choose Size Upgrade')
+        self.assertContains(response, 'Choose Shape')
+        self.assertContains(response, 'Choose Flavor')
+        self.assertContains(response, 'attribute-card-media')
+        self.assertContains(
+            response, '/media/package-options/321/cake_sizes/signature-upgrade.jpg')
+        self.assertContains(
+            response, '/media/package-options/321/cake_shapes/round.jpg')
+        self.assertContains(
+            response, '/media/package-options/321/cake_flavors/cookies-and-cream.jpg')
 
     def test_package_payment_rejects_event_date_beyond_30_days(self):
         session = self.client.session
@@ -1482,7 +1793,7 @@ class OrderingIntegrationTests(TestCase):
         self.assertContains(response, f'Cake Order #{archived_order.id}')
         self.assertContains(response, 'Archived Record')
 
-    def test_order_tracking_print_summary_renders_product_code(self):
+    def test_order_tracking_print_summary_hides_product_code(self):
         order = CakeOrder.objects.create(
             user=self.user,
             cake=self.cake,
@@ -1518,7 +1829,7 @@ class OrderingIntegrationTests(TestCase):
         self.assertEqual(print_response.status_code, 200)
         self.assertContains(print_response, 'Printable Order Summary')
         self.assertContains(print_response, self.cake.name)
-        self.assertContains(print_response, self.cake.product_code)
+        self.assertNotContains(print_response, self.cake.product_code)
         self.assertContains(print_response, order.contact_name)
 
 
@@ -3553,6 +3864,71 @@ class InAppNotificationViewTests(TestCase):
 
 
 @override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+class AdminHomeHeroImageTests(TestCase):
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        shutil.rmtree(TEST_MEDIA_ROOT, ignore_errors=True)
+
+    def setUp(self):
+        self.admin_user = User.objects.create_user(
+            username='hero-admin',
+            password='TestPass123!',
+            email='hero-admin@example.com',
+        )
+        UserProfile.objects.create(user=self.admin_user, role='admin')
+        self.client.login(username='hero-admin', password='TestPass123!')
+
+    def test_admin_home_hero_add_saves_uploaded_image(self):
+        response = self.client.post(reverse('admin_home_hero_add'), {
+            'title': 'Birthday Dessert Table',
+            'display_order': '1',
+            'is_active': 'on',
+            'image': build_test_image_upload('hero-collage.jpg'),
+        })
+
+        self.assertEqual(response.status_code, 302)
+        hero_image = HomeHeroImage.objects.get(title='Birthday Dessert Table')
+        self.assertTrue(bool(hero_image.image))
+        self.assertIn('hero/', hero_image.image.name)
+        self.assertEqual(hero_image.display_order, 1)
+        self.assertTrue(hero_image.is_active)
+
+
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+class AdminHomeStripImageTests(TestCase):
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        shutil.rmtree(TEST_MEDIA_ROOT, ignore_errors=True)
+
+    def setUp(self):
+        self.admin_user = User.objects.create_user(
+            username='strip-admin',
+            password='TestPass123!',
+            email='strip-admin@example.com',
+        )
+        UserProfile.objects.create(user=self.admin_user, role='admin')
+        self.client.login(username='strip-admin', password='TestPass123!')
+
+    def test_admin_home_strip_add_saves_uploaded_image(self):
+        response = self.client.post(reverse('admin_home_strip_add'), {
+            'title': 'Milestone Celebrations in Full Color',
+            'display_order': '1',
+            'is_active': 'on',
+            'image': build_test_image_upload('home-strip.jpg'),
+        })
+
+        self.assertEqual(response.status_code, 302)
+        strip_image = HomeStripImage.objects.get(
+            title='Milestone Celebrations in Full Color')
+        self.assertTrue(bool(strip_image.image))
+        self.assertIn('home-strip/', strip_image.image.name)
+        self.assertEqual(strip_image.display_order, 1)
+        self.assertTrue(strip_image.is_active)
+
+
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
 class AdminPackageImageUploadTests(TestCase):
     @classmethod
     def tearDownClass(cls):
@@ -3844,6 +4220,241 @@ class AdminProductCodeTests(TestCase):
             package.customization_options['cake_sizes'][0]['label'], 'Signature Upgrade')
 
 
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+class AdminCakeCustomizationOptionImageTests(TestCase):
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        shutil.rmtree(TEST_MEDIA_ROOT, ignore_errors=True)
+
+    def setUp(self):
+        self.admin_user = User.objects.create_user(
+            username='cake-option-admin',
+            password='TestPass123!',
+            email='cake-option-admin@example.com',
+        )
+        UserProfile.objects.create(user=self.admin_user, role='admin')
+        self.client.login(username='cake-option-admin',
+                          password='TestPass123!')
+
+    def test_admin_cake_add_shows_option_image_column(self):
+        response = self.client.get(reverse('admin_cake_add'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Option Image')
+
+    def test_admin_cake_add_saves_customization_option_image(self):
+        response = self.client.post(reverse('admin_cake_add'), {
+            'name': 'Option Image Cake',
+            'category': 'birthday',
+            'description': 'Cake with flavor image options.',
+            'price': '1250.00',
+            'stock': '3',
+            'is_active': 'on',
+            'customization_options_payload': json.dumps({
+                'flavors': [
+                    {'label': 'Strawberry', 'price': '50.00'},
+                ],
+            }),
+            'option_image__flavors__0': build_test_image_upload('strawberry-option.jpg'),
+        })
+
+        self.assertEqual(response.status_code, 302)
+        cake = Cake.objects.get(name='Option Image Cake')
+        self.assertEqual(
+            cake.customization_options['flavors'][0]['label'],
+            'Strawberry',
+        )
+        self.assertIn('image', cake.customization_options['flavors'][0])
+        self.assertIn(
+            'cake-options/',
+            cake.customization_options['flavors'][0]['image'],
+        )
+
+    def test_admin_cake_edit_replaces_customization_option_image(self):
+        add_response = self.client.post(reverse('admin_cake_add'), {
+            'name': 'Editable Option Image Cake',
+            'category': 'birthday',
+            'description': 'Cake before option image replacement.',
+            'price': '1400.00',
+            'stock': '2',
+            'is_active': 'on',
+            'customization_options_payload': json.dumps({
+                'flavors': [
+                    {'label': 'Chocolate', 'price': '25.00'},
+                ],
+            }),
+            'option_image__flavors__0': build_test_image_upload('chocolate-option.jpg'),
+        })
+
+        self.assertEqual(add_response.status_code, 302)
+        cake = Cake.objects.get(name='Editable Option Image Cake')
+        original_image_path = cake.customization_options['flavors'][0]['image']
+
+        edit_response = self.client.post(reverse('admin_cake_edit', args=[cake.id]), {
+            'name': 'Editable Option Image Cake',
+            'category': 'birthday',
+            'description': 'Cake after option image replacement.',
+            'price': '1400.00',
+            'stock': '2',
+            'is_active': 'on',
+            'customization_options_payload': json.dumps({
+                'flavors': [
+                    {
+                        'label': 'Chocolate',
+                        'price': '25.00',
+                        'image': original_image_path,
+                    },
+                ],
+            }),
+            'option_image__flavors__0': build_test_image_upload('chocolate-option-new.jpg'),
+        })
+
+        self.assertEqual(edit_response.status_code, 302)
+        cake.refresh_from_db()
+        updated_image_path = cake.customization_options['flavors'][0]['image']
+        self.assertNotEqual(updated_image_path, original_image_path)
+        self.assertFalse(
+            (Path(TEST_MEDIA_ROOT) / original_image_path).exists())
+
+
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+class AdminPackageCustomizationOptionImageTests(TestCase):
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        shutil.rmtree(TEST_MEDIA_ROOT, ignore_errors=True)
+
+    def setUp(self):
+        self.admin_user = User.objects.create_user(
+            username='package-option-admin',
+            password='TestPass123!',
+            email='package-option-admin@example.com',
+        )
+        UserProfile.objects.create(user=self.admin_user, role='admin')
+        self.client.login(username='package-option-admin',
+                          password='TestPass123!')
+
+    def test_admin_package_add_shows_option_image_column(self):
+        response = self.client.get(reverse('admin_package_add'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Option Image')
+
+    def test_admin_package_add_saves_customization_option_image(self):
+        response = self.client.post(reverse('admin_package_add'), {
+            'name': 'Option Image Package',
+            'package_type': 'christening',
+            'description': 'Package with add-on image options.',
+            'base_price': '4500.00',
+            'status': 'active',
+            'features': 'Backdrop',
+            'customization_options_payload': json.dumps({
+                'addons': [
+                    {'label': 'Confetti Cannon', 'price': '150.00'},
+                ],
+            }),
+            'option_image__addons__0': build_test_image_upload('confetti-cannon-option.jpg'),
+        })
+
+        self.assertEqual(response.status_code, 302)
+        package = Package.objects.get(name='Option Image Package')
+        self.assertEqual(
+            package.customization_options['addons'][0]['label'],
+            'Confetti Cannon',
+        )
+        self.assertIn('image', package.customization_options['addons'][0])
+        self.assertIn(
+            'package-options/',
+            package.customization_options['addons'][0]['image'],
+        )
+
+    def test_admin_package_add_saves_structured_inclusions_with_image(self):
+        response = self.client.post(reverse('admin_package_add'), {
+            'name': 'Structured Inclusion Package',
+            'package_type': 'christening',
+            'description': 'Package with structured inclusions.',
+            'base_price': '4800.00',
+            'status': 'active',
+            'package_inclusions_payload': json.dumps([
+                {
+                    'label': 'Mini Cupcakes',
+                    'quantity': 24,
+                    'price': '18.50',
+                },
+            ]),
+            'option_image__addons__0': build_test_image_upload('unused-addon-image.jpg'),
+            'package_inclusion_image__0': build_test_image_upload('mini-cupcakes.jpg'),
+        })
+
+        self.assertEqual(response.status_code, 302)
+        package = Package.objects.get(name='Structured Inclusion Package')
+        self.assertEqual(package.features, '24 x Mini Cupcakes')
+        self.assertEqual(package.included_items, '24 x Mini Cupcakes')
+        self.assertEqual(
+            package.customization_options['included_items'][0]['label'],
+            'Mini Cupcakes',
+        )
+        self.assertEqual(
+            package.customization_options['included_items'][0]['quantity'],
+            24,
+        )
+        self.assertEqual(
+            package.customization_options['included_items'][0]['price'],
+            '18.50',
+        )
+        self.assertIn(
+            'package-inclusions/',
+            package.customization_options['included_items'][0]['image'],
+        )
+
+    def test_admin_package_edit_replaces_customization_option_image(self):
+        add_response = self.client.post(reverse('admin_package_add'), {
+            'name': 'Editable Option Image Package',
+            'package_type': 'christening',
+            'description': 'Package before option image replacement.',
+            'base_price': '5200.00',
+            'status': 'active',
+            'features': 'Backdrop',
+            'customization_options_payload': json.dumps({
+                'addons': [
+                    {'label': 'Sparkler Set', 'price': '90.00'},
+                ],
+            }),
+            'option_image__addons__0': build_test_image_upload('sparkler-option.jpg'),
+        })
+
+        self.assertEqual(add_response.status_code, 302)
+        package = Package.objects.get(name='Editable Option Image Package')
+        original_image_path = package.customization_options['addons'][0]['image']
+
+        edit_response = self.client.post(reverse('admin_package_edit', args=[package.id]), {
+            'name': 'Editable Option Image Package',
+            'package_type': 'christening',
+            'description': 'Package after option image replacement.',
+            'base_price': '5200.00',
+            'status': 'active',
+            'features': 'Backdrop',
+            'customization_options_payload': json.dumps({
+                'addons': [
+                    {
+                        'label': 'Sparkler Set',
+                        'price': '90.00',
+                        'image': original_image_path,
+                    },
+                ],
+            }),
+            'option_image__addons__0': build_test_image_upload('sparkler-option-new.jpg'),
+        })
+
+        self.assertEqual(edit_response.status_code, 302)
+        package.refresh_from_db()
+        updated_image_path = package.customization_options['addons'][0]['image']
+        self.assertNotEqual(updated_image_path, original_image_path)
+        self.assertFalse(
+            (Path(TEST_MEDIA_ROOT) / original_image_path).exists())
+
+
 class PackageThumbnailCatalogTests(TestCase):
     def test_packages_page_renders_zoom_gallery_data_for_package(self):
         package = Package.objects.create(
@@ -3988,6 +4599,63 @@ class HomeRecommendationTests(TestCase):
             response, 'data-zoom-gallery="home-recommended-cakes"')
         self.assertContains(
             response, 'data-zoom-gallery="home-recommended-packages"')
+
+    def test_homepage_prefers_uploaded_hero_collage_images(self):
+        HomeHeroImage.objects.create(
+            title='Joyful Birthday Gathering',
+            image='hero/joyful-birthday.jpg',
+            display_order=0,
+            is_active=True,
+        )
+        HomeHeroImage.objects.create(
+            title='Elegant Wedding Table',
+            image='hero/elegant-wedding.jpg',
+            display_order=1,
+            is_active=True,
+        )
+        HomeHeroImage.objects.create(
+            title='Garden Dessert Display',
+            image='hero/garden-dessert.jpg',
+            display_order=2,
+            is_active=True,
+        )
+        HomeHeroImage.objects.create(
+            title='Golden Anniversary Setup',
+            image='hero/golden-anniversary.jpg',
+            display_order=3,
+            is_active=True,
+        )
+
+        response = self.client.get('/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context['hero_collage_images']), 4)
+        self.assertEqual(
+            response.context['hero_collage_images'][0]['title'],
+            'Joyful Birthday Gathering',
+        )
+        self.assertContains(response, 'data-zoom-gallery="home-hero-collage"')
+        self.assertContains(
+            response, 'data-zoom-title="Golden Anniversary Setup"')
+
+    def test_homepage_renders_uploaded_strip_image(self):
+        HomeStripImage.objects.create(
+            title='Celebration Styling for Every Milestone',
+            image='home-strip/celebration-strip.jpg',
+            display_order=0,
+            is_active=True,
+        )
+
+        response = self.client.get('/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context['home_strip_image']['title'],
+            'Celebration Styling for Every Milestone',
+        )
+        self.assertContains(response, 'data-zoom-gallery="home-strip-image"')
+        self.assertContains(
+            response, 'Celebration Styling for Every Milestone')
 
 
 class AuthenticationFlowTests(TestCase):

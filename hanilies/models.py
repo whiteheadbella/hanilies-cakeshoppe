@@ -63,6 +63,36 @@ class Notification(models.Model):
         return f"Notification #{self.id} - {self.title}"
 
 
+class HomeHeroImage(models.Model):
+    title = models.CharField(max_length=120)
+    image = models.ImageField(upload_to='hero/')
+    display_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['display_order', 'id']
+
+    def __str__(self):
+        return self.title
+
+
+class HomeStripImage(models.Model):
+    title = models.CharField(max_length=120)
+    image = models.ImageField(upload_to='home-strip/')
+    display_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['display_order', 'id']
+
+    def __str__(self):
+        return self.title
+
+
 class Cake(models.Model):
     CAKE_CATEGORIES = [
         ('birthday', 'Birthday'),
@@ -198,7 +228,7 @@ class Package(models.Model):
     PACKAGE_TYPES = [
         ('christening', 'Christening'),
         ('kids_birthday', "Kid's Birthday"),
-        ('adults_party', "Adult's Party"),
+        ('adults_party', 'Adult Birthday Party'),
         ('wedding', 'Wedding'),
     ]
 
@@ -291,7 +321,7 @@ class PackageOrder(models.Model):
     EVENT_TYPES = [
         ('christening', 'Christening'),
         ('kids_birthday', "Kid's Birthday"),
-        ('adults_party', "Adult's Party"),
+        ('adults_party', 'Adult Birthday Party'),
         ('wedding', 'Wedding'),
     ]
 

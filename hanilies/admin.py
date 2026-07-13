@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
 from django.utils.html import format_html
-from .models import UserProfile, Cake, CakeOrder, CakeCustomization, Package, PackageOrder, Payment
+from .models import HomeHeroImage, HomeStripImage, UserProfile, Cake, CakeOrder, CakeCustomization, Package, PackageOrder, Payment
 
 # ========================
 # PERMISSION HELPER
@@ -23,8 +23,8 @@ def user_has_permission(user, model_name, action='view'):
     permissions = {
         'owner': ['*'],
         'admin': ['*'],
-        'manager': ['CakeOrder', 'PackageOrder'],
-        'supervisor': ['Cake', 'CakeOrder', 'CakeCustomization', 'Package', 'PackageOrder'],
+        'manager': ['HomeHeroImage', 'HomeStripImage', 'CakeOrder', 'PackageOrder'],
+        'supervisor': ['HomeHeroImage', 'HomeStripImage', 'Cake', 'CakeOrder', 'CakeCustomization', 'Package', 'PackageOrder'],
         'baker': ['Cake', 'CakeOrder', 'CakeCustomization'],
         'packager': ['Package', 'PackageOrder'],
         'cashier': ['Payment'],
@@ -60,10 +60,10 @@ class HaniliesAdminSite(admin.AdminSite):
         role = request.user.profile.role
 
         allowed_models = {
-            'owner': ['Cake', 'CakeOrder', 'CakeCustomization', 'Package', 'PackageOrder', 'Payment', 'User', 'UserProfile'],
-            'admin': ['Cake', 'CakeOrder', 'CakeCustomization', 'Package', 'PackageOrder', 'Payment', 'User', 'UserProfile'],
-            'manager': ['CakeOrder', 'PackageOrder'],
-            'supervisor': ['Cake', 'CakeOrder', 'CakeCustomization', 'Package', 'PackageOrder'],
+            'owner': ['HomeHeroImage', 'HomeStripImage', 'Cake', 'CakeOrder', 'CakeCustomization', 'Package', 'PackageOrder', 'Payment', 'User', 'UserProfile'],
+            'admin': ['HomeHeroImage', 'HomeStripImage', 'Cake', 'CakeOrder', 'CakeCustomization', 'Package', 'PackageOrder', 'Payment', 'User', 'UserProfile'],
+            'manager': ['HomeHeroImage', 'HomeStripImage', 'CakeOrder', 'PackageOrder'],
+            'supervisor': ['HomeHeroImage', 'HomeStripImage', 'Cake', 'CakeOrder', 'CakeCustomization', 'Package', 'PackageOrder'],
             'baker': ['Cake', 'CakeOrder', 'CakeCustomization'],
             'packager': ['Package', 'PackageOrder'],
             'cashier': ['Payment'],
@@ -161,6 +161,20 @@ class BaseRoleAdmin(admin.ModelAdmin):
         if hasattr(qs.model, 'user'):
             return qs.filter(user=request.user)
         return qs
+
+
+@admin.register(HomeHeroImage, site=admin_site)
+class HomeHeroImageAdmin(BaseRoleAdmin):
+    list_display = ('title', 'display_order', 'is_active', 'updated_at')
+    list_editable = ('display_order', 'is_active')
+    search_fields = ('title',)
+
+
+@admin.register(HomeStripImage, site=admin_site)
+class HomeStripImageAdmin(BaseRoleAdmin):
+    list_display = ('title', 'display_order', 'is_active', 'updated_at')
+    list_editable = ('display_order', 'is_active')
+    search_fields = ('title',)
 
 
 @admin.register(Cake, site=admin_site)

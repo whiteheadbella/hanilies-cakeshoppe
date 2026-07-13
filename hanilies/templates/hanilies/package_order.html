@@ -2,12 +2,311 @@
 
 {% block title %}Order the Package{% endblock %}
 
+{% block extra_css %}
+<style>
+    .package-inclusion-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .package-included-list {
+        display: grid;
+        gap: 0.85rem;
+    }
+
+    .package-included-item {
+        display: flex;
+        align-items: center;
+        gap: 0.95rem;
+        padding: 0.95rem 1rem;
+        border: 1px solid rgba(214, 174, 106, 0.18);
+        border-radius: 1rem;
+        background: transparent;
+        box-shadow: 0 10px 24px rgba(124, 89, 102, 0.06);
+    }
+
+    .package-included-copy {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        min-width: 0;
+    }
+
+    .package-included-copy strong {
+        display: block;
+        margin: 0;
+    }
+
+    .package-inclusion-card {
+        display: grid;
+        gap: 1rem;
+        padding: 1rem;
+        border: 1px solid rgba(214, 174, 106, 0.18);
+        border-radius: 1.2rem;
+        background: linear-gradient(145deg, rgba(255, 248, 250, 0.98), rgba(255, 255, 255, 1));
+        box-shadow: 0 14px 28px rgba(124, 89, 102, 0.08);
+        transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    }
+
+    .package-inclusion-card:hover {
+        border-color: rgba(211, 138, 116, 0.42);
+        box-shadow: 0 12px 24px rgba(124, 89, 102, 0.08);
+        transform: translateY(-1px);
+    }
+
+    .package-inclusion-card.is-selected {
+        border-color: rgba(209, 74, 114, 0.35);
+        box-shadow: 0 16px 30px rgba(209, 74, 114, 0.14);
+    }
+
+    .package-inclusion-media {
+        width: 72px;
+        min-width: 72px;
+        height: 72px;
+        border-radius: 18px;
+        overflow: hidden;
+        background: linear-gradient(135deg, rgba(255, 241, 244, 0.95), rgba(255, 250, 246, 1));
+        border: 1px solid rgba(214, 174, 106, 0.18);
+    }
+
+    .package-inclusion-media img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+    .package-inclusion-copy strong {
+        display: block;
+        margin-bottom: 0.2rem;
+    }
+
+    .package-inclusion-card__content {
+        display: flex;
+        gap: 0.95rem;
+        align-items: center;
+        cursor: pointer;
+    }
+
+    .package-inclusion-state {
+        margin-left: auto;
+        align-self: flex-start;
+        padding: 0.4rem 0.7rem;
+        border-radius: 999px;
+        background: rgba(214, 174, 106, 0.14);
+        color: #a45a42;
+        font-size: 0.78rem;
+        font-weight: 700;
+    }
+
+    .package-inclusion-controls {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding-top: 0.85rem;
+        border-top: 1px dashed rgba(214, 174, 106, 0.22);
+    }
+
+    .package-inclusion-stepper {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+    }
+
+    .package-inclusion-quantity {
+        width: 84px;
+        text-align: center;
+        border-radius: 999px;
+        font-weight: 700;
+    }
+
+    .package-inclusion-price {
+        color: #7a5563;
+        font-size: 0.92rem;
+        font-weight: 600;
+    }
+
+    .package-addon-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.75rem;
+    }
+
+    .package-addon-card {
+        display: grid;
+        gap: 1rem;
+        min-height: 100%;
+        padding: 1rem;
+        border: 1px solid rgba(214, 174, 106, 0.18);
+        border-radius: 1.25rem;
+        background: linear-gradient(145deg, rgba(255, 248, 250, 0.98), rgba(255, 255, 255, 1));
+        box-shadow: 0 14px 28px rgba(124, 89, 102, 0.08);
+        transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    }
+
+    .package-addon-card:hover {
+        border-color: rgba(211, 138, 116, 0.42);
+        box-shadow: 0 12px 24px rgba(124, 89, 102, 0.08);
+        transform: translateY(-1px);
+    }
+
+    .package-addon-card.is-selected {
+        border-color: rgba(209, 74, 114, 0.35);
+        box-shadow: 0 16px 30px rgba(209, 74, 114, 0.14);
+    }
+
+    .package-addon-media {
+        width: 86px;
+        min-width: 86px;
+        height: 86px;
+        border-radius: 18px;
+        overflow: hidden;
+        background: linear-gradient(135deg, rgba(255, 241, 244, 0.95), rgba(255, 250, 246, 1));
+        border: 1px solid rgba(214, 174, 106, 0.18);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    }
+
+    .package-addon-media img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+    .package-addon-card__content {
+        display: flex;
+        gap: 0.95rem;
+        align-items: center;
+        cursor: pointer;
+    }
+
+    .package-addon-copy {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        min-width: 0;
+    }
+
+    .package-addon-copy strong {
+        display: block;
+        margin-bottom: 0.15rem;
+    }
+
+    .package-addon-state {
+        margin-left: auto;
+        align-self: flex-start;
+        padding: 0.4rem 0.7rem;
+        border-radius: 999px;
+        background: rgba(214, 174, 106, 0.14);
+        color: #a45a42;
+        font-size: 0.78rem;
+        font-weight: 700;
+    }
+
+    .package-addon-controls {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding-top: 0.85rem;
+        border-top: 1px dashed rgba(214, 174, 106, 0.22);
+    }
+
+    .package-addon-stepper {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+    }
+
+    .package-stepper-btn {
+        width: 38px;
+        height: 38px;
+        border: 1px solid rgba(209, 74, 114, 0.18);
+        border-radius: 999px;
+        background: #fff;
+        color: #b85167;
+        font-size: 1rem;
+        font-weight: 700;
+    }
+
+    .package-addon-quantity {
+        width: 84px;
+        text-align: center;
+        border-radius: 999px;
+        font-weight: 700;
+    }
+
+    .package-addon-price {
+        color: #7a5563;
+        font-size: 0.92rem;
+        font-weight: 600;
+    }
+
+    .package-summary-list {
+        display: grid;
+        gap: 0.5rem;
+    }
+
+    .package-summary-line {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        font-size: 0.92rem;
+        color: #5a6470;
+    }
+
+    @media (max-width: 575px) {
+        .package-inclusion-grid,
+        .package-addon-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .package-addon-card__content {
+            align-items: flex-start;
+        }
+
+        .package-inclusion-card__content {
+            align-items: flex-start;
+        }
+
+        .package-addon-media {
+            width: 72px;
+            min-width: 72px;
+            height: 72px;
+            border-radius: 16px;
+        }
+
+        .package-addon-controls {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .package-inclusion-controls {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .package-addon-stepper {
+            justify-content: center;
+        }
+
+        .package-inclusion-stepper {
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container py-4">
     <div class="row mb-4">
         <div class="col-lg-8">
             <h1 class="display-5 fw-bold mb-2">Order the Package</h1>
-            <p class="lead text-muted mb-0">Step 1 of 3: choose the package and optional inclusions for your celebration.</p>
+            <p class="lead text-muted mb-0">Step 1 of 3: review what is already included, then choose any optional package items and add-ons.</p>
         </div>
     </div>
 
@@ -24,7 +323,7 @@
         <div class="col-lg-8">
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-gold-pink text-white py-3">
-                    <h5 class="mb-0"><i class="fas fa-gift me-2"></i>Package Details</h5>
+                    <h5 class="mb-0"><i class="fas fa-gift me-2"></i>Package Order Details</h5>
                 </div>
                 <div class="card-body p-4">
                     <form method="post" id="package-step-one">
@@ -36,7 +335,6 @@
                                 <div>
                                     <div class="small text-muted">Selected package</div>
                                     <div class="h5 mb-1">{{ package.name }}</div>
-                                    <div class="small text-muted">Product Code: {{ package.product_code|default:'Not assigned' }}</div>
                                     <div class="text-muted text-capitalize">{{ package.get_package_type_display }}</div>
                                 </div>
                                 <div class="text-md-end">
@@ -48,25 +346,101 @@
 
                         <div class="mb-4">
                             <label class="form-label fw-semibold">Event Type</label>
-                            <select class="form-select" name="event_type" required>
-                                {% for value, label in event_types %}
-                                <option value="{{ value }}" {% if draft.event_type == value or package.package_type == value %}selected{% endif %}>{{ label }}</option>
-                                {% endfor %}
-                            </select>
+                            <input type="hidden" name="event_type" value="{{ package.package_type }}">
+                            <input type="text" class="form-control" value="{{ package.get_package_type_display }}" readonly>
                         </div>
 
-                        <h6 class="fw-bold mb-3">Optional Add-ons</h6>
-                        <div class="row g-3 mb-4">
-                            {% for option in addon_options %}
-                            <div class="col-md-6">
-                                <label class="form-check border rounded p-3 h-100">
-                                    <input class="form-check-input package-addon" type="checkbox" name="selected_addons" value="{{ option.key }}" data-price="{{ option.price }}" {% if option.key in draft.selected_addons %}checked{% endif %}>
-                                    <span class="form-check-label ms-2">
-                                        <strong>{{ option.label }}</strong><br>
-                                        <span class="text-muted">+ P{{ option.price }}</span>
-                                    </span>
-                                </label>
+                        {% if included_package_items %}
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="fw-bold mb-0">Included in This Package</h6>
                             </div>
+                            <div class="package-included-list">
+                                {% for item in included_package_items %}
+                                <div class="package-included-item">
+                                    {% if item.image_url %}
+                                    <div class="package-inclusion-media">
+                                        <img src="{{ item.image_url }}" alt="{{ item.display_label }}">
+                                    </div>
+                                    {% endif %}
+                                    <div class="package-included-copy">
+                                        <strong>{{ item.display_label }}</strong>
+                                        <span class="text-muted small">Automatically included in {{ package.name }}</span>
+                                    </div>
+                                    <span class="package-inclusion-state">Included</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if package_inclusion_options %}
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="fw-bold mb-0">Optional Package Items</h6>
+                                <span class="small text-muted">Only priced items are selectable and will change the total when chosen.</span>
+                            </div>
+                            <div class="package-inclusion-grid">
+                                {% for item in package_inclusion_options %}
+                                <div class="package-inclusion-card{% if item.is_selected %} is-selected{% endif %}" data-package-inclusion-card data-price="{{ item.price }}">
+                                    <input class="package-inclusion" type="checkbox" name="selected_inclusions" value="{{ item.key }}" {% if item.is_selected %}checked{% endif %} hidden>
+                                    <div class="package-inclusion-card__content" data-package-inclusion-toggle>
+                                        {% if item.image_url %}
+                                        <div class="package-inclusion-media">
+                                            <img src="{{ item.image_url }}" alt="{{ item.display_label }}">
+                                        </div>
+                                        {% endif %}
+                                        <div class="package-inclusion-copy">
+                                            <strong>{{ item.display_label }}</strong>
+                                            <span class="text-muted small">Add this item only if the customer wants it in the package.</span>
+                                        </div>
+                                        <span class="package-inclusion-state" data-package-inclusion-state>{% if item.is_selected %}Qty {{ item.selected_quantity }}{% else %}Optional{% endif %}</span>
+                                    </div>
+                                    <div class="package-inclusion-controls">
+                                        <div class="package-inclusion-stepper">
+                                            <button type="button" class="package-stepper-btn" data-step="-1" aria-label="Decrease {{ item.label }} quantity">-</button>
+                                            <input class="form-control package-inclusion-quantity" type="number" name="inclusion_quantity__{{ item.key }}" value="{{ item.selected_quantity|default:0 }}" min="0" step="1" inputmode="numeric" aria-label="{{ item.label }} quantity" data-default-quantity="{{ item.default_quantity }}">
+                                            <button type="button" class="package-stepper-btn" data-step="1" aria-label="Increase {{ item.label }} quantity">+</button>
+                                        </div>
+                                        <div class="package-inclusion-price">{% if item.price != '0.00' %}P{{ item.price }} each{% else %}No added cost{% endif %}</div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold mb-0">Optional Add-ons</h6>
+                            <span class="small text-muted">Use the quantity stepper to add exactly what you need.</span>
+                        </div>
+                        <div class="package-addon-grid">
+                            {% for option in addon_options %}
+                            <div class="package-addon-card{% if option.is_selected %} is-selected{% endif %}" data-package-addon-card data-price="{{ option.price }}">
+                                <input class="package-addon" type="checkbox" name="selected_addons" value="{{ option.key }}" {% if option.is_selected %}checked{% endif %} hidden>
+                                <div class="package-addon-card__content" data-package-addon-toggle>
+                                    {% if option.image_url %}
+                                    <div class="package-addon-media">
+                                        <img src="{{ option.image_url }}" alt="{{ option.label }} add-on">
+                                    </div>
+                                    {% endif %}
+                                    <span class="package-addon-copy">
+                                        <strong>{{ option.label }}</strong>
+                                        <span class="text-muted">Add a quantity only if you want this extra item included.</span>
+                                    </span>
+                                    <span class="package-addon-state" data-package-addon-state>{% if option.is_selected %}Qty {{ option.selected_quantity }}{% else %}Optional{% endif %}</span>
+                                </div>
+                                <div class="package-addon-controls">
+                                    <div class="package-addon-stepper">
+                                        <button type="button" class="package-stepper-btn" data-step="-1" aria-label="Decrease {{ option.label }} quantity">-</button>
+                                        <input class="form-control package-addon-quantity" type="number" name="addon_quantity__{{ option.key }}" value="{{ option.selected_quantity|default:0 }}" min="0" step="1" inputmode="numeric" aria-label="{{ option.label }} quantity">
+                                        <button type="button" class="package-stepper-btn" data-step="1" aria-label="Increase {{ option.label }} quantity">+</button>
+                                    </div>
+                                    <div class="package-addon-price">P{{ option.price }} each</div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="alert alert-light border mb-0">No optional add-ons are available for this package yet.</div>
                             {% endfor %}
                         </div>
 
@@ -82,29 +456,28 @@
         <div class="col-lg-4">
             <div class="card border-0 shadow-sm sticky-top" style="top: 100px;">
                 <div class="card-header bg-gold-pink text-white py-3">
-                    <h5 class="mb-0"><i class="fas fa-receipt me-2"></i>Package Summary</h5>
+                    <h5 class="mb-0"><i class="fas fa-receipt me-2"></i>Package Order Summary</h5>
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
                         <div class="small text-muted">Package</div>
                         <div class="fw-semibold">{{ package.name }}</div>
-                        <div class="small text-muted">Code: {{ package.product_code|default:'Not assigned' }}</div>
                     </div>
-                    {% if package.included_items %}
-                    <div class="mb-3">
-                        <div class="small text-muted">Included items</div>
-                        <div class="small">{{ package.included_items|linebreaksbr }}</div>
-                    </div>
-                    {% endif %}
                     <hr>
                     <div class="d-flex justify-content-between mb-2">
                         <span>Base Package</span>
                         <span>P{{ package.base_price }}</span>
                     </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Optional Package Items</span>
+                        <span id="inclusion-total">P0.00</span>
+                    </div>
+                    <div class="small text-muted mb-3" id="inclusion-selection-summary">No optional package items selected yet.</div>
                     <div class="d-flex justify-content-between mb-3">
                         <span>Selected Add-ons</span>
                         <span id="addon-total">P0.00</span>
                     </div>
+                    <div class="small text-muted mb-3" id="addon-selection-summary">No add-ons selected yet.</div>
                     <div class="d-flex justify-content-between">
                         <span>Total for Step 1</span>
                         <strong class="text-gold-pink" id="step-one-total">P{{ package.base_price }}</strong>
@@ -119,21 +492,125 @@
 {% block extra_js %}
 <script>
     const packageBasePrice = parseFloat('{{ package.base_price }}');
-    const packageAddonCheckboxes = document.querySelectorAll('.package-addon');
+    const packageInclusionCards = document.querySelectorAll('[data-package-inclusion-card]');
+    const packageAddonCards = document.querySelectorAll('[data-package-addon-card]');
+
+    function getNormalizedPackageQuantity(quantityInput) {
+        const parsed = parseInt(quantityInput.value || '0', 10);
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+    }
+
+    function syncPackageInclusionCard(card) {
+        const checkbox = card.querySelector('.package-inclusion');
+        const quantityInput = card.querySelector('.package-inclusion-quantity');
+        const state = card.querySelector('[data-package-inclusion-state]');
+        const quantity = getNormalizedPackageQuantity(quantityInput);
+
+        quantityInput.value = quantity;
+        checkbox.checked = quantity > 0;
+        card.classList.toggle('is-selected', quantity > 0);
+        state.textContent = quantity > 0 ? `Qty ${quantity}` : 'Optional';
+        return quantity;
+    }
+
+    function syncPackageAddonCard(card) {
+        const checkbox = card.querySelector('.package-addon');
+        const quantityInput = card.querySelector('.package-addon-quantity');
+        const state = card.querySelector('[data-package-addon-state]');
+        const quantity = getNormalizedPackageQuantity(quantityInput);
+
+        quantityInput.value = quantity;
+        checkbox.checked = quantity > 0;
+        card.classList.toggle('is-selected', quantity > 0);
+        state.textContent = quantity > 0 ? `Qty ${quantity}` : 'Optional';
+        return quantity;
+    }
 
     function updatePackageStepOneSummary() {
+        let inclusionTotal = 0;
         let addonTotal = 0;
-        packageAddonCheckboxes.forEach((checkbox) => {
-            if (checkbox.checked) {
-                addonTotal += parseFloat(checkbox.dataset.price || '0');
+        const selectedInclusions = [];
+        const selectedSummaries = [];
+
+        packageInclusionCards.forEach((card) => {
+            const quantity = syncPackageInclusionCard(card);
+            if (quantity > 0) {
+                const label = card.querySelector('.package-inclusion-copy strong').textContent.trim();
+                const unitPrice = parseFloat(card.dataset.price || '0');
+                inclusionTotal += unitPrice * quantity;
+                selectedInclusions.push(quantity > 1 ? `${quantity} x ${label}` : label);
             }
         });
 
+        packageAddonCards.forEach((card) => {
+            const quantity = syncPackageAddonCard(card);
+            if (quantity > 0) {
+                const checkbox = card.querySelector('.package-addon');
+                const label = card.querySelector('.package-addon-copy strong').textContent.trim();
+                const unitPrice = parseFloat(card.dataset.price || '0');
+                addonTotal += unitPrice * quantity;
+                selectedSummaries.push(quantity > 1 ? `${quantity} x ${label}` : label);
+            }
+        });
+
+        document.getElementById('inclusion-total').textContent = `P${inclusionTotal.toFixed(2)}`;
         document.getElementById('addon-total').textContent = `P${addonTotal.toFixed(2)}`;
-        document.getElementById('step-one-total').textContent = `P${(packageBasePrice + addonTotal).toFixed(2)}`;
+        document.getElementById('step-one-total').textContent = `P${(packageBasePrice + inclusionTotal + addonTotal).toFixed(2)}`;
+        document.getElementById('inclusion-selection-summary').textContent = selectedInclusions.length
+            ? selectedInclusions.join(' • ')
+            : 'No optional package items selected yet.';
+        document.getElementById('addon-selection-summary').textContent = selectedSummaries.length
+            ? selectedSummaries.join(' • ')
+            : 'No add-ons selected yet.';
     }
 
-    packageAddonCheckboxes.forEach((checkbox) => checkbox.addEventListener('change', updatePackageStepOneSummary));
+    packageInclusionCards.forEach((card) => {
+        const quantityInput = card.querySelector('.package-inclusion-quantity');
+        const toggleArea = card.querySelector('[data-package-inclusion-toggle]');
+        const defaultQuantity = parseInt(quantityInput.dataset.defaultQuantity || '1', 10) || 1;
+
+        toggleArea.addEventListener('click', () => {
+            if (getNormalizedPackageQuantity(quantityInput) === 0) {
+                quantityInput.value = defaultQuantity;
+                updatePackageStepOneSummary();
+            }
+        });
+
+        card.querySelectorAll('[data-step]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const nextValue = Math.max(0, getNormalizedPackageQuantity(quantityInput) + parseInt(button.dataset.step, 10));
+                quantityInput.value = nextValue;
+                updatePackageStepOneSummary();
+            });
+        });
+
+        quantityInput.addEventListener('input', updatePackageStepOneSummary);
+        quantityInput.addEventListener('change', updatePackageStepOneSummary);
+    });
+
+    packageAddonCards.forEach((card) => {
+        const quantityInput = card.querySelector('.package-addon-quantity');
+        const toggleArea = card.querySelector('[data-package-addon-toggle]');
+
+        toggleArea.addEventListener('click', () => {
+            if (getNormalizedPackageQuantity(quantityInput) === 0) {
+                quantityInput.value = 1;
+                updatePackageStepOneSummary();
+            }
+        });
+
+        card.querySelectorAll('[data-step]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const nextValue = Math.max(0, getNormalizedPackageQuantity(quantityInput) + parseInt(button.dataset.step, 10));
+                quantityInput.value = nextValue;
+                updatePackageStepOneSummary();
+            });
+        });
+
+        quantityInput.addEventListener('input', updatePackageStepOneSummary);
+        quantityInput.addEventListener('change', updatePackageStepOneSummary);
+    });
+
     updatePackageStepOneSummary();
 </script>
 {% endblock %}
