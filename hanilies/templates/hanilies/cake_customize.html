@@ -863,9 +863,8 @@
                                     <div class="col-md-6">
                                         <label class="form-label fw-semibold">Theme / Occasion</label>
                                         <select class="form-select" name="theme" id="theme">
-                                            <option value="">Select Theme</option>
                                             {% for theme in theme_options %}
-                                            <option>{{ theme }}</option>
+                                            <option value="{{ theme }}" {% if selected_theme == theme %}selected{% endif %}>{{ theme }}</option>
                                             {% endfor %}
                                         </select>
                                     </div>

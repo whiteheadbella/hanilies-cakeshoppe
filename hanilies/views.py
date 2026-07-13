@@ -91,6 +91,10 @@ CAKE_THEME_OPTIONS = [
     'Special Occasions',
 ]
 
+CAKE_THEME_OPTIONS_BY_CATEGORY = {
+    value: [label] for value, label in Cake.CAKE_CATEGORIES
+}
+
 CAKE_CATEGORY_VALUES = {value for value, _ in Cake.CAKE_CATEGORIES}
 MAX_PACKAGE_THUMBNAILS = 4
 
@@ -102,6 +106,11 @@ PUBLIC_EVENT_TYPES = [
     choice for choice in PackageOrder.EVENT_TYPES if choice[0] != 'corporate'
 ]
 PUBLIC_EVENT_TYPE_VALUES = {value for value, _ in PUBLIC_EVENT_TYPES}
+
+
+def _get_cake_theme_options_for_category(category_value):
+    return list(CAKE_THEME_OPTIONS_BY_CATEGORY.get(category_value, CAKE_THEME_OPTIONS))
+
 
 CAKE_CUSTOMIZATION_GROUP_SPECS = [
     {'key': 'flavors', 'label': 'Flavors',
@@ -3891,6 +3900,8 @@ def cake_customize(request):
     selected_cake = get_object_or_404(
         cake_queryset, id=selected_cake_id) if selected_cake_id else cake_queryset.order_by('name').first()
     cake_option_groups = _get_cake_storefront_options(selected_cake)
+    theme_options = _get_cake_theme_options_for_category(
+        selected_cake.category)
     decoration_option_lookup = _build_checkbox_option_lookup(
         cake_option_groups['decorations'])
     defaults = _get_profile_defaults(request.user)
@@ -3982,7 +3993,8 @@ def cake_customize(request):
                 deposit_amount=total_price if payment_method == 'gcash' else deposit_amount,
                 balance_due=Decimal(
                     '0.00') if payment_method == 'gcash' else balance_due,
-                theme=request.POST.get('theme', '').strip(),
+                theme=(request.POST.get('theme', '').strip()
+                       or theme_options[0]),
                 size=selected_size['label'] if selected_size else request.POST.get(
                     'size', '').strip(),
                 shape=(selected_shape['label'] if selected_shape else request.POST.get(
@@ -4032,6 +4044,10 @@ def cake_customize(request):
 
     cake_order_label = f'{selected_cake.name} cake order'
     base_deposit_amount, _ = _calculate_deposit_breakdown(selected_cake.price)
+    posted_theme = request.POST.get(
+        'theme', '').strip() if request.method == 'POST' else ''
+    selected_theme = posted_theme if posted_theme in theme_options else (
+        theme_options[0] if theme_options else '')
     context = {
         'cake': selected_cake,
         'cakes': cake_queryset.order_by('name'),
@@ -4041,7 +4057,8 @@ def cake_customize(request):
         'cake_frosting_options': cake_option_groups['frostings'],
         'cake_filling_options': cake_option_groups['fillings'],
         'decoration_options': cake_option_groups['decorations'],
-        'theme_options': CAKE_THEME_OPTIONS,
+        'theme_options': theme_options,
+        'selected_theme': selected_theme,
         'payment_plan_labels': PAYMENT_PLAN_LABELS,
         'selected_payment_method': selected_payment_method,
         'default_deposit_amount': base_deposit_amount,

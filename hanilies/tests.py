@@ -414,6 +414,9 @@ class CakeOrderViewUnitTests(TestCase):
         self.assertContains(response, 'id="summary-total"', html=False)
 
     def test_cake_customize_get_renders_special_occasions_theme_option(self):
+        self.cake.category = 'custom'
+        self.cake.save(update_fields=['category'])
+
         response = self.client.get(reverse('cake_customize'), {
             'cake_id': str(self.cake.id),
         })
@@ -421,6 +424,26 @@ class CakeOrderViewUnitTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Special Occasions')
         self.assertNotContains(response, 'Graduation')
+
+    def test_cake_customize_get_aligns_theme_options_to_selected_cake_category(self):
+        christening_cake = Cake.objects.create(
+            name='Blessed Day Cake',
+            category='christening',
+            description='Cake for christening celebrations.',
+            price=Decimal('1400.00'),
+            stock=3,
+            is_active=True,
+        )
+
+        response = self.client.get(reverse('cake_customize'), {
+            'cake_id': str(christening_cake.id),
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response, '<option value="Christening" selected>Christening</option>', html=False)
+        self.assertNotContains(response, '>Birthday</option>', html=False)
+        self.assertNotContains(response, '>Wedding</option>', html=False)
 
     def test_cake_customize_rejects_gcash_without_reference_and_proof(self):
         response = self.client.post(reverse('cake_customize'), {
