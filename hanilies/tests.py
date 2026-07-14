@@ -393,7 +393,8 @@ class CakeOrderViewUnitTests(TestCase):
         self.assertContains(response, 'Customize')
         self.assertContains(response, 'Review Design')
         self.assertContains(response, 'Confirm')
-        self.assertContains(response, 'Choose Size')
+        self.assertContains(response, 'Choose Tier')
+        self.assertNotContains(response, 'Choose Size')
         self.assertContains(response, 'Choose Shape')
         self.assertContains(response, 'Choose Flavor')
         self.assertContains(response, 'Choose Frosting')
@@ -408,6 +409,40 @@ class CakeOrderViewUnitTests(TestCase):
             response, 'id="cake-checkout-step-confirm"', html=False)
         self.assertContains(response, 'id="cake-order-form"', html=False)
         self.assertContains(response, 'id="summary-total"', html=False)
+
+    def test_cake_customize_uses_cake_size_options_from_admin_builder(self):
+        self.cake.customization_options = {
+            'sizes': [
+                {'value': 'one-tier', 'label': '1 Tier', 'price': '0.00'},
+            ],
+            'cake_sizes': [
+                {'value': 'eight-inches',
+                    'label': '8 Inches', 'price': '125.00'},
+            ],
+            'shapes': [
+                {'label': 'Round', 'price': '0.00'},
+            ],
+            'flavors': [
+                {'label': 'Chocolate', 'price': '0.00'},
+            ],
+            'frostings': [
+                {'label': 'Buttercream', 'price': '0.00'},
+            ],
+            'fillings': [
+                {'label': 'Chocolate Ganache', 'price': '0.00'},
+            ],
+        }
+        self.cake.save(update_fields=['customization_options'])
+
+        response = self.client.get(reverse('cake_customize'), {
+            'cake_id': str(self.cake.id),
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Choose Tier')
+        self.assertContains(response, 'Choose Size')
+        self.assertContains(response, '1 Tier')
+        self.assertContains(response, '8 Inches')
 
     def test_cake_customize_get_renders_special_occasions_theme_option(self):
         self.cake.category = 'custom'
@@ -4493,10 +4528,123 @@ class AdminCakeCustomizationOptionImageTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Option Image')
         self.assertContains(response, 'Cake Tier Options')
+        self.assertContains(response, 'Cake Size Options')
         self.assertContains(response, '+ Add Tier Option')
+        self.assertContains(response, '+ Add Cake Size')
         self.assertContains(response, 'Tier Option Name')
         self.assertContains(response, 'Added Price (P)')
         self.assertNotContains(response, 'Good for 8-20 people')
+
+    def test_admin_cake_add_preloads_default_tier_and_flavor_options(self):
+        response = self.client.get(reverse('admin_cake_add'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '1 Tier')
+        self.assertContains(response, '5 Tier')
+        self.assertContains(response, 'Chocolate')
+        self.assertContains(response, 'Buttercream')
+
+    def test_admin_cake_add_preloads_default_cake_size_inches(self):
+        response = self.client.get(reverse('admin_cake_add'))
+
+        self.assertEqual(response.status_code, 200)
+        option_groups = {
+            group['key']: group['items']
+            for group in response.context['option_editor_groups']
+        }
+
+        self.assertEqual(
+            [item['label'] for item in option_groups['cake_sizes']],
+            ['6 Inches', '8 Inches', '10 Inches', '12 Inches'],
+        )
+
+    def test_admin_cake_edit_preloads_default_builder_options_for_plain_cake(self):
+        cake = Cake.objects.create(
+            name='Plain Catalog Cake',
+            category='birthday',
+            description='Cake without explicit customization options.',
+            price=Decimal('950.00'),
+            stock=4,
+            is_active=True,
+        )
+
+        response = self.client.get(reverse('admin_cake_edit', args=[cake.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '1 Tier')
+        self.assertContains(response, 'Round')
+        self.assertContains(response, 'Chocolate')
+        self.assertContains(response, 'Fresh Flowers')
+
+    def test_admin_cake_edit_keeps_cake_size_options_in_inches_for_tier_only_cakes(self):
+        cake = Cake.objects.create(
+            name='Tier Only Cake',
+            category='birthday',
+            description='Cake with only tier options configured.',
+            price=Decimal('1350.00'),
+            stock=3,
+            is_active=True,
+            customization_options={
+                'sizes': [
+                    {'label': '2 Tier', 'price': '250.00'},
+                ],
+            },
+        )
+
+        response = self.client.get(reverse('admin_cake_edit', args=[cake.id]))
+
+        self.assertEqual(response.status_code, 200)
+        option_groups = {
+            group['key']: group['items']
+            for group in response.context['option_editor_groups']
+        }
+
+        self.assertEqual(
+            [item['label'] for item in option_groups['cake_sizes']],
+            ['6 Inches', '8 Inches', '10 Inches', '12 Inches'],
+        )
+        self.assertEqual(
+            [item['label'] for item in option_groups['sizes']],
+            ['1 Tier', '2 Tier', '3 Tier', '4 Tier', '5 Tier'],
+        )
+
+    def test_admin_cake_edit_removes_legacy_tier_rows_from_cake_size_options(self):
+        cake = Cake.objects.create(
+            name='Legacy Size Cake',
+            category='birthday',
+            description='Cake with legacy tier rows saved in cake size options.',
+            price=Decimal('1450.00'),
+            stock=3,
+            is_active=True,
+            customization_options={
+                'sizes': [
+                    {'label': '1 Tier', 'price': '0.00'},
+                    {'label': '2 Tier', 'price': '250.00'},
+                ],
+                'cake_sizes': [
+                    {'label': '1 Tier', 'price': '0.00'},
+                    {'label': '8 Inches', 'price': '125.00'},
+                    {'label': '10 Inches', 'price': '225.00'},
+                ],
+            },
+        )
+
+        response = self.client.get(reverse('admin_cake_edit', args=[cake.id]))
+
+        self.assertEqual(response.status_code, 200)
+        option_groups = {
+            group['key']: group['items']
+            for group in response.context['option_editor_groups']
+        }
+
+        self.assertEqual(
+            [item['label'] for item in option_groups['cake_sizes']],
+            ['6 Inches', '8 Inches', '10 Inches', '12 Inches'],
+        )
+        self.assertEqual(
+            [item['price'] for item in option_groups['cake_sizes']],
+            ['10.00', '125.00', '225.00', '50.00'],
+        )
 
     def test_admin_cake_add_saves_size_price_adjustments(self):
         response = self.client.post(reverse('admin_cake_add'), {
@@ -4519,6 +4667,32 @@ class AdminCakeCustomizationOptionImageTests(TestCase):
             cake.customization_options['sizes'][0]['label'], '4 Tier')
         self.assertEqual(
             cake.customization_options['sizes'][0]['price'], '1800.00')
+
+    def test_admin_cake_add_saves_cake_size_options_and_syncs_tier_options(self):
+        response = self.client.post(reverse('admin_cake_add'), {
+            'name': 'Cake Size Option Cake',
+            'category': 'birthday',
+            'description': 'Cake with separate cake size option card.',
+            'price': '1950.00',
+            'stock': '3',
+            'is_active': 'on',
+            'customization_options_payload': json.dumps({
+                'cake_sizes': [
+                    {'label': 'Celebration Tier', 'price': '275.00'},
+                ],
+            }),
+        })
+
+        self.assertEqual(response.status_code, 302)
+        cake = Cake.objects.get(name='Cake Size Option Cake')
+        self.assertEqual(
+            cake.customization_options['cake_sizes'][0]['label'], 'Celebration Tier')
+        self.assertEqual(
+            cake.customization_options['cake_sizes'][0]['price'], '275.00')
+        self.assertEqual(
+            cake.customization_options['sizes'][0]['label'], 'Celebration Tier')
+        self.assertEqual(
+            cake.customization_options['sizes'][0]['price'], '275.00')
 
     def test_admin_cake_add_saves_customization_option_image(self):
         response = self.client.post(reverse('admin_cake_add'), {

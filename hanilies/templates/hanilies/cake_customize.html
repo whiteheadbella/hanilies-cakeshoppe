@@ -377,6 +377,15 @@
         display: none;
     }
 
+    .attribute-selector-header p.attribute-selector-header-note--visible {
+        color: #8b7280;
+        display: block;
+        font-size: 0.82rem;
+        line-height: 1.45;
+        margin: 0;
+        max-width: 520px;
+    }
+
     .attribute-indicator {
         align-items: center;
         border-radius: 999px;
@@ -877,13 +886,13 @@
                                             <div class="attribute-selector-section">
                                                 <div class="attribute-selector-header">
                                                     <div>
-                                                        <h6 class="fw-bold">Choose Size</h6>
-                                                        <p>Choose one cake size.</p>
+                                                        <h6 class="fw-bold">Choose Tier</h6>
+                                                        <p class="attribute-selector-header-note--visible">These tier choices come from Cake Customization Builder under Cake Tier Options.</p>
                                                     </div>
                                                     <span class="attribute-indicator is-required">Required</span>
                                                 </div>
                                                 <div class="attribute-card-grid">
-                                                    {% for option in cake_size_options %}
+                                                    {% for option in cake_tier_options %}
                                                     <label class="attribute-card">
                                                         <input class="attribute-card-input cake-attribute-input" type="radio" name="size" value="{{ option.value }}" data-price="{{ option.price }}" data-label="{{ option.label }}" {% if forloop.first %}checked required{% endif %}>
                                                         <span class="attribute-card-body">
@@ -903,6 +912,38 @@
                                                     {% endfor %}
                                                 </div>
                                             </div>
+
+                                            {% if show_cake_size_options %}
+                                            <div class="attribute-selector-section">
+                                                <div class="attribute-selector-header">
+                                                    <div>
+                                                        <h6 class="fw-bold">Choose Size</h6>
+                                                        <p class="attribute-selector-header-note--visible">These size choices come from Cake Customization Builder under Cake Size Options.</p>
+                                                    </div>
+                                                    <span class="attribute-indicator is-required">Required</span>
+                                                </div>
+                                                <div class="attribute-card-grid">
+                                                    {% for option in cake_size_options %}
+                                                    <label class="attribute-card">
+                                                        <input class="attribute-card-input cake-attribute-input" type="radio" name="size" value="{{ option.value }}" data-price="{{ option.price }}" data-label="{{ option.label }}">
+                                                        <span class="attribute-card-body">
+                                                            {% if option.image_url %}
+                                                            <span class="attribute-card-media">
+                                                                <img src="{{ option.image_url }}" alt="{{ option.label }} size option">
+                                                            </span>
+                                                            {% endif %}
+                                                            <span class="attribute-card-title-row">
+                                                                <span class="attribute-card-title">{{ option.label }}</span>
+                                                                <span class="attribute-card-price">{% if option.price != '0.00' %}+ P{{ option.price }}{% else %}Included{% endif %}</span>
+                                                            </span>
+                                                            <span class="attribute-card-note">Single-select card for cake size.</span>
+                                                            {% if option.price != '0.00' %}<span class="attribute-card-meta">Adds to the base cake price.</span>{% endif %}
+                                                        </span>
+                                                    </label>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                            {% endif %}
 
                                             <div class="attribute-selector-section">
                                                 <div class="attribute-selector-header">

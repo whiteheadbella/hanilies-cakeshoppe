@@ -116,6 +116,8 @@ def _get_cake_theme_options_for_category(category_value):
 CAKE_CUSTOMIZATION_GROUP_SPECS = [
     {'key': 'sizes', 'label': 'Cake Tier Options',
         'item_label': 'Tier Option', 'input_type': 'select'},
+    {'key': 'cake_sizes', 'label': 'Cake Size Options',
+        'item_label': 'Cake Size', 'input_type': 'select'},
     {'key': 'flavors', 'label': 'Flavors',
         'item_label': 'Flavor', 'input_type': 'select'},
     {'key': 'shapes', 'label': 'Shapes',
@@ -161,6 +163,12 @@ DEFAULT_CAKE_CUSTOMIZATION_OPTIONS = {
         {'label': '4 Tier', 'price': '0.00'},
         {'label': '5 Tier', 'price': '0.00'},
     ],
+    'cake_sizes': [
+        {'label': '6 Inches', 'price': '10.00'},
+        {'label': '8 Inches', 'price': '20.00'},
+        {'label': '10 Inches', 'price': '30.00'},
+        {'label': '12 Inches', 'price': '50.00'},
+    ],
     'shapes': [
         {'label': 'Round', 'price': '0.00'},
         {'label': 'Square', 'price': '0.00'},
@@ -186,6 +194,11 @@ DEFAULT_CAKE_CUSTOMIZATION_OPTIONS = {
         {'key': 'sprinkles', 'label': 'Edible Sprinkles', 'price': '100.00'},
         {'key': 'fresh_fruits', 'label': 'Fresh Fruit Toppings', 'price': '200.00'},
     ],
+}
+
+LEGACY_CAKE_SIZE_TIER_LABELS = {
+    item['label'].strip().lower()
+    for item in DEFAULT_CAKE_CUSTOMIZATION_OPTIONS['sizes']
 }
 
 DEFAULT_PACKAGE_CUSTOMIZATION_OPTIONS = {
@@ -1976,6 +1989,61 @@ def _normalize_option_groups(raw_groups, specs):
     return normalized
 
 
+def _clone_option_items(option_items, input_type):
+    cloned_items = []
+    for item in option_items or []:
+        label = str(item.get('label') or '').strip()
+        if not label:
+            continue
+
+        cloned_item = {
+            'label': label,
+            'price': f'{_parse_decimal(item.get("price", "0.00")):.2f}',
+        }
+
+        if input_type == 'checkbox':
+            option_key = str(item.get('key') or '').strip()
+            if option_key:
+                cloned_item['key'] = option_key
+        else:
+            option_value = str(item.get('value') or label).strip()
+            if option_value:
+                cloned_item['value'] = option_value
+
+        image_path = str(item.get('image') or '').strip()
+        if image_path:
+            cloned_item['image'] = image_path
+
+        cloned_items.append(cloned_item)
+
+    return cloned_items
+
+
+def _synchronize_cake_size_option_groups(raw_groups):
+    normalized = _normalize_option_groups(
+        raw_groups, CAKE_CUSTOMIZATION_GROUP_SPECS)
+    filtered_cake_sizes = [
+        item for item in normalized.get('cake_sizes', [])
+        if str(item.get('label') or '').strip().lower() not in LEGACY_CAKE_SIZE_TIER_LABELS
+    ]
+    if filtered_cake_sizes:
+        normalized['cake_sizes'] = filtered_cake_sizes
+    else:
+        normalized.pop('cake_sizes', None)
+
+    has_tier_options = bool(normalized.get('sizes'))
+    has_size_options = bool(normalized.get('cake_sizes'))
+
+    if has_tier_options and has_size_options:
+        return normalized
+
+    if has_size_options:
+        normalized['sizes'] = _clone_option_items(
+            normalized['cake_sizes'], 'select')
+
+    return normalized
+
+
 def _build_option_merge_identity(item, input_type):
     if input_type == 'checkbox':
         return (item.get('key') or item.get('label') or '').strip().lower()
@@ -2018,8 +2086,11 @@ def _merge_option_item_lists(default_items, configured_items, input_type):
     return merged_items
 
 
-def _build_option_editor_groups(raw_groups, specs):
-    normalized = _normalize_option_groups(raw_groups, specs)
+def _build_option_editor_groups(raw_groups, specs, default_groups=None):
+    if default_groups:
+        normalized = _merge_option_groups(raw_groups, default_groups, specs)
+    else:
+        normalized = _normalize_option_groups(raw_groups, specs)
     return [
         {
             **spec,
@@ -2197,7 +2268,9 @@ def _resolve_selected_option(selected_value, option_items):
 
 def _get_cake_storefront_options(cake):
     return _build_storefront_option_groups(
-        getattr(cake, 'customization_options', {}),
+        _synchronize_cake_size_option_groups(
+            getattr(cake, 'customization_options', {}),
+        ),
         DEFAULT_CAKE_CUSTOMIZATION_OPTIONS,
         CAKE_CUSTOMIZATION_GROUP_SPECS,
     )
@@ -3956,6 +4029,16 @@ def cake_customize(request):
     selected_cake = get_object_or_404(
         cake_queryset, id=selected_cake_id) if selected_cake_id else cake_queryset.order_by('name').first()
     cake_option_groups = _get_cake_storefront_options(selected_cake)
+    cake_tier_options = cake_option_groups['sizes']
+    cake_size_options = cake_option_groups['cake_sizes']
+    show_cake_size_options = cake_size_options != cake_tier_options
+    cake_size_selection_options = cake_tier_options
+    if show_cake_size_options:
+        cake_size_selection_options = _merge_option_item_lists(
+            cake_tier_options,
+            cake_size_options,
+            'select',
+        )
     theme_options = _get_cake_theme_options_for_category(
         selected_cake.category)
     decoration_option_lookup = _build_checkbox_option_lookup(
@@ -3985,7 +4068,7 @@ def cake_customize(request):
         decoration_labels, decoration_total = _get_selected_option_labels(
             selected_decorations, decoration_option_lookup)
         selected_size = _resolve_selected_option(
-            request.POST.get('size'), cake_option_groups['sizes'])
+            request.POST.get('size'), cake_size_selection_options)
         selected_shape = _resolve_selected_option(
             request.POST.get('shape'), cake_option_groups['shapes'])
         selected_flavor = _resolve_selected_option(
@@ -4106,7 +4189,9 @@ def cake_customize(request):
     context = {
         'cake': selected_cake,
         'cakes': cake_queryset.order_by('name'),
-        'cake_size_options': cake_option_groups['sizes'],
+        'cake_tier_options': cake_tier_options,
+        'cake_size_options': cake_size_options,
+        'show_cake_size_options': show_cake_size_options,
         'cake_shape_options': cake_option_groups['shapes'],
         'cake_flavor_options': cake_option_groups['flavors'],
         'cake_frosting_options': cake_option_groups['frostings'],
@@ -4874,9 +4959,11 @@ def admin_cake_add(request):
 
     if request.method == 'POST':
         try:
-            customization_options = _parse_customization_options_payload(
-                request.POST.get('customization_options_payload'),
-                CAKE_CUSTOMIZATION_GROUP_SPECS,
+            customization_options = _synchronize_cake_size_option_groups(
+                _parse_customization_options_payload(
+                    request.POST.get('customization_options_payload'),
+                    CAKE_CUSTOMIZATION_GROUP_SPECS,
+                )
             )
             # Get form data
             name = request.POST.get('name')
@@ -4888,8 +4975,11 @@ def admin_cake_add(request):
                     'admin_menu': get_admin_menu(request),
                     'cake_categories': Cake.CAKE_CATEGORIES,
                     'option_editor_groups': _build_option_editor_groups(
-                        customization_options,
+                        _synchronize_cake_size_option_groups(
+                            customization_options,
+                        ),
                         CAKE_CUSTOMIZATION_GROUP_SPECS,
+                        DEFAULT_CAKE_CUSTOMIZATION_OPTIONS,
                     ),
                 })
 
@@ -4921,6 +5011,9 @@ def admin_cake_add(request):
                 product_prefix='cake-options',
                 object_id=cake.id,
             )
+            customization_options = _synchronize_cake_size_option_groups(
+                customization_options,
+            )
             if customization_options != cake.customization_options:
                 cake.customization_options = customization_options
                 cake.save(update_fields=['customization_options'])
@@ -4941,8 +5034,9 @@ def admin_cake_add(request):
                 'admin_menu': get_admin_menu(request),
                 'cake_categories': Cake.CAKE_CATEGORIES,
                 'option_editor_groups': _build_option_editor_groups(
-                    {},
+                    _synchronize_cake_size_option_groups({}),
                     CAKE_CUSTOMIZATION_GROUP_SPECS,
+                    DEFAULT_CAKE_CUSTOMIZATION_OPTIONS,
                 ),
             })
         except Exception as e:
@@ -4953,8 +5047,9 @@ def admin_cake_add(request):
         'admin_menu': get_admin_menu(request),
         'cake_categories': Cake.CAKE_CATEGORIES,
         'option_editor_groups': _build_option_editor_groups(
-            {},
+            _synchronize_cake_size_option_groups({}),
             CAKE_CUSTOMIZATION_GROUP_SPECS,
+            DEFAULT_CAKE_CUSTOMIZATION_OPTIONS,
         ),
     })
 
@@ -4975,9 +5070,11 @@ def admin_cake_edit(request, cake_id):
                 cake.customization_options,
                 CAKE_CUSTOMIZATION_GROUP_SPECS,
             )
-            customization_options = _parse_customization_options_payload(
-                request.POST.get('customization_options_payload'),
-                CAKE_CUSTOMIZATION_GROUP_SPECS,
+            customization_options = _synchronize_cake_size_option_groups(
+                _parse_customization_options_payload(
+                    request.POST.get('customization_options_payload'),
+                    CAKE_CUSTOMIZATION_GROUP_SPECS,
+                )
             )
             # Update basic info
             cake.name = request.POST.get('name')
@@ -4990,8 +5087,11 @@ def admin_cake_edit(request, cake_id):
                     'admin_menu': get_admin_menu(request),
                     'cake_categories': Cake.CAKE_CATEGORIES,
                     'option_editor_groups': _build_option_editor_groups(
-                        customization_options,
+                        _synchronize_cake_size_option_groups(
+                            customization_options,
+                        ),
                         CAKE_CUSTOMIZATION_GROUP_SPECS,
+                        DEFAULT_CAKE_CUSTOMIZATION_OPTIONS,
                     ),
                 })
 
@@ -5022,6 +5122,9 @@ def admin_cake_edit(request, cake_id):
                 product_prefix='cake-options',
                 object_id=cake.id,
             )
+            customization_options = _synchronize_cake_size_option_groups(
+                customization_options,
+            )
             cake.customization_options = customization_options
 
             cake.save()
@@ -5049,8 +5152,11 @@ def admin_cake_edit(request, cake_id):
                 'admin_menu': get_admin_menu(request),
                 'cake_categories': Cake.CAKE_CATEGORIES,
                 'option_editor_groups': _build_option_editor_groups(
-                    cake.customization_options,
+                    _synchronize_cake_size_option_groups(
+                        cake.customization_options,
+                    ),
                     CAKE_CUSTOMIZATION_GROUP_SPECS,
+                    DEFAULT_CAKE_CUSTOMIZATION_OPTIONS,
                 ),
             })
         except Exception as e:
@@ -5062,8 +5168,11 @@ def admin_cake_edit(request, cake_id):
         'admin_menu': get_admin_menu(request),
         'cake_categories': Cake.CAKE_CATEGORIES,
         'option_editor_groups': _build_option_editor_groups(
-            cake.customization_options,
+            _synchronize_cake_size_option_groups(
+                cake.customization_options,
+            ),
             CAKE_CUSTOMIZATION_GROUP_SPECS,
+            DEFAULT_CAKE_CUSTOMIZATION_OPTIONS,
         ),
     })
 
