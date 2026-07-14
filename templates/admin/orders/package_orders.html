@@ -14,7 +14,7 @@
     </div>
     <table class="module-table" data-pagination-mode="server">
         <thead>
-            <tr><th>Order ID</th><th>Customer</th><th>Package</th><th>Event Type</th><th>Event Date</th><th>Total</th><th>Status</th><th>Actions</th></tr>
+            <tr><th>Order ID</th><th>Customer</th><th>Package</th><th>Event Type</th><th>Event Date</th><th>Total</th><th>Status</th><th>Latest Payment</th><th>Last Activity</th><th>Actions</th></tr>
         </thead>
         <tbody>
             {% for order in orders %}
@@ -26,6 +26,15 @@
                 <td>{{ order.event_date|date:"Y-m-d" }}</td>
                 <td>₱{{ order.total_price }}</td>
                 <td><span class="status-badge status-{{ order.order_status }}">{{ order.get_order_status_display }}</span></td>
+                <td>
+                    {% if order.latest_payment_status %}
+                    <div><span class="status-badge status-{{ order.latest_payment_status }}">{{ order.latest_payment_status_label }}</span></div>
+                    {% if order.latest_payment_summary_label %}<small>{{ order.latest_payment_summary_label }}</small>{% endif %}
+                    {% else %}
+                    <span class="text-muted small">No payment yet</span>
+                    {% endif %}
+                </td>
+                <td>{{ order.last_activity_at|date:"Y-m-d H:i" }}</td>
                 <td>
                     <a href="{% url 'admin_package_order_view' order.id %}?next={{ request.get_full_path|urlencode }}" class="btn-preview" style="margin-right: 8px;">
                         <i class="fas fa-eye"></i> Preview Summary
@@ -66,7 +75,7 @@
                 </td>
             </tr>
             {% empty %}
-            <tr><td colspan="8" class="text-center">No package orders yet</td></tr>
+            <tr><td colspan="10" class="text-center">No package orders yet</td></tr>
             {% endfor %}
         </tbody>
     </table>

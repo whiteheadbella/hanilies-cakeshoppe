@@ -792,6 +792,34 @@ class CakeOrderViewUnitTests(TestCase):
         self.assertEqual(CakeOrder.objects.count(), 1)
         self.assertEqual(Payment.objects.count(), 2)
 
+    def test_cake_customize_accepts_valid_payment_proof_with_generic_content_type(self):
+        generated_reference = self._cake_checkout_reference()
+
+        response = self.client.post(reverse('cake_customize'), {
+            'cake_id': str(self.cake.id),
+            'quantity': '1',
+            'payment_method': 'cod',
+            'payment_amount': '600.00',
+            'reference_number': generated_reference,
+            'proof_image': build_test_image_upload(
+                'octet-stream-proof.jpg',
+                content_type='application/octet-stream',
+                reference_number=generated_reference,
+                amount='600.00',
+            ),
+            'delivery_date': self._cake_delivery_date(),
+            'delivery_street_address': '123 Rizal Street',
+            'delivery_barangay': 'Poblacion 1',
+            'delivery_city': 'Oroquieta City',
+            'contact_name': 'Cake Tester',
+            'contact_phone': '09123456789',
+            'contact_email': 'cake@example.com',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(CakeOrder.objects.count(), 1)
+        self.assertEqual(Payment.objects.count(), 2)
+
     def test_cake_customize_allows_manual_review_with_valid_image_proof(self):
         generated_reference = self._cake_checkout_reference()
 
@@ -1511,6 +1539,41 @@ class PackageFlowUnitTests(TestCase):
                 reference_number=generated_reference,
                 amount='3250.00',
                 include_receipt_text=False,
+            ),
+        })
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(PackageOrder.objects.count(), 1)
+        self.assertEqual(Payment.objects.count(), 2)
+
+    def test_package_payment_accepts_valid_payment_proof_with_generic_content_type(self):
+        session = self.client.session
+        session['package_order_draft'] = {
+            'package_id': str(self.package.id),
+            'event_type': 'kids_birthday',
+            'selected_addon_labels': [],
+            'base_total': '6500.00',
+            'cake_custom_total': '0.00',
+        }
+        session.save()
+        generated_reference = self._package_checkout_reference()
+
+        response = self.client.post(reverse('package_payment'), {
+            'event_type': 'kids_birthday',
+            'event_date': self._package_event_date(),
+            'event_time': '14:30',
+            'venue': 'Clarin Gymnasium',
+            'contact_name': 'Package Tester',
+            'contact_phone': '09999999999',
+            'contact_email': 'package@example.com',
+            'payment_method': 'cod',
+            'payment_amount': '3250.00',
+            'reference_number': generated_reference,
+            'proof_image': build_test_image_upload(
+                'octet-stream-package-proof.jpg',
+                content_type='application/octet-stream',
+                reference_number=generated_reference,
+                amount='3250.00',
             ),
         })
 
@@ -3355,6 +3418,51 @@ class SecurityValidationTests(TestCase):
         self.assertContains(response, reverse(
             'admin_cake_order_view', args=[order.id]))
 
+    def test_admin_cake_orders_page_shows_latest_payment_status_and_recent_payment_activity_first(self):
+        older_order = CakeOrder.objects.create(
+            user=self.viewer,
+            cake=self.cake,
+            quantity=1,
+            total_price=Decimal('999.00'),
+            order_status='pending',
+            contact_name='Viewer User',
+            contact_phone='09123456789',
+            contact_email='viewer@example.com',
+        )
+        newer_order = CakeOrder.objects.create(
+            user=self.viewer,
+            cake=self.cake,
+            quantity=1,
+            total_price=Decimal('1099.00'),
+            order_status='pending',
+            contact_name='Viewer User',
+            contact_phone='09123456789',
+            contact_email='viewer@example.com',
+        )
+        stale_time = timezone.now() - timedelta(days=1)
+        CakeOrder.objects.filter(id=older_order.id).update(
+            created_at=stale_time,
+            updated_at=stale_time,
+        )
+        Payment.objects.create(
+            amount=Decimal('999.00'),
+            payment_method='gcash',
+            payment_purpose='full',
+            payment_status='verifying',
+            cake_order=older_order,
+            reference_number='CAKE-ADMIN-001',
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.get(reverse('admin_cake_orders'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Under Verification')
+        self.assertContains(response, 'Full Payment via GCash')
+        self.assertEqual(response.context['orders'][0].id, older_order.id)
+        self.assertIn(reverse('admin_cake_order_view', args=[
+                      older_order.id]), response.content.decode())
+
     def test_admin_can_delete_package_order_via_post_route(self):
         order = PackageOrder.objects.create(
             user=self.viewer,
@@ -3572,6 +3680,57 @@ class SecurityValidationTests(TestCase):
         self.assertContains(response, 'Preview Summary')
         self.assertContains(response, reverse(
             'admin_package_order_view', args=[order.id]))
+
+    def test_admin_package_orders_page_shows_latest_payment_status_and_recent_payment_activity_first(self):
+        older_order = PackageOrder.objects.create(
+            user=self.viewer,
+            package=self.package,
+            total_price=Decimal('5000.00'),
+            order_status='pending',
+            event_type='christening',
+            event_date=date(2026, 6, 1),
+            event_time=time(10, 30),
+            venue='Oroquieta City Hall',
+            contact_name='Viewer User',
+            contact_phone='09123456789',
+            contact_email='viewer@example.com',
+        )
+        newer_order = PackageOrder.objects.create(
+            user=self.viewer,
+            package=self.package,
+            total_price=Decimal('6500.00'),
+            order_status='pending',
+            event_type='christening',
+            event_date=date(2026, 6, 2),
+            event_time=time(11, 30),
+            venue='Oroquieta City Hall',
+            contact_name='Viewer User',
+            contact_phone='09123456789',
+            contact_email='viewer@example.com',
+        )
+        stale_time = timezone.now() - timedelta(days=1)
+        PackageOrder.objects.filter(id=older_order.id).update(
+            created_at=stale_time,
+            updated_at=stale_time,
+        )
+        Payment.objects.create(
+            amount=Decimal('5000.00'),
+            payment_method='gcash',
+            payment_purpose='deposit',
+            payment_status='verifying',
+            package_order=older_order,
+            reference_number='PACKAGE-ADMIN-001',
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.get(reverse('admin_package_orders'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Under Verification')
+        self.assertContains(response, 'Deposit via GCash')
+        self.assertEqual(response.context['orders'][0].id, older_order.id)
+        self.assertIn(reverse('admin_package_order_view', args=[
+                      older_order.id]), response.content.decode())
 
 
 class OrderStatusNotificationTests(TestCase):

@@ -24,7 +24,8 @@ from django.urls import reverse, reverse_lazy
 from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from django.core.exceptions import PermissionDenied
-from django.db.models import Sum, Count, Q
+from django.db.models import Sum, Count, Q, OuterRef, Subquery, DateTimeField, F, Prefetch
+from django.db.models.functions import Coalesce, Greatest
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.text import slugify
@@ -405,7 +406,12 @@ PAYMENT_PROOF_MAX_BYTES = 5 * 1024 * 1024
 PAYMENT_PROOF_ALLOWED_FORMATS = {'JPEG', 'PNG'}
 PAYMENT_PROOF_ALLOWED_CONTENT_TYPES = {
     'image/jpeg',
+    'image/jpg',
     'image/png',
+}
+PAYMENT_PROOF_GENERIC_CONTENT_TYPES = {
+    'application/octet-stream',
+    'binary/octet-stream',
 }
 ADMIN_MENU_ITEMS = [
     {'name': 'Dashboard', 'url': 'admin_dashboard',
@@ -522,7 +528,7 @@ def _validate_checkout_payment_submission(reference_number, proof_image, expecte
         return None, 'The uploaded payment proof must be 5 MB or smaller.'
 
     content_type = str(getattr(proof_image, 'content_type', '') or '').lower()
-    if content_type and content_type not in PAYMENT_PROOF_ALLOWED_CONTENT_TYPES:
+    if content_type and content_type not in PAYMENT_PROOF_ALLOWED_CONTENT_TYPES and content_type not in PAYMENT_PROOF_GENERIC_CONTENT_TYPES:
         return None, 'Only JPG, JPEG, and PNG files are allowed.'
 
     try:
@@ -553,7 +559,7 @@ def _validate_optional_design_reference_upload(uploaded_image):
 
     content_type = str(
         getattr(uploaded_image, 'content_type', '') or '').lower()
-    if content_type and content_type not in PAYMENT_PROOF_ALLOWED_CONTENT_TYPES:
+    if content_type and content_type not in PAYMENT_PROOF_ALLOWED_CONTENT_TYPES and content_type not in PAYMENT_PROOF_GENERIC_CONTENT_TYPES:
         return 'Only JPG, JPEG, and PNG files are allowed for the design reference.'
 
     try:
@@ -945,6 +951,10 @@ def _can_view_order_for_role(user, order):
 
 
 def _decorate_admin_orders_with_actions(orders, request):
+    payment_status_labels = dict(Payment.PAYMENT_STATUS)
+    payment_method_labels = dict(Payment.PAYMENT_METHODS)
+    payment_purpose_labels = dict(Payment.PAYMENT_PURPOSES)
+
     for order in orders:
         if order.is_archived:
             order.allowed_status_updates = []
@@ -954,7 +964,54 @@ def _decorate_admin_orders_with_actions(orders, request):
         order.can_archive = _is_full_access_user(request.user)
         order.archive_action_label = 'Restore Order' if order.is_archived else 'Archive Order'
         order.archive_confirm_label = 'Restore' if order.is_archived else 'Archive'
+        order.latest_payment_status_label = payment_status_labels.get(
+            getattr(order, 'latest_payment_status', ''),
+            'No Payment Yet',
+        )
+        order.latest_payment_method_label = payment_method_labels.get(
+            getattr(order, 'latest_payment_method', ''),
+            '',
+        )
+        order.latest_payment_purpose_label = payment_purpose_labels.get(
+            getattr(order, 'latest_payment_purpose', ''),
+            '',
+        )
+        if order.latest_payment_purpose_label and order.latest_payment_method_label:
+            order.latest_payment_summary_label = (
+                f'{order.latest_payment_purpose_label} via {order.latest_payment_method_label}'
+            )
+        else:
+            order.latest_payment_summary_label = (
+                order.latest_payment_purpose_label or order.latest_payment_method_label
+            )
     return orders
+
+
+def _build_admin_order_payment_prefetch():
+    return Prefetch('payments', queryset=Payment.objects.order_by('-updated_at', '-id'))
+
+
+def _annotate_admin_order_activity(queryset, payment_relation_field):
+    latest_payment_queryset = Payment.objects.filter(
+        **{payment_relation_field: OuterRef('pk')}
+    ).order_by('-updated_at', '-id')
+    latest_payment_updated_at = Subquery(
+        latest_payment_queryset.values('updated_at')[:1],
+        output_field=DateTimeField(),
+    )
+    return queryset.annotate(
+        latest_payment_status=Subquery(
+            latest_payment_queryset.values('payment_status')[:1]),
+        latest_payment_method=Subquery(
+            latest_payment_queryset.values('payment_method')[:1]),
+        latest_payment_purpose=Subquery(
+            latest_payment_queryset.values('payment_purpose')[:1]),
+        latest_payment_updated_at=latest_payment_updated_at,
+        last_activity_at=Greatest(
+            F('updated_at'),
+            Coalesce(latest_payment_updated_at, F('updated_at')),
+        ),
+    )
 
 
 def _create_checkout_payments(order, selected_plan, reference_number, proof_image):
@@ -5057,8 +5114,12 @@ def admin_cake_orders(request):
         return access_denied
 
     is_archived_view = _is_archived_admin_view(request)
-    orders_queryset = CakeOrder.objects.select_related('user', 'cake').filter(
-        is_archived=is_archived_view).order_by('-created_at')
+    orders_queryset = _annotate_admin_order_activity(
+        CakeOrder.objects.select_related('user', 'cake').filter(
+            is_archived=is_archived_view,
+        ),
+        'cake_order',
+    ).order_by('-last_activity_at', '-created_at')
     if _get_user_role_value(request.user) == 'baker':
         orders_queryset = orders_queryset.filter(order_status__in=[
                                                  'confirmed', 'preparing', 'ready_for_pickup', 'out_for_delivery', 'completed'])
@@ -5083,7 +5144,7 @@ def admin_cake_order_view(request, order_id):
 
     order = get_object_or_404(
         CakeOrder.objects.select_related(
-            'user', 'cake', 'customization').prefetch_related('payments'),
+            'user', 'cake', 'customization').prefetch_related(_build_admin_order_payment_prefetch()),
         id=order_id,
     )
     if not _can_view_order_for_role(request.user, order):
@@ -5482,8 +5543,12 @@ def admin_package_orders(request):
         return access_denied
 
     is_archived_view = _is_archived_admin_view(request)
-    orders_queryset = PackageOrder.objects.select_related('user', 'package').filter(
-        is_archived=is_archived_view).order_by('-created_at')
+    orders_queryset = _annotate_admin_order_activity(
+        PackageOrder.objects.select_related('user', 'package').filter(
+            is_archived=is_archived_view,
+        ),
+        'package_order',
+    ).order_by('-last_activity_at', '-created_at')
     if _get_user_role_value(request.user) == 'packager':
         orders_queryset = orders_queryset.filter(order_status__in=[
                                                  'confirmed', 'preparing', 'ready_for_pickup', 'out_for_delivery', 'completed'])
@@ -5508,7 +5573,7 @@ def admin_package_order_view(request, order_id):
 
     order = get_object_or_404(
         PackageOrder.objects.select_related(
-            'user', 'package').prefetch_related('payments', 'package__thumbnails'),
+            'user', 'package').prefetch_related(_build_admin_order_payment_prefetch(), 'package__thumbnails'),
         id=order_id,
     )
     if not _can_view_order_for_role(request.user, order):
