@@ -15,7 +15,13 @@
                 <div class="product-option-group__header">
                     <div>
                         <h3>{{ group.label }}</h3>
-                        <p>Add {{ group.item_label|lower }} choices and optional price adjustments.</p>
+                        {% if group.key == 'sizes' %}
+                        <p>Add tier choices, set the added price for each tier, and upload an image for every option.</p>
+                        {% elif group.key == 'cake_sizes' %}
+                        <p>Add cake-size choices, set the added price for each option, and upload an image for every option.</p>
+                        {% else %}
+                        <p>Add {{ group.item_label|lower }} choices and optional added-price adjustments.</p>
+                        {% endif %}
                     </div>
                     <button type="button" class="btn-secondary product-option-add">+ Add {{ group.item_label }}</button>
                 </div>
@@ -24,7 +30,7 @@
                         <thead>
                             <tr>
                                 <th>{{ group.item_label }} Name</th>
-                                <th>Price (P)</th>
+                                <th>Added Price (P)</th>
                                 {% if show_option_images %}
                                 <th>Option Image</th>
                                 {% endif %}
@@ -134,6 +140,32 @@
         color: #7c7f88;
         text-align: center;
         font-size: 0.92rem;
+    }
+    .cake-tier-guide-inline {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 10px;
+        margin: 0 0 14px;
+        padding: 14px;
+        border: 1px dashed #d7e0ea;
+        border-radius: 14px;
+        background: linear-gradient(180deg, #ffffff, #f7fbff 100%);
+    }
+    .cake-tier-guide-inline__item {
+        display: grid;
+        gap: 2px;
+        padding: 8px 10px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid #e8eef5;
+    }
+    .cake-tier-guide-inline__item strong {
+        color: #374151;
+        font-size: 0.94rem;
+    }
+    .cake-tier-guide-inline__item span {
+        color: #6b7280;
+        font-size: 0.86rem;
     }
     .product-option-preview {
         position: sticky;

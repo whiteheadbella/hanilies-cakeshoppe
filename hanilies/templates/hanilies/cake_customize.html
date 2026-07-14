@@ -1167,32 +1167,25 @@
                                 </div>
 
                                 <div id="gcash-fields" class="qr-panel mb-0">
-                                    <div class="row g-3">
-                                        <div class="col-md-4">
-                                            <label class="form-label fw-semibold">Order Number</label>
-                                            <input type="text" class="form-control" value="{{ checkout_order_number }}" readonly>
+                                    <div class="alert alert-info rounded-4 mb-4">
+                                        <div class="d-flex align-items-start gap-2">
+                                            <i class="fas fa-circle-info mt-1"></i>
+                                            <div>
+                                                <div class="fw-bold">Manual payment verification</div>
+                                                <div class="small">Complete the transfer in GCash, then submit the GCash reference number from your receipt together with your receipt image for staff review.</div>
+                                            </div>
                                         </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label fw-semibold">Amount Due</label>
-                                            <input type="text" class="form-control" id="cake-payment-amount-display" value="{{ gcash_preview.amount_label }}" readonly>
-                                            <input type="hidden" name="payment_amount" id="cake-payment-amount" value="{{ gcash_preview.amount }}">
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label fw-semibold">Payment Reference Number</label>
-                                            <input type="text" class="form-control" value="{{ checkout_payment_reference }}" readonly>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label fw-semibold">GCash Reference Number</label>
-                                            <input type="text" class="form-control" name="reference_number" placeholder="Enter the exact payment reference number shown above">
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label fw-semibold">Proof of Payment</label>
-                                            <input type="file" class="form-control" name="proof_image" accept="image/jpeg,image/png">
-                                        </div>
-                                        <div class="col-12">
-                                            <div class="qr-preview-card">
-                                                <div class="row g-3 align-items-center">
-                                                    <div class="col-md-4 text-center">
+                                    </div>
+
+                                    <div id="gcash-payment-preview">
+                                        <div class="row g-4 align-items-stretch">
+                                            <div class="col-lg-6">
+                                                <div class="bg-white border rounded-4 shadow-sm p-3 p-md-4 h-100">
+                                                    <div class="text-center mb-3">
+                                                        <h6 class="fw-bold mb-1">GCash Checkout Details</h6>
+                                                        <p class="text-muted small mb-0">Review the receiver details and amount due before uploading your proof.</p>
+                                                    </div>
+                                                    <div class="text-center mb-3">
                                                         <div class="image-zoom-frame d-inline-block rounded-4">
                                                             <img id="cake-gcash-qr-image" src="{{ gcash_preview.qr_code_data_uri }}" alt="GCash payment QR" class="img-fluid bg-white border rounded p-2" style="max-width: 220px;">
                                                             <a id="cake-gcash-qr-zoom" class="image-zoom-trigger" href="{{ gcash_preview.qr_code_data_uri }}" target="_blank" rel="noopener" data-zoom-src="{{ gcash_preview.qr_code_data_uri }}" data-zoom-title="GCash QR Code">
@@ -1200,12 +1193,110 @@
                                                             </a>
                                                         </div>
                                                     </div>
-                                                    <div class="col-md-8">
-                                                        <div class="small mb-1"><strong>Account Name:</strong> {{ gcash_account.account_name }}</div>
-                                                        <div class="small mb-1"><strong>GCash Number:</strong> {{ gcash_account.account_number }}</div>
-                                                        <div class="checkout-field-note mb-0">The order stays pending until the GCash deposit or full payment is approved by the admin panel.</div>
+                                                    <div class="border rounded-4 p-3">
+                                                        <div class="small text-muted">Account Name:</div>
+                                                        <div class="fw-bold mb-3">{{ gcash_account.account_name }}</div>
+                                                        <div class="small text-muted">GCash Number:</div>
+                                                        <div class="d-flex flex-wrap align-items-center gap-2">
+                                                            <span class="fw-bold" id="gcashAccountNumber">{{ gcash_account.account_number }}</span>
+                                                            <button type="button" class="btn btn-sm btn-outline-gold" id="copyGCashButton">
+                                                                <i class="fas fa-copy me-1"></i>Copy
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <div class="mt-3 small text-muted">
+                                                        The order stays pending until the GCash deposit or full payment is approved by the admin panel.
                                                     </div>
                                                 </div>
+                                            </div>
+                                            <div class="col-lg-6">
+                                                <div class="bg-white border rounded-4 shadow-sm p-3 p-md-4 h-100">
+                                                    <h6 class="fw-bold mb-3">Payment Summary</h6>
+                                                    <div class="row g-3">
+                                                        <div class="col-12">
+                                                            <label class="form-label fw-semibold">Order Number</label>
+                                                            <input type="text" class="form-control" value="{{ checkout_order_number }}" readonly>
+                                                        </div>
+                                                        <div class="col-12">
+                                                            <label class="form-label fw-semibold">Payment Plan</label>
+                                                            <input type="text" class="form-control" id="gcashSelectedPlan" value="{% if selected_payment_method == 'gcash' %}{{ payment_plan_labels.gcash }}{% else %}{{ payment_plan_labels.cod }}{% endif %}" readonly>
+                                                        </div>
+                                                        <div class="col-md-6">
+                                                            <label class="form-label fw-semibold">Amount Due</label>
+                                                            <input type="text" class="form-control" id="cake-payment-amount-display" value="{{ gcash_preview.amount_label }}" readonly>
+                                                            <input type="hidden" name="payment_amount" id="cake-payment-amount" value="{{ gcash_preview.amount }}">
+                                                        </div>
+                                                    </div>
+                                                    <div class="border rounded-4 p-3 mt-4 small">
+                                                        <div class="fw-bold mb-2">Before continuing, verify:</div>
+                                                        <div><i class="fas fa-check-circle text-success me-2"></i>The order number is correct.</div>
+                                                        <div><i class="fas fa-check-circle text-success me-2"></i>The amount due matches the selected payment plan.</div>
+                                                        <div><i class="fas fa-check-circle text-success me-2"></i>The account name and number are correct.</div>
+                                                        <div><i class="fas fa-check-circle text-success me-2"></i>You will upload the receipt on the next step.</div>
+                                                    </div>
+                                                    <button type="button" class="btn btn-gold w-100 mt-4" id="continueToPaymentProof">
+                                                        I Have Completed the Payment
+                                                        <i class="fas fa-arrow-right ms-2"></i>
+                                                    </button>
+                                                    <div class="text-muted small text-center mt-2">You will submit the GCash reference number and receipt on the next section.</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div id="gcash-proof-section" class="d-none">
+                                        <div class="bg-white border rounded-4 shadow-sm p-3 p-md-4">
+                                            <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                                                <div class="payment-step-icon">
+                                                    <i class="fas fa-file-invoice"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="fw-bold mb-0">Submit Payment Proof</h6>
+                                                    <div class="text-muted small">Enter the GCash reference number from your successful receipt, then upload the receipt screenshot for manual review.</div>
+                                                </div>
+                                            </div>
+                                            <div class="alert alert-light border rounded-4">
+                                                <div class="row g-3">
+                                                    <div class="col-md-4">
+                                                        <div class="small text-muted">Order Number</div>
+                                                        <div class="fw-bold">{{ checkout_order_number }}</div>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <div class="small text-muted">Amount Due</div>
+                                                        <div class="fw-bold text-gold-pink" id="gcashProofAmountLabel">{{ gcash_preview.amount_label }}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="row g-3">
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-semibold">GCash Reference Number</label>
+                                                    <input type="text" class="form-control" name="reference_number" placeholder="Enter the reference number shown on your GCash receipt">
+                                                    <div class="form-text">Enter the real transaction reference number from the successful GCash receipt.</div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-semibold">Proof of Payment</label>
+                                                    <input type="file" class="form-control" name="proof_image" id="proofImage" accept="image/jpeg,image/png">
+                                                    <div class="form-text">Upload a clear JPG or PNG receipt screenshot that shows the amount paid.</div>
+                                                </div>
+                                                <div class="col-12 d-none" id="receiptPreviewContainer">
+                                                    <div class="border rounded-4 p-3">
+                                                        <div class="fw-bold small mb-2">Selected receipt preview</div>
+                                                        <img src="" alt="Selected payment receipt preview" id="receiptPreviewImage" class="img-fluid rounded-4 border">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="alert alert-warning rounded-4 mt-4 mb-0 small">
+                                                <div class="fw-bold mb-1">Manual verification</div>
+                                                Staff will compare the uploaded proof against the payment record before confirming the order.
+                                            </div>
+                                            <div class="d-flex flex-column flex-sm-row justify-content-between gap-3 mt-4">
+                                                <button type="button" class="btn btn-outline-gold" id="backToGCashPreview">
+                                                    <i class="fas fa-arrow-left me-1"></i>Back to Payment Details
+                                                </button>
+                                                <button type="button" class="btn btn-gold" id="continueToOrderReview">
+                                                    Continue to Order Review
+                                                    <i class="fas fa-arrow-right ms-1"></i>
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -1445,6 +1536,17 @@
     const cakeProofInput = cakeOrderForm.querySelector('input[name="proof_image"]');
     const cakePaymentAmountInput = document.getElementById('cake-payment-amount');
     const cakePaymentAmountDisplay = document.getElementById('cake-payment-amount-display');
+    const cakePaymentPreview = document.getElementById('gcash-payment-preview');
+    const cakeProofSection = document.getElementById('gcash-proof-section');
+    const cakeContinueToProofButton = document.getElementById('continueToPaymentProof');
+    const cakeBackToPreviewButton = document.getElementById('backToGCashPreview');
+    const cakeContinueToReviewButton = document.getElementById('continueToOrderReview');
+    const cakeReceiptPreviewContainer = document.getElementById('receiptPreviewContainer');
+    const cakeReceiptPreviewImage = document.getElementById('receiptPreviewImage');
+    const cakeCopyGCashButton = document.getElementById('copyGCashButton');
+    const cakeGcashAccountNumber = document.getElementById('gcashAccountNumber');
+    const cakeSelectedPlanElement = document.getElementById('gcashSelectedPlan');
+    const cakeProofAmountLabel = document.getElementById('gcashProofAmountLabel');
     const cakeDesignReferenceInput = cakeOrderForm.querySelector('input[name="design_reference"]');
     const cakeStreetAddressInput = cakeOrderForm.querySelector('input[name="delivery_street_address"]');
     const cakeBarangayInput = cakeOrderForm.querySelector('input[name="delivery_barangay"]');
@@ -1454,7 +1556,6 @@
     const paymentQrPreviewUrl = '{{ payment_qr_preview_url }}';
     const cakeOrderLabel = '{{ cake.name|escapejs }} cake order';
     const cakeGeneratedOrderNumber = '{{ checkout_order_number|escapejs }}';
-    const cakeGeneratedPaymentReference = '{{ checkout_payment_reference|escapejs }}';
     const paymentPlanLabels = {
         cod: '{{ payment_plan_labels.cod|escapejs }}',
         gcash: '{{ payment_plan_labels.gcash|escapejs }}',
@@ -1548,7 +1649,6 @@
             const params = new URLSearchParams({
                 amount: total.toFixed(2),
                 order_label: cakeOrderLabel,
-                payment_reference: cakeGeneratedPaymentReference,
             });
             const response = await fetch(`${paymentQrPreviewUrl}?${params.toString()}`, {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' },
@@ -1572,14 +1672,129 @@
         cakeQrRefreshTimer = window.setTimeout(() => refreshCakeGcashQr(total), 150);
     }
 
-    function updatePaymentSummary() {
-        const { selectedPlan, dueNow } = getCakePaymentBreakdown();
-        document.getElementById('summary-payment').textContent = paymentPlanLabels[selectedPlan];
-        gcashFields.classList.remove('d-none');
+    function enableCakeProofRequirements() {
         cakeReferenceInput.required = true;
         cakeProofInput.required = true;
+    }
+
+    function disableCakeProofRequirements() {
+        cakeReferenceInput.required = false;
+        cakeProofInput.required = false;
+    }
+
+    function showCakeReceiptPreview(file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            cakeReceiptPreviewImage.src = event.target.result;
+            cakeReceiptPreviewContainer.classList.remove('d-none');
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function hideCakeReceiptPreview() {
+        cakeReceiptPreviewImage.src = '';
+        cakeReceiptPreviewContainer.classList.add('d-none');
+    }
+
+    function showCakePaymentProof() {
+        cakePaymentPreview.classList.add('d-none');
+        cakeProofSection.classList.remove('d-none');
+        enableCakeProofRequirements();
+        cakeProofSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function showCakePaymentPreview() {
+        cakeProofSection.classList.add('d-none');
+        cakePaymentPreview.classList.remove('d-none');
+        disableCakeProofRequirements();
+        cakePaymentPreview.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function validateCakePaymentProof() {
+        const referenceNumber = cakeReferenceInput.value.trim();
+        const proofFile = cakeProofInput.files[0];
+
+        if (!referenceNumber) {
+            cakeReferenceInput.reportValidity();
+            cakeReferenceInput.focus();
+            return false;
+        }
+
+        if (!proofFile) {
+            cakeProofInput.reportValidity();
+            cakeProofInput.focus();
+            return false;
+        }
+
+        const allowedTypes = ['image/jpeg', 'image/png'];
+        if (!allowedTypes.includes(proofFile.type)) {
+            alert('Please upload a JPG or PNG image.');
+            cakeProofInput.value = '';
+            hideCakeReceiptPreview();
+            return false;
+        }
+
+        const maximumFileSize = 5 * 1024 * 1024;
+        if (proofFile.size > maximumFileSize) {
+            alert('The image must not exceed 5 MB.');
+            cakeProofInput.value = '';
+            hideCakeReceiptPreview();
+            return false;
+        }
+
+        return true;
+    }
+
+    async function copyCakeGcashNumber() {
+        const accountNumber = cakeGcashAccountNumber.textContent.trim();
+        const originalHtml = cakeCopyGCashButton.innerHTML;
+
+        try {
+            await navigator.clipboard.writeText(accountNumber);
+        } catch (error) {
+            const temporaryInput = document.createElement('textarea');
+            temporaryInput.value = accountNumber;
+            temporaryInput.style.position = 'fixed';
+            temporaryInput.style.opacity = '0';
+            document.body.appendChild(temporaryInput);
+            temporaryInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(temporaryInput);
+        }
+
+        cakeCopyGCashButton.innerHTML = '<i class="fas fa-check me-1"></i>Copied';
+        window.setTimeout(() => {
+            cakeCopyGCashButton.innerHTML = originalHtml;
+        }, 1500);
+    }
+
+    function routeCakeCheckoutToReview(targetStep = 'review') {
+        if (cakeProofSection.classList.contains('d-none')) {
+            showCakePaymentProof();
+            return false;
+        }
+
+        if (!validateCakePaymentProof()) {
+            return false;
+        }
+
+        return showCakeCheckoutStage(targetStep);
+    }
+
+    function updatePaymentSummary() {
+        const { selectedPlan, dueNow, balanceDue } = getCakePaymentBreakdown();
+        document.getElementById('summary-payment').textContent = paymentPlanLabels[selectedPlan];
+        document.getElementById('summary-deposit').textContent = `P${dueNow.toFixed(2)}`;
+        document.getElementById('summary-balance').textContent = `P${balanceDue.toFixed(2)}`;
+        gcashFields.classList.remove('d-none');
+        if (cakeSelectedPlanElement) {
+            cakeSelectedPlanElement.value = paymentPlanLabels[selectedPlan];
+        }
         cakePaymentAmountInput.value = dueNow.toFixed(2);
         cakePaymentAmountDisplay.value = `P${dueNow.toFixed(2)}`;
+        if (cakeProofAmountLabel) {
+            cakeProofAmountLabel.textContent = `P${dueNow.toFixed(2)}`;
+        }
         scheduleCakeQrRefresh(dueNow);
     }
 
@@ -1642,7 +1857,7 @@
         document.getElementById('review-cake-payment').textContent = paymentPlanLabels[selectedPlan];
         document.getElementById('review-cake-deposit').textContent = `P${dueNow.toFixed(2)}`;
         document.getElementById('review-cake-balance').textContent = `P${balanceDue.toFixed(2)}`;
-        document.getElementById('review-cake-reference').textContent = cakeGeneratedPaymentReference;
+        document.getElementById('review-cake-reference').textContent = cakeReferenceInput.value.trim() || 'Missing GCash reference number';
         document.getElementById('review-cake-proof').textContent = cakeProofInput.files[0]?.name || 'Missing proof of payment';
         document.getElementById('review-cake-address').textContent = formatCakeDeliveryAddress();
         document.getElementById('review-cake-contact-name').textContent = cakeOrderForm.querySelector('input[name="contact_name"]').value.trim() || 'Not provided';
@@ -1673,7 +1888,7 @@
     }
 
     function showCakeReview() {
-        showCakeCheckoutStage('review');
+        routeCakeCheckoutToReview('review');
     }
 
     themeSelect.addEventListener('change', updateCakeSummary);
@@ -1686,13 +1901,19 @@
         cakeOrderForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
     cakeReviewStepButton.addEventListener('click', () => {
-        showCakeCheckoutStage('review');
+        routeCakeCheckoutToReview('review');
     });
     cakeConfirmStepButton.addEventListener('click', () => {
-        showCakeCheckoutStage('confirm');
+        routeCakeCheckoutToReview('confirm');
     });
     cakeReviewButton.addEventListener('click', showCakeReview);
     cakeStyleReviewButton.addEventListener('click', showCakeReview);
+    cakeContinueToProofButton.addEventListener('click', showCakePaymentProof);
+    cakeBackToPreviewButton.addEventListener('click', showCakePaymentPreview);
+    cakeContinueToReviewButton.addEventListener('click', () => {
+        routeCakeCheckoutToReview('review');
+    });
+    cakeCopyGCashButton.addEventListener('click', copyCakeGcashNumber);
     cakeEditButton.addEventListener('click', () => {
         resetCakeReviewState();
         cakeOrderForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1704,7 +1925,7 @@
     cakeOrderForm.addEventListener('submit', (event) => {
         if (!cakeReviewReady) {
             event.preventDefault();
-            showCakeCheckoutStage('confirm');
+            routeCakeCheckoutToReview('confirm');
             return;
         }
 
@@ -1716,11 +1937,33 @@
 
     cakeOrderForm.addEventListener('input', handleCakeFormEdit);
     cakeOrderForm.addEventListener('change', handleCakeFormEdit);
+    cakeProofInput.addEventListener('change', () => {
+        const file = cakeProofInput.files[0];
+        if (!file) {
+            hideCakeReceiptPreview();
+            return;
+        }
+        const allowedTypes = ['image/jpeg', 'image/png'];
+        if (!allowedTypes.includes(file.type)) {
+            alert('Please upload a JPG or PNG image.');
+            cakeProofInput.value = '';
+            hideCakeReceiptPreview();
+            return;
+        }
+        if (file.size > (5 * 1024 * 1024)) {
+            alert('The image must not exceed 5 MB.');
+            cakeProofInput.value = '';
+            hideCakeReceiptPreview();
+            return;
+        }
+        showCakeReceiptPreview(file);
+    });
 
     const deliveryDateInput = document.getElementById('delivery_date');
     deliveryDateInput.setAttribute('min', '{{ cake_order_window.min }}');
     deliveryDateInput.setAttribute('max', '{{ cake_order_window.max }}');
     setCakeCheckoutStep('customize');
+    disableCakeProofRequirements();
     updateCakeSummary();
     updatePaymentSummary();
 </script>

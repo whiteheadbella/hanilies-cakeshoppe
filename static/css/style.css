@@ -510,9 +510,17 @@ main { flex: 1 0 auto; width: 100%; }
 .hero-section h1 { font-size: 3.5rem; font-weight: 700; line-height: 1.2; margin-bottom: 20px; }
 .hero-section .lead { font-size: 1.2rem; color: var(--gray); margin-bottom: 30px; }
 
+.hero-collage-column {
+    display: flex;
+    align-items: center;
+}
+
 .hero-collage-shell {
     position: relative;
+    width: 100%;
+    max-width: 640px;
     min-height: clamp(420px, 38vw, 500px);
+    margin-inline: auto;
     padding: 26px;
     border-radius: 34px;
     background: linear-gradient(145deg, rgba(255, 247, 250, 0.96), rgba(255, 250, 241, 0.94));
@@ -559,12 +567,18 @@ main { flex: 1 0 auto; width: 100%; }
     display: grid;
     grid-template-columns: repeat(12, 1fr);
     grid-auto-rows: 62px;
+    align-items: stretch;
     gap: 16px;
     min-height: 488px;
 }
 
 .hero-collage-card {
     position: relative;
+    display: flex;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
     margin: 0;
     border-radius: 28px;
     overflow: hidden;
@@ -631,9 +645,11 @@ main { flex: 1 0 auto; width: 100%; }
 }
 
 .hero-collage-image {
+    flex: 1 1 auto;
     width: 100%;
     height: 100%;
     object-fit: cover;
+    object-position: center center;
     display: block;
     transform: scale(1.08);
     transition: transform 0.45s ease;
@@ -1563,6 +1579,7 @@ main { flex: 1 0 auto; width: 100%; }
     }
     
     .hero-section { text-align: center; padding: 48px 0 24px; }
+    .hero-collage-column { justify-content: center; }
     .hero-collage-shell { min-height: 0; }
     .hero-collage-grid,
     .hero-collage-empty {

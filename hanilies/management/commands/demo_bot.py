@@ -579,7 +579,7 @@ class Command(BaseCommand):
         self._pick(driver.find_element(By.NAME, "theme"),
                    "Birthday", Select, delay)
         self._pick(driver.find_element(By.NAME, "size"),
-                   "8 inches", Select, delay)
+                   "1 Tier", Select, delay)
         self._pick(driver.find_element(
             By.NAME, "shape"), "Round", Select, delay)
         self._pick(driver.find_element(By.NAME, "flavor"),

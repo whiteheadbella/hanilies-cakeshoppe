@@ -223,12 +223,13 @@
                     {% if selected_payment and selected_payment.payment_status == 'rejected' and selected_order.order_status == 'payment_retry' %}
                     <div class="alert alert-warning mt-3 mb-0">
                         <div class="fw-semibold mb-2">Payment proof rejected</div>
-                        <p class="small mb-3">Payment rejected. Please upload the correct proof of payment.</p>
+                        <p class="small mb-3">Payment rejected. Please upload the correct proof of payment and enter the GCash reference number shown on the new receipt.</p>
                         <form method="post" action="{% url 'resubmit_payment_proof' selected_order_type selected_order.id selected_payment.id %}" enctype="multipart/form-data" class="row g-3">
                             {% csrf_token %}
                             <div class="col-md-6">
                                 <label class="form-label fw-semibold">GCash Reference Number</label>
                                 <input type="text" class="form-control" name="reference_number" value="{{ selected_payment.reference_number|default:'' }}" maxlength="32" required>
+                                <div class="form-text">Enter the actual transaction reference number from the GCash receipt you are submitting.</div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-semibold">Amount Due</label>

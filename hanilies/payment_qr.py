@@ -1,5 +1,4 @@
 import base64
-import hashlib
 import re
 from decimal import Decimal, InvalidOperation
 from io import BytesIO
@@ -23,7 +22,7 @@ def get_gcash_profile():
         'payment_note': getattr(
             settings,
             'HANILIES_GCASH_PAYMENT_NOTE',
-            'Scan this QR inside GCash so the payment amount and Hanilies reference are filled in automatically.',
+            'Scan this QR inside GCash so the payment amount and merchant details are filled in automatically.',
         ),
     }
 
@@ -64,27 +63,10 @@ def _build_crc16(payload):
     return f'{crc_value:04X}'
 
 
-def build_gcash_payment_reference(amount, order_label, reference_seed=''):
-    normalized_amount = _normalize_amount(amount)
-    cleaned_label = (order_label or 'Order payment').strip() or 'Order payment'
-    raw_seed = '|'.join([
-        str(reference_seed or 'public-preview'),
-        cleaned_label.lower(),
-        f'{normalized_amount:.2f}',
-    ])
-    digest = hashlib.sha1(raw_seed.encode('utf-8')).hexdigest().upper()
-    return f'HANI-{digest[:10]}'
-
-
-def build_gcash_instruction_payload(amount, order_label, reference_seed='', payment_reference=''):
+def build_gcash_instruction_payload(amount, order_label, reference_seed=''):
     normalized_amount = _normalize_amount(amount)
     profile = get_gcash_profile()
     cleaned_label = (order_label or 'Order payment').strip() or 'Order payment'
-    payment_reference = str(payment_reference or '').strip().upper() or build_gcash_payment_reference(
-        normalized_amount,
-        cleaned_label,
-        reference_seed,
-    )
 
     merchant_name = _sanitize_emv_text(
         profile['account_name'],
@@ -109,8 +91,6 @@ def build_gcash_instruction_payload(amount, order_label, reference_seed='', paym
         _format_tlv('01', account_number),
     ])
     additional_data = ''.join([
-        _format_tlv('01', payment_reference),
-        _format_tlv('05', payment_reference),
         _format_tlv('08', purpose_label),
     ])
     payload_without_crc = ''.join([
@@ -146,19 +126,13 @@ def generate_qr_code_data_uri(payload):
     return f'data:image/png;base64,{encoded}'
 
 
-def build_gcash_checkout_details(amount, order_label, reference_seed='', payment_reference=''):
+def build_gcash_checkout_details(amount, order_label, reference_seed=''):
     normalized_amount = _normalize_amount(amount)
     profile = get_gcash_profile()
-    payment_reference = str(payment_reference or '').strip().upper() or build_gcash_payment_reference(
-        normalized_amount,
-        order_label,
-        reference_seed,
-    )
     payload = build_gcash_instruction_payload(
         normalized_amount,
         order_label,
         reference_seed,
-        payment_reference=payment_reference,
     )
 
     return {
@@ -166,7 +140,6 @@ def build_gcash_checkout_details(amount, order_label, reference_seed='', payment
         'amount': f'{normalized_amount:.2f}',
         'amount_label': f'P{normalized_amount:.2f}',
         'order_label': (order_label or 'Order payment').strip() or 'Order payment',
-        'payment_reference': payment_reference,
         'instruction_payload': payload,
         'qr_code_data_uri': generate_qr_code_data_uri(payload),
     }

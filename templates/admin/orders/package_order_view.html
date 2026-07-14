@@ -73,7 +73,7 @@
                     <p><strong>Payment #{{ payment.id }}</strong></p>
                     <p>{{ payment.get_payment_purpose_display }} | {{ payment.get_payment_method_display }} | {{ payment.get_payment_status_display }}</p>
                     <p>Amount: ₱{{ payment.amount }}</p>
-                    <p>Reference: {{ payment.reference_number|default:"-" }}</p>
+                    <p>{% if payment.payment_method == 'gcash' %}GCash Reference Number: {{ payment.reference_number|default:"-" }}{% else %}GCash Reference Number: Not required{% endif %}</p>
                 </div>
             {% empty %}
                 <p>No payments recorded yet.</p>

@@ -113,9 +113,10 @@ def _get_cake_theme_options_for_category(category_value):
 
 
 CAKE_CUSTOMIZATION_GROUP_SPECS = [
+    {'key': 'sizes', 'label': 'Cake Tier Options',
+        'item_label': 'Tier Option', 'input_type': 'select'},
     {'key': 'flavors', 'label': 'Flavors',
         'item_label': 'Flavor', 'input_type': 'select'},
-    {'key': 'sizes', 'label': 'Sizes', 'item_label': 'Size', 'input_type': 'select'},
     {'key': 'shapes', 'label': 'Shapes',
         'item_label': 'Shape', 'input_type': 'select'},
     {'key': 'frostings', 'label': 'Frosting',
@@ -153,11 +154,11 @@ DEFAULT_CAKE_CUSTOMIZATION_OPTIONS = {
         {'label': 'Strawberry', 'price': '0.00'},
     ],
     'sizes': [
-        {'label': '6 inches', 'price': '0.00'},
-        {'label': '8 inches', 'price': '0.00'},
-        {'label': '10 inches', 'price': '0.00'},
+        {'label': '1 Tier', 'price': '0.00'},
         {'label': '2 Tier', 'price': '0.00'},
         {'label': '3 Tier', 'price': '0.00'},
+        {'label': '4 Tier', 'price': '0.00'},
+        {'label': '5 Tier', 'price': '0.00'},
     ],
     'shapes': [
         {'label': 'Round', 'price': '0.00'},
@@ -449,10 +450,6 @@ def _normalize_reference_number(reference_number):
     return re.sub(r'\s+', '', str(reference_number or '')).upper()
 
 
-def _normalize_generated_token(value):
-    return re.sub(r'[^A-Z0-9\-]', '', str(value or '').upper())
-
-
 def _format_currency_label(value):
     return format(_quantize_amount(value), '.2f')
 
@@ -464,10 +461,6 @@ def _generate_checkout_nonce():
 def _build_generated_order_number(order_kind, nonce):
     prefix = 'CKO' if order_kind == 'cake' else 'PKO'
     return f'{prefix}-{timezone.localdate().strftime("%Y%m%d")}-{nonce}'
-
-
-def _build_generated_payment_reference(nonce):
-    return f'HANI-{nonce}'
 
 
 def _get_checkout_flow_key(order_kind, identifier):
@@ -493,7 +486,6 @@ def _get_or_create_checkout_meta(request, flow_key, order_kind):
     meta = {
         'order_kind': order_kind,
         'order_number': _build_generated_order_number(order_kind, nonce),
-        'payment_reference': _build_generated_payment_reference(nonce),
     }
     store[flow_key] = meta
     _set_checkout_meta_store(request, store)
@@ -507,28 +499,24 @@ def _clear_checkout_meta(request, flow_key):
         _set_checkout_meta_store(request, store)
 
 
-def _validate_checkout_payment_submission(reference_number, proof_image, expected_amount, expected_reference_number, submitted_amount=None, exclude_payment_id=None):
+def _validate_checkout_payment_submission(reference_number, proof_image, expected_amount, submitted_amount=None, exclude_payment_id=None):
     normalized_reference = _normalize_reference_number(reference_number)
-    normalized_expected_reference = _normalize_generated_token(
-        expected_reference_number)
     submitted_amount_value = _quantize_amount(submitted_amount or '0.00')
 
     if not normalized_reference:
-        return None, 'Reference number does not match this order.'
+        return None, 'Please enter the GCash reference number from your receipt.'
     if proof_image is None:
         return None, 'Please upload a proof of payment image.'
-    if normalized_reference != normalized_expected_reference:
-        return None, 'Reference number does not match this order.'
     if submitted_amount_value != _quantize_amount(expected_amount):
         return None, 'Amount paid does not match the required amount.'
 
     reference_queryset = Payment.objects.filter(
-        reference_number__iexact=normalized_expected_reference,
+        reference_number__iexact=normalized_reference,
     )
     if exclude_payment_id is not None:
         reference_queryset = reference_queryset.exclude(id=exclude_payment_id)
     if reference_queryset.exists():
-        return None, 'Reference number does not match this order.'
+        return None, 'This GCash reference number has already been used.'
 
     if getattr(proof_image, 'size', 0) > PAYMENT_PROOF_MAX_BYTES:
         return None, 'The uploaded payment proof must be 5 MB or smaller.'
@@ -553,7 +541,7 @@ def _validate_checkout_payment_submission(reference_number, proof_image, expecte
     if image_format not in PAYMENT_PROOF_ALLOWED_FORMATS:
         return None, 'Only JPG, JPEG, and PNG files are allowed.'
 
-    return normalized_expected_reference, None
+    return normalized_reference, None
 
 
 def _validate_optional_design_reference_upload(uploaded_image):
@@ -1144,7 +1132,7 @@ def _build_sales_export_rows(payments):
             'customer_name': customer_name,
             'payment_purpose': payment.get_payment_purpose_display(),
             'payment_method': payment.get_payment_method_display(),
-            'reference_number': payment.reference_number or '-',
+            'reference_number': payment.reference_number or ('Not required' if payment.payment_method != 'gcash' else '-'),
             'amount': payment.amount,
             'paid_at': payment.paid_at or payment.created_at,
         })
@@ -1579,23 +1567,39 @@ def _parse_positive_int(value, default=1, minimum=0):
     return max(parsed, minimum)
 
 
+def _normalize_package_inclusion_label_text(label):
+    normalized_label = str(label or '').strip()
+    if not normalized_label:
+        return ''
+
+    if re.match(r'^event\s+duration\s*:', normalized_label, re.IGNORECASE):
+        return re.sub(
+            r'^event\s+duration\s*:\s*3\s*(?:-|–|—|û|u|to)\s*4\s+hours\s+only\s*$',
+            'Event Duration: 3-4 Hours only',
+            normalized_label,
+            flags=re.IGNORECASE,
+        )
+
+    return normalized_label
+
+
 def _normalize_package_inclusion_items(raw_items):
     items = []
     used_keys = set()
     for raw_item in raw_items or []:
         if isinstance(raw_item, str):
-            label = raw_item.strip()
+            label = _normalize_package_inclusion_label_text(raw_item)
             quantity = 1
             image_path = ''
             price = '0.00'
             preferred_key = ''
         elif isinstance(raw_item, dict):
-            label = str(
+            label = _normalize_package_inclusion_label_text(
                 raw_item.get('label')
                 or raw_item.get('name')
                 or raw_item.get('value')
                 or ''
-            ).strip()
+            )
             quantity = _parse_positive_int(
                 raw_item.get('quantity'),
                 default=1,
@@ -2405,29 +2409,26 @@ def _get_payment_qr_reference_seed(request=None):
     return f'user:{request.user.pk}|session:{request.session.session_key}'
 
 
-def _build_checkout_gcash_preview(request, amount, order_label, payment_reference=''):
+def _build_checkout_gcash_preview(request, amount, order_label):
     reference_seed = _get_payment_qr_reference_seed(request)
     return build_gcash_checkout_details(
         amount,
         order_label,
         reference_seed=reference_seed,
-        payment_reference=payment_reference,
     )
 
 
-def _build_payment_qr_response(amount, order_label, reference_seed='', payment_reference=''):
+def _build_payment_qr_response(amount, order_label, reference_seed=''):
     preview = build_gcash_checkout_details(
         amount,
         order_label,
         reference_seed=reference_seed,
-        payment_reference=payment_reference,
     )
     return {
         'amount': preview['amount'],
         'amount_label': preview['amount_label'],
         'merchant_name': preview['account_name'],
         'merchant_number': preview['account_number'],
-        'payment_reference': preview['payment_reference'],
         'instruction_note': preview['payment_note'],
         'instruction_payload': preview['instruction_payload'],
         'qr_code_data_uri': preview['qr_code_data_uri'],
@@ -2446,7 +2447,6 @@ def payment_qr_preview(request):
             amount,
             order_label,
             reference_seed=_get_payment_qr_reference_seed(request),
-            payment_reference=request.GET.get('payment_reference', '').strip(),
         )
     )
 
@@ -2643,7 +2643,7 @@ def _ensure_browser_demo_orders(user, cake, package, payment_mode):
             total_price=cake.price,
             order_status='confirmed',
             theme='Panel showcase',
-            size='8 inches',
+            size='1 Tier',
             shape='Round',
             flavor='Chocolate',
             frosting='Buttercream',
@@ -3816,7 +3816,6 @@ def resubmit_payment_proof(request, order_type, order_id, payment_id):
         reference_number,
         proof_image,
         payment.amount,
-        payment.reference_number,
         submitted_amount=submitted_amount,
         exclude_payment_id=payment.id,
     )
@@ -3972,7 +3971,6 @@ def cake_customize(request):
             reference_number,
             proof_image,
             expected_payment_amount,
-            cake_checkout_meta['payment_reference'],
             submitted_amount=submitted_amount,
         )
         if address_error:
@@ -4070,10 +4068,8 @@ def cake_customize(request):
             request,
             base_deposit_amount,
             cake_order_label,
-            payment_reference=cake_checkout_meta['payment_reference'],
         ),
         'checkout_order_number': cake_checkout_meta['order_number'],
-        'checkout_payment_reference': cake_checkout_meta['payment_reference'],
         'payment_qr_preview_url': reverse('payment_qr_preview'),
     }
     return render(request, 'hanilies/cake_customize.html', context)
@@ -4327,7 +4323,6 @@ def package_payment(request):
                 reference_number,
                 proof_image,
                 expected_payment_amount,
-                package_checkout_meta['payment_reference'],
                 submitted_amount=submitted_amount,
             )
             design_reference_error = _validate_optional_design_reference_upload(
@@ -4410,10 +4405,8 @@ def package_payment(request):
             request,
             deposit_amount,
             package_order_label,
-            payment_reference=package_checkout_meta['payment_reference'],
         ),
         'checkout_order_number': package_checkout_meta['order_number'],
-        'checkout_payment_reference': package_checkout_meta['payment_reference'],
         'payment_qr_preview_url': reverse('payment_qr_preview'),
     }
     return render(request, 'hanilies/package_payment.html', context)
@@ -5802,7 +5795,7 @@ def admin_payments_export(request, file_format):
             'Customer',
             'Purpose',
             'Method',
-            'Reference',
+            'GCash Reference Number',
             'Amount',
             'Paid At',
         ]

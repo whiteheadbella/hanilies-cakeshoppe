@@ -32,7 +32,7 @@
                     <th>Purpose</th>
                     <th>Method</th>
                     <th>Status</th>
-                    <th>Reference</th>
+                    <th>GCash Reference Number</th>
                     <th>Order Type</th>
                     <th>Date</th>
                     <th>Actions</th>
@@ -58,7 +58,7 @@
                             <span class="badge" style="background: #fef3c7; color: #d97706;">Pending</span>
                         {% endif %}
                     </td>
-                    <td>{{ payment.reference_number|default:"-" }}</td>
+                    <td>{% if payment.payment_method == 'gcash' %}{{ payment.reference_number|default:"-" }}{% else %}Not required{% endif %}</td>
                     <td>
                         {% if payment.cake_order %}
                             Cake Order #{{ payment.cake_order.id }}
@@ -208,7 +208,7 @@
                     <th>Amount</th>
                     <th>Purpose</th>
                     <th>Method</th>
-                    <th>Reference</th>
+                    <th>GCash Reference Number</th>
                     <th>Order Type</th>
                     <th>Paid Date</th>
                     <th>Actions</th>
@@ -227,7 +227,7 @@
                             <span style="color: #10b981;">💰 COD</span>
                         {% endif %}
                     </td>
-                    <td>{{ payment.reference_number|default:"-" }}</td>
+                    <td>{% if payment.payment_method == 'gcash' %}{{ payment.reference_number|default:"-" }}{% else %}Not required{% endif %}</td>
                     <td>
                         {% if payment.cake_order %}
                             Cake Order #{{ payment.cake_order.id }}
@@ -291,7 +291,7 @@
                     <th>Amount</th>
                     <th>Purpose</th>
                     <th>Method</th>
-                    <th>Reference</th>
+                    <th>GCash Reference Number</th>
                     <th>Order Type</th>
                     <th>Date</th>
                     <th>Actions</th>
@@ -310,7 +310,7 @@
                             <span style="color: #10b981;">💰 COD</span>
                         {% endif %}
                     </td>
-                    <td>{{ payment.reference_number|default:"-" }}</td>
+                    <td>{% if payment.payment_method == 'gcash' %}{{ payment.reference_number|default:"-" }}{% else %}Not required{% endif %}</td>
                     <td>
                         {% if payment.cake_order %}
                             Cake Order #{{ payment.cake_order.id }}
