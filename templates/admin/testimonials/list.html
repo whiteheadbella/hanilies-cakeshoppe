@@ -1,0 +1,264 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Testimonials{% endblock %}
+{% block page_title %}Testimonial Moderation{% endblock %}
+{% block page_icon %}comments{% endblock %}
+
+{% block content %}
+<div class="module-card">
+    <div class="module-header" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <h2><i class="fas fa-comment-dots"></i> Pending Testimonials <span class="badge" style="background: #fef3c7; color: #d97706; margin-left: 10px;">{{ pending_testimonials_page.paginator.count }}</span></h2>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <span class="btn-preview" style="background: #ecfdf5; color: #047857; cursor: default;">
+                <i class="fas fa-eye"></i> Public Testimonials: {{ approved_testimonial_count }}
+            </span>
+            <a href="{% if is_archived_view %}{% url 'admin_testimonials' %}{% else %}{% url 'admin_testimonials' %}?archived=1{% endif %}" class="btn-preview" style="background: {% if is_archived_view %}#0f766e{% else %}#6b7280{% endif %};">
+                <i class="fas fa-box-archive"></i> {% if is_archived_view %}Back to Active{% else %}View Archived{% endif %}
+            </a>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="module-table" data-pagination-mode="server">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Order</th>
+                    <th>Customer</th>
+                    <th>Rating</th>
+                    <th>Message</th>
+                    <th>Submitted</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for testimonial in pending_testimonials_page %}
+                <tr>
+                    <td>#{{ testimonial.id }}</td>
+                    <td>
+                        {% if testimonial.cake_order %}
+                            <a href="{% url 'admin_cake_order_view' testimonial.cake_order.id %}?next={{ request.get_full_path|urlencode }}" class="table-link">Cake Order #{{ testimonial.cake_order.id }}</a>
+                        {% else %}
+                            <a href="{% url 'admin_package_order_view' testimonial.package_order.id %}?next={{ request.get_full_path|urlencode }}" class="table-link">Package Order #{{ testimonial.package_order.id }}</a>
+                        {% endif %}
+                        <div class="small text-muted mt-1">{{ testimonial.display_context }}</div>
+                    </td>
+                    <td>
+                        <div class="fw-semibold">{{ testimonial.customer_name }}</div>
+                        <div class="small text-muted">{{ testimonial.user.username }}</div>
+                    </td>
+                    <td>{{ testimonial.rating }}/5</td>
+                    <td style="min-width: 280px;">{{ testimonial.message|truncatechars:180 }}</td>
+                    <td>{{ testimonial.created_at|date:"Y-m-d H:i" }}</td>
+                    <td>
+                        <form method="post" action="{% url 'admin_testimonial_update' testimonial.id %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" style="display: flex; flex-direction: column; gap: 8px; min-width: 250px;">
+                            {% csrf_token %}
+                            <textarea name="admin_note" class="form-control" rows="2" placeholder="Optional admin note">{{ testimonial.admin_note }}</textarea>
+                            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                <button type="submit" name="action" value="approve" class="btn-approve">
+                                    <i class="fas fa-check"></i> Approve
+                                </button>
+                                <button type="submit" name="action" value="reject" class="btn-reject">
+                                    <i class="fas fa-times"></i> Reject
+                                </button>
+                                <button type="submit" name="action" value="hide" class="btn-hide">
+                                    <i class="fas fa-eye-slash"></i> Hide
+                                </button>
+                            </div>
+                        </form>
+                        <form method="post" action="{% url 'admin_testimonial_delete' testimonial.id %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" style="margin-top: 8px;">
+                            {% csrf_token %}
+                            <button type="submit" onclick="return confirm('{% if is_archived_view %}Restore{% else %}Archive{% endif %} testimonial #{{ testimonial.id }}?');" class="btn-delete" style="{% if is_archived_view %}background: #dbeafe; color: #1d4ed8;{% endif %}">
+                                <i class="fas {% if is_archived_view %}fa-rotate-left{% else %}fa-box-archive{% endif %}"></i> {% if is_archived_view %}Restore{% else %}Archive{% endif %}
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center">
+                        <div style="padding: 40px;">
+                            <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                            <p>No testimonials waiting for review.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if pending_testimonials_page.paginator.count %}
+    <div class="table-pagination">
+        <div class="table-pagination-info">{{ pending_testimonials_pagination.summary }}</div>
+        {% if pending_testimonials_pagination.has_multiple_pages %}
+        <div class="table-pagination-actions">
+            {% if pending_testimonials_pagination.prev_url %}
+            <a href="{{ pending_testimonials_pagination.prev_url }}" class="table-pagination-button">Previous</a>
+            {% else %}
+            <span class="table-pagination-button is-disabled">Previous</span>
+            {% endif %}
+            {% if pending_testimonials_pagination.next_url %}
+            <a href="{{ pending_testimonials_pagination.next_url }}" class="table-pagination-button">Next</a>
+            {% else %}
+            <span class="table-pagination-button is-disabled">Next</span>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<div class="module-card">
+    <div class="module-header">
+        <h2><i class="fas fa-clipboard-check"></i> Reviewed Testimonials <span class="badge" style="background: #e5e7eb; color: #374151; margin-left: 10px;">{{ reviewed_testimonials_page.paginator.count }}</span></h2>
+    </div>
+    <div class="table-responsive">
+        <table class="module-table" data-pagination-mode="server">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Status</th>
+                    <th>Order</th>
+                    <th>Customer</th>
+                    <th>Message</th>
+                    <th>Review</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for testimonial in reviewed_testimonials_page %}
+                <tr>
+                    <td>#{{ testimonial.id }}</td>
+                    <td>
+                        {% if testimonial.status == 'approved' %}
+                        <span class="badge" style="background: #dcfce7; color: #166534;">Approved</span>
+                        {% elif testimonial.status == 'hidden' %}
+                        <span class="badge" style="background: #e5e7eb; color: #374151;">Hidden</span>
+                        {% else %}
+                        <span class="badge" style="background: #fee2e2; color: #b91c1c;">Rejected</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if testimonial.cake_order %}
+                            <a href="{% url 'admin_cake_order_view' testimonial.cake_order.id %}?next={{ request.get_full_path|urlencode }}" class="table-link">Cake Order #{{ testimonial.cake_order.id }}</a>
+                        {% else %}
+                            <a href="{% url 'admin_package_order_view' testimonial.package_order.id %}?next={{ request.get_full_path|urlencode }}" class="table-link">Package Order #{{ testimonial.package_order.id }}</a>
+                        {% endif %}
+                        <div class="small text-muted mt-1">{{ testimonial.rating }}/5 stars</div>
+                    </td>
+                    <td>{{ testimonial.customer_name }}</td>
+                    <td style="min-width: 280px;">{{ testimonial.message|truncatechars:180 }}</td>
+                    <td>
+                        <div>{{ testimonial.reviewed_by.username|default:'-' }}</div>
+                        <div class="small text-muted">{{ testimonial.reviewed_at|date:"Y-m-d H:i"|default:'Not reviewed yet' }}</div>
+                        <div class="small text-muted mt-1">{{ testimonial.admin_note|default:'No admin note' }}</div>
+                    </td>
+                    <td>
+                        <form method="post" action="{% url 'admin_testimonial_update' testimonial.id %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" style="display: flex; flex-direction: column; gap: 8px; min-width: 250px;">
+                            {% csrf_token %}
+                            <textarea name="admin_note" class="form-control" rows="2" placeholder="Optional admin note">{{ testimonial.admin_note }}</textarea>
+                            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                <button type="submit" name="action" value="approve" class="btn-approve">
+                                    <i class="fas fa-check"></i> Approve
+                                </button>
+                                <button type="submit" name="action" value="reject" class="btn-reject">
+                                    <i class="fas fa-times"></i> Reject
+                                </button>
+                                <button type="submit" name="action" value="hide" class="btn-hide">
+                                    <i class="fas fa-eye-slash"></i> Hide
+                                </button>
+                            </div>
+                        </form>
+                        <form method="post" action="{% url 'admin_testimonial_delete' testimonial.id %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" style="margin-top: 8px;">
+                            {% csrf_token %}
+                            <button type="submit" onclick="return confirm('{% if is_archived_view %}Restore{% else %}Archive{% endif %} testimonial #{{ testimonial.id }}?');" class="btn-delete" style="{% if is_archived_view %}background: #dbeafe; color: #1d4ed8;{% endif %}">
+                                <i class="fas {% if is_archived_view %}fa-rotate-left{% else %}fa-box-archive{% endif %}"></i> {% if is_archived_view %}Restore{% else %}Archive{% endif %}
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center">No reviewed testimonials yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if reviewed_testimonials_page.paginator.count %}
+    <div class="table-pagination">
+        <div class="table-pagination-info">{{ reviewed_testimonials_pagination.summary }}</div>
+        {% if reviewed_testimonials_pagination.has_multiple_pages %}
+        <div class="table-pagination-actions">
+            {% if reviewed_testimonials_pagination.prev_url %}
+            <a href="{{ reviewed_testimonials_pagination.prev_url }}" class="table-pagination-button">Previous</a>
+            {% else %}
+            <span class="table-pagination-button is-disabled">Previous</span>
+            {% endif %}
+            {% if reviewed_testimonials_pagination.next_url %}
+            <a href="{{ reviewed_testimonials_pagination.next_url }}" class="table-pagination-button">Next</a>
+            {% else %}
+            <span class="table-pagination-button is-disabled">Next</span>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    .btn-approve,
+    .btn-reject,
+    .btn-hide,
+    .btn-preview,
+    .btn-delete {
+        border: none;
+        padding: 8px 14px;
+        border-radius: 20px;
+        color: white;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.9rem;
+    }
+
+    .btn-approve {
+        background: #10b981;
+    }
+
+    .btn-reject {
+        background: #dc2626;
+    }
+
+    .btn-hide {
+        background: #6b7280;
+    }
+
+    .btn-preview {
+        background: #ec4899;
+    }
+
+    .btn-delete {
+        background: #7c2d12;
+    }
+
+    .btn-approve:hover,
+    .btn-reject:hover,
+    .btn-hide:hover,
+    .btn-preview:hover,
+    .btn-delete:hover {
+        opacity: 0.9;
+        color: white;
+    }
+
+    .table-link {
+        color: #be185d;
+        text-decoration: none;
+        font-weight: 600;
+    }
+
+    .table-link:hover {
+        text-decoration: underline;
+    }
+</style>
+{% endblock %}

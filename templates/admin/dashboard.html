@@ -7,636 +7,897 @@
 
 {% block extra_css %}
 <style>
-    /* Welcome Section */
-    .welcome-section {
-        background: linear-gradient(135deg, #FF69B4 0%, #D4AF37 100%);
-        border-radius: 25px;
-        padding: 30px;
-        margin-bottom: 30px;
-        color: white;
+    .dashboard-shell {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+
+    .dashboard-hero {
+        background: linear-gradient(135deg, #f857a6 0%, #f09363 55%, #d4af37 100%);
+        border-radius: 24px;
+        padding: 24px 26px;
+        color: #fff;
         position: relative;
         overflow: hidden;
+        min-height: 150px;
     }
-    
-    .welcome-section::before {
-        content: '🎂';
+
+    .dashboard-hero::after {
+        content: '';
         position: absolute;
-        right: 20px;
-        bottom: 20px;
-        font-size: 100px;
-        opacity: 0.1;
+        inset: auto -50px -70px auto;
+        width: 220px;
+        height: 220px;
+        background: radial-gradient(circle, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 68%);
         pointer-events: none;
     }
-    
-    .welcome-section h2 {
-        color: white;
-        margin-bottom: 10px;
-        font-size: 1.8rem;
-    }
-    
-    .welcome-section p {
-        margin-bottom: 0;
-        opacity: 0.95;
-    }
-    
-    .welcome-date {
-        font-size: 0.9rem;
-        opacity: 0.9;
-    }
-    
-    /* Stats Grid Enhanced */
-    .stats-grid {
+
+    .dashboard-hero-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 25px;
-        margin-bottom: 40px;
-    }
-    
-    .stat-card {
-        background: white;
-        border-radius: 20px;
-        padding: 0;
-        transition: all 0.3s ease;
-        cursor: pointer;
+        grid-template-columns: minmax(0, 1.8fr) minmax(260px, 1fr);
+        gap: 18px;
         position: relative;
-        overflow: hidden;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-        border: none;
+        z-index: 1;
     }
-    
-    .stat-card:hover {
-        transform: translateY(-8px);
-        box-shadow: 0 15px 30px rgba(255,105,180,0.2);
-    }
-    
-    .stat-card-inner {
-        padding: 25px;
-        display: flex;
-        align-items: center;
-        gap: 20px;
-    }
-    
-    .stat-icon-wrapper {
-        width: 65px;
-        height: 65px;
-        background: linear-gradient(135deg, rgba(255,105,180,0.1), rgba(212,175,55,0.1));
-        border-radius: 18px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.3s ease;
-    }
-    
-    .stat-card:hover .stat-icon-wrapper {
-        transform: scale(1.05);
-    }
-    
-    .stat-icon-wrapper i {
-        font-size: 2rem;
-        background: linear-gradient(135deg, #FF69B4, #D4AF37);
-        -webkit-background-clip: text;
-        background-clip: text;
-        -webkit-text-fill-color: transparent;
-    }
-    
-    .stat-info {
-        flex: 1;
-    }
-    
-    .stat-info h3 {
-        font-size: 0.85rem;
-        color: #6c757d;
-        margin-bottom: 8px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        font-weight: 600;
-    }
-    
-    .stat-number {
-        font-size: 2.2rem;
+
+    .dashboard-hero h2 {
+        margin: 0 0 8px;
+        color: #fff;
+        font-size: 1.9rem;
         font-weight: 700;
-        color: #2d3436;
-        margin-bottom: 5px;
-        line-height: 1;
     }
-    
-    .stat-change {
-        font-size: 0.75rem;
-        display: inline-block;
-        padding: 4px 10px;
-        border-radius: 20px;
-        background: #e8f5e9;
-        color: #2e7d32;
+
+    .dashboard-hero p {
+        margin: 0;
+        color: rgba(255,255,255,0.92);
+        max-width: 720px;
     }
-    
-    .stat-change.negative {
-        background: #ffebee;
-        color: #c62828;
-    }
-    
-    .stat-change i {
-        margin-right: 4px;
-    }
-    
-    /* Quick Actions */
-    .quick-actions {
-        background: white;
-        border-radius: 20px;
-        padding: 25px;
-        margin-bottom: 30px;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-    }
-    
-    .quick-actions h3 {
-        margin-bottom: 20px;
-        color: #2d3436;
-        font-size: 1.2rem;
-    }
-    
-    .quick-actions h3 i {
-        background: linear-gradient(135deg, #FF69B4, #D4AF37);
-        -webkit-background-clip: text;
-        background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-right: 10px;
-    }
-    
-    .action-buttons {
+
+    .dashboard-hero-meta {
+        margin-top: 14px;
         display: flex;
-        gap: 15px;
+        gap: 10px;
         flex-wrap: wrap;
     }
-    
-    .action-btn {
+
+    .dashboard-hero-pill {
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        padding: 10px 20px;
-        background: linear-gradient(135deg, #FF69B4, #D4AF37);
-        color: white;
-        border-radius: 50px;
-        text-decoration: none;
-        transition: all 0.3s ease;
-        font-weight: 500;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.16);
+        border: 1px solid rgba(255,255,255,0.18);
+        color: #fff;
+        font-size: 0.86rem;
+        font-weight: 600;
+        backdrop-filter: blur(6px);
     }
-    
-    .action-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(255,105,180,0.3);
-        color: white;
+
+    .dashboard-hero-summary {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        align-self: stretch;
     }
-    
-    .action-btn.outline {
-        background: transparent;
-        border: 2px solid #FF69B4;
-        color: #FF69B4;
+
+    .dashboard-hero-mini {
+        background: rgba(255,255,255,0.12);
+        border: 1px solid rgba(255,255,255,0.18);
+        border-radius: 18px;
+        padding: 14px 16px;
+        backdrop-filter: blur(8px);
     }
-    
-    .action-btn.outline:hover {
-        background: linear-gradient(135deg, #FF69B4, #D4AF37);
-        color: white;
+
+    .dashboard-hero-mini span {
+        display: block;
+        color: rgba(255,255,255,0.82);
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 6px;
     }
-    
-    /* Module Cards Enhanced */
-    .module-card {
-        background: white;
-        border-radius: 20px;
-        overflow: hidden;
-        margin-bottom: 30px;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-        border: none;
-        transition: all 0.3s ease;
+
+    .dashboard-hero-mini strong {
+        display: block;
+        font-size: 1.4rem;
+        line-height: 1.1;
+        color: #fff;
     }
-    
-    .module-card:hover {
-        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+
+    .dashboard-stat-cluster {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
     }
-    
-    .module-header {
-        padding: 20px 25px;
-        border-bottom: 2px solid #FFE4EC;
+
+    .dashboard-section-title {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        background: white;
+        gap: 14px;
+        flex-wrap: wrap;
+        margin-bottom: 4px;
     }
-    
-    .module-header h2 {
+
+    .dashboard-section-title h3 {
+        margin: 0;
+        color: #111827;
         font-size: 1.1rem;
-        font-weight: 600;
-        color: #2d3436;
+        font-weight: 700;
+    }
+
+    .dashboard-section-title p {
+        margin: 4px 0 0;
+        color: #6b7280;
+        font-size: 0.92rem;
+    }
+
+    .stats-grid-priority,
+    .stats-grid-secondary {
+        display: grid;
+        gap: 16px;
+    }
+
+    .stats-grid-priority {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .stats-grid-secondary {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+
+    .stat-card {
+        background: #fff;
+        border-radius: 20px;
+        padding: 18px;
+        box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
+        border: 1px solid #eef0f4;
+        cursor: pointer;
+        transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 14px 28px rgba(15, 23, 42, 0.1);
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        inset: 0 0 auto 0;
+        height: 4px;
+        background: linear-gradient(135deg, #f857a6, #d4af37);
+    }
+
+    .stat-card.is-urgent::before {
+        background: linear-gradient(135deg, #ef4444, #f97316);
+    }
+
+    .stat-card.is-sales::before {
+        background: linear-gradient(135deg, #16a34a, #22c55e);
+    }
+
+    .stat-card.is-neutral::before {
+        background: linear-gradient(135deg, #f59e0b, #fbbf24);
+    }
+
+    .stat-card-inner {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+    }
+
+    .stat-icon-wrapper {
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, rgba(248, 87, 166, 0.1), rgba(212, 175, 55, 0.14));
+        color: #ec4899;
+        flex-shrink: 0;
+    }
+
+    .stat-card.is-urgent .stat-icon-wrapper {
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(249, 115, 22, 0.16));
+        color: #dc2626;
+    }
+
+    .stat-card.is-sales .stat-icon-wrapper {
+        background: linear-gradient(135deg, rgba(22, 163, 74, 0.12), rgba(74, 222, 128, 0.15));
+        color: #15803d;
+    }
+
+    .stat-card.is-neutral .stat-icon-wrapper {
+        background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(251, 191, 36, 0.15));
+        color: #b45309;
+    }
+
+    .stat-icon-wrapper i {
+        font-size: 1.5rem;
+    }
+
+    .stat-info {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .stat-info h3 {
+        margin: 0 0 8px;
+        color: #6b7280;
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .stat-number {
+        display: block;
+        color: #111827;
+        font-size: 1.9rem;
+        line-height: 1.05;
+        font-weight: 800;
+        margin-bottom: 7px;
+    }
+
+    .stat-copy {
+        color: #6b7280;
+        font-size: 0.86rem;
+        line-height: 1.45;
+    }
+
+    .stat-change {
+        margin-top: 8px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.74rem;
+        font-weight: 700;
+        padding: 5px 10px;
+        border-radius: 999px;
+        background: #ecfdf3;
+        color: #15803d;
+    }
+
+    .stat-change.negative {
+        background: #fff1f2;
+        color: #be123c;
+    }
+
+    .dashboard-action-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+        gap: 18px;
+    }
+
+    .dashboard-panel {
+        background: #fff;
+        border-radius: 20px;
+        padding: 22px;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+        border: 1px solid #eef0f4;
+    }
+
+    .dashboard-panel h3 {
+        margin: 0 0 6px;
+        color: #111827;
+        font-size: 1.08rem;
+    }
+
+    .dashboard-panel-copy {
+        margin: 0 0 16px;
+        color: #6b7280;
+        font-size: 0.92rem;
+    }
+
+    .quick-action-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .quick-action-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px;
+        border-radius: 18px;
+        text-decoration: none;
+        color: #111827;
+        background: linear-gradient(180deg, #ffffff, #fff8fb);
+        border: 1px solid #f3d7e4;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .quick-action-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 24px rgba(248, 87, 166, 0.12);
+        color: #111827;
+    }
+
+    .quick-action-card.is-priority {
+        background: linear-gradient(135deg, #fff1f2, #fff7ed);
+        border-color: #fecdd3;
+    }
+
+    .quick-action-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(248, 87, 166, 0.1);
+        color: #ec4899;
+        flex-shrink: 0;
+    }
+
+    .quick-action-card.is-priority .quick-action-icon {
+        background: rgba(239, 68, 68, 0.12);
+        color: #dc2626;
+    }
+
+    .quick-action-content strong {
+        display: block;
+        font-size: 0.95rem;
+        margin-bottom: 3px;
+    }
+
+    .quick-action-content span {
+        display: block;
+        color: #6b7280;
+        font-size: 0.84rem;
+        line-height: 1.4;
+    }
+
+    .attention-list {
+        display: grid;
+        gap: 12px;
+    }
+
+    .attention-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 16px;
+        border-radius: 16px;
+        background: #fff8fb;
+        border: 1px solid #f5d9e6;
+        text-decoration: none;
+    }
+
+    .attention-item.is-urgent {
+        background: #fff4f4;
+        border-color: #fecaca;
+    }
+
+    .attention-item-main strong {
+        display: block;
+        color: #111827;
+        margin-bottom: 4px;
+        font-size: 0.95rem;
+    }
+
+    .attention-item-main span {
+        color: #6b7280;
+        font-size: 0.84rem;
+    }
+
+    .attention-item-value {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 40px;
+        height: 40px;
+        padding: 0 12px;
+        border-radius: 999px;
+        background: #fff;
+        color: #be185d;
+        font-weight: 800;
+        box-shadow: inset 0 0 0 1px #f3d7e4;
+    }
+
+    .dashboard-data-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+        gap: 18px;
+    }
+
+    .module-card {
+        background: #fff;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+        border: 1px solid #eef0f4;
         margin: 0;
     }
-    
+
+    .module-card.full-span {
+        grid-column: 1 / -1;
+    }
+
+    .module-header {
+        padding: 18px 20px;
+        border-bottom: 1px solid #f0dce6;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        background: linear-gradient(180deg, #fff, #fff9fb);
+    }
+
+    .module-header h2 {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #111827;
+        margin: 0;
+    }
+
     .module-header h2 i {
-        background: linear-gradient(135deg, #FF69B4, #D4AF37);
-        -webkit-background-clip: text;
-        background-clip: text;
-        -webkit-text-fill-color: transparent;
+        color: #ec4899;
         margin-right: 10px;
     }
-    
+
     .view-all-link {
-        color: #FF69B4;
+        color: #ec4899;
         text-decoration: none;
-        font-size: 0.85rem;
-        transition: all 0.3s ease;
+        font-size: 0.84rem;
+        font-weight: 700;
     }
-    
-    .view-all-link:hover {
-        color: #D4AF37;
-        transform: translateX(3px);
+
+    .table-responsive {
+        overflow-x: auto;
     }
-    
-    /* Table Styling */
+
     .module-table {
         width: 100%;
         border-collapse: collapse;
     }
-    
+
     .module-table th {
-        background: #FFF5F8;
-        padding: 15px 20px;
+        background: #fff6f9;
+        padding: 13px 14px;
         text-align: left;
-        font-size: 0.8rem;
-        font-weight: 600;
-        color: #DB2777;
-        border-bottom: 1px solid #FCE4EC;
+        font-size: 0.76rem;
+        font-weight: 700;
+        color: #db2777;
+        border-bottom: 1px solid #f5dbe6;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
     }
-    
+
     .module-table td {
-        padding: 15px 20px;
-        border-bottom: 1px solid #f0f0f0;
-        color: #495057;
-        font-size: 0.9rem;
+        padding: 13px 14px;
+        border-bottom: 1px solid #f2f4f7;
+        color: #374151;
+        font-size: 0.88rem;
+        vertical-align: top;
     }
-    
+
     .module-table tr:hover td {
-        background: linear-gradient(135deg, #FFF5F8, #FFF8F0);
+        background: linear-gradient(135deg, #fff7fa, #fffaf2);
     }
-    
-    /* Status Badges */
+
+    .cell-strong {
+        color: #111827;
+        font-weight: 700;
+    }
+
+    .cell-muted {
+        color: #6b7280;
+        font-size: 0.82rem;
+    }
+
+    .cell-truncate {
+        max-width: 260px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
     .status-badge {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 0.7rem;
-        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        padding: 5px 11px;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        white-space: nowrap;
     }
-    
-    .status-pending { background: #fff3e0; color: #ed6c02; }
-    .status-confirmed { background: #e3f2fd; color: #1976d2; }
-    .status-preparing { background: #fff3e0; color: #ed6c02; }
-    .status-out_for_delivery { background: #e3f2fd; color: #1976d2; }
-    .status-delivered, .status-paid, .status-completed { background: #e8f5e9; color: #2e7d32; }
-    .status-payment_retry { background: #fff3e0; color: #b45309; }
-    .status-cancelled { background: #ffebee; color: #c62828; }
-    .status-rejected { background: #ffebee; color: #c62828; }
-    
-    /* Empty State */
+
+    .status-pending,
+    .status-payment_retry {
+        background: #fff3e0;
+        color: #b45309;
+    }
+
+    .status-confirmed,
+    .status-out_for_delivery {
+        background: #e0f2fe;
+        color: #0369a1;
+    }
+
+    .status-preparing {
+        background: #fef3c7;
+        color: #b45309;
+    }
+
+    .status-delivered,
+    .status-paid,
+    .status-completed {
+        background: #dcfce7;
+        color: #15803d;
+    }
+
+    .status-cancelled,
+    .status-rejected {
+        background: #fee2e2;
+        color: #b91c1c;
+    }
+
+    .audit-mini-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 5px 10px;
+        border-radius: 999px;
+        background: #f3f4f6;
+        color: #374151;
+        font-size: 0.72rem;
+        font-weight: 700;
+    }
+
+    .audit-mini-badge.login {
+        background: #ccfbf1;
+        color: #0f766e;
+    }
+
+    .audit-mini-badge.logout {
+        background: #ede9fe;
+        color: #6d28d9;
+    }
+
+    .audit-mini-badge.update {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .audit-mini-badge.archive,
+    .audit-mini-badge.delete {
+        background: #ffe4e6;
+        color: #9f1239;
+    }
+
+    .audit-mini-badge.create {
+        background: #dbeafe;
+        color: #1d4ed8;
+    }
+
+    .table-footer-note {
+        padding: 12px 14px 16px;
+        color: #6b7280;
+        font-size: 0.8rem;
+    }
+
     .empty-state {
         text-align: center;
-        padding: 60px 20px;
+        padding: 42px 18px;
     }
-    
+
     .empty-state i {
-        font-size: 3rem;
-        color: #ddd;
-        margin-bottom: 15px;
+        font-size: 2.4rem;
+        color: #e5e7eb;
+        margin-bottom: 12px;
     }
-    
+
     .empty-state p {
-        color: #999;
-        margin-bottom: 0;
+        color: #9ca3af;
+        margin: 0;
     }
-    
-    /* Responsive */
-    @media (max-width: 768px) {
-        .welcome-section {
+
+    @media (max-width: 1400px) {
+        .stats-grid-priority {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .stats-grid-secondary {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 1199px) {
+        .dashboard-hero-grid,
+        .dashboard-action-grid,
+        .dashboard-data-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 767px) {
+        .dashboard-hero {
             padding: 20px;
         }
-        
-        .welcome-section h2 {
-            font-size: 1.3rem;
+
+        .dashboard-hero h2 {
+            font-size: 1.45rem;
         }
-        
-        .stat-number {
-            font-size: 1.5rem;
+
+        .dashboard-hero-summary,
+        .stats-grid-priority,
+        .stats-grid-secondary,
+        .quick-action-grid {
+            grid-template-columns: 1fr;
         }
-        
+
+        .dashboard-panel,
+        .module-header {
+            padding: 16px;
+        }
+
         .module-header {
             flex-direction: column;
-            gap: 10px;
-            text-align: center;
+            align-items: flex-start;
         }
-        
-        .action-buttons {
-            justify-content: center;
+
+        .cell-truncate {
+            max-width: 180px;
         }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Welcome Section -->
-<div class="welcome-section">
-    <h2>
-        <i class="fas fa-cake-candles"></i> 
-        Welcome back, {{ request.user.get_full_name|default:request.user.username }}!
-    </h2>
-    <p>Here's what's happening with your cakeshoppe today.</p>
-    <div class="welcome-date">
-        <i class="fas fa-calendar-alt"></i> 
-        {{ now|date:"l, F j, Y" }}
-    </div>
-</div>
-
-<!-- Stats Grid -->
-<div class="stats-grid">
-    <div class="stat-card" onclick="window.location.href='{% url 'admin_cakes' %}'">
-        <div class="stat-card-inner">
-            <div class="stat-icon-wrapper">
-                <i class="fas fa-birthday-cake"></i>
-            </div>
-            <div class="stat-info">
-                <h3>Total Cakes</h3>
-                <div class="stat-number">{{ total_cakes|default:"0" }}</div>
-                <div class="stat-change">
-                    <i class="fas fa-check-circle"></i> Active products
+<div class="dashboard-shell">
+    <section class="dashboard-hero">
+        <div class="dashboard-hero-grid">
+            <div>
+                <h2><i class="fas fa-cake-candles"></i> Welcome back, {{ request.user.get_full_name|default:request.user.username }}!</h2>
+                <p>Your dashboard now highlights the tasks and metrics most relevant to your current staff role, with broader summaries shown only where they are useful.</p>
+                <div class="dashboard-hero-meta">
+                    <span class="dashboard-hero-pill">
+                        <i class="fas fa-calendar-alt"></i>
+                        {{ now|date:"l, F j, Y" }}
+                    </span>
+                    <span class="dashboard-hero-pill">
+                        <i class="fas fa-user-shield"></i>
+                        {{ role_display }}
+                    </span>
                 </div>
             </div>
-        </div>
-    </div>
-    
-    <div class="stat-card" onclick="window.location.href='{% url 'admin_cake_orders' %}'">
-        <div class="stat-card-inner">
-            <div class="stat-icon-wrapper">
-                <i class="fas fa-shopping-cart"></i>
-            </div>
-            <div class="stat-info">
-                <h3>Cake Orders</h3>
-                <div class="stat-number">{{ total_cake_orders|default:"0" }}</div>
-                <div class="stat-change">
-                    <i class="fas fa-chart-line"></i> Total orders
+            <div class="dashboard-hero-summary">
+                {% for item in hero_summary_items %}
+                <div class="dashboard-hero-mini">
+                    <span>{{ item.label }}</span>
+                    <strong>{{ item.value }}</strong>
                 </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="stat-card" onclick="window.location.href='{% url 'admin_packages' %}'">
-        <div class="stat-card-inner">
-            <div class="stat-icon-wrapper">
-                <i class="fas fa-gift"></i>
-            </div>
-            <div class="stat-info">
-                <h3>Packages</h3>
-                <div class="stat-number">{{ total_packages|default:"0" }}</div>
-                <div class="stat-change">
-                    <i class="fas fa-check-circle"></i> Active packages
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="stat-card" onclick="window.location.href='{% url 'admin_package_orders' %}'">
-        <div class="stat-card-inner">
-            <div class="stat-icon-wrapper">
-                <i class="fas fa-calendar-check"></i>
-            </div>
-            <div class="stat-info">
-                <h3>Package Orders</h3>
-                <div class="stat-number">{{ total_package_orders|default:"0" }}</div>
-                <div class="stat-change">
-                    <i class="fas fa-chart-line"></i> Total orders
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="stat-card" onclick="window.location.href='{% url 'admin_payments' %}'">
-        <div class="stat-card-inner">
-            <div class="stat-icon-wrapper">
-                <i class="fas fa-clock"></i>
-            </div>
-            <div class="stat-info">
-                <h3>Pending Payments</h3>
-                <div class="stat-number">{{ pending_payments|default:"0" }}</div>
-                <div class="stat-change negative">
-                    <i class="fas fa-exclamation-circle"></i> Need attention
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="stat-card" onclick="window.location.href='{% url 'admin_payments' %}'">
-        <div class="stat-card-inner">
-            <div class="stat-icon-wrapper">
-                <i class="fas fa-peso-sign"></i>
-            </div>
-            <div class="stat-info">
-                <h3>Today's Sales</h3>
-                <div class="stat-number">P{{ total_sales_today|floatformat:2 }}</div>
-                <div class="stat-change">
-                    <i class="fas fa-receipt"></i> Paid today
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="stat-card" onclick="window.location.href='{% url 'admin_payments' %}'">
-        <div class="stat-card-inner">
-            <div class="stat-icon-wrapper">
-                <i class="fas fa-chart-line"></i>
-            </div>
-            <div class="stat-info">
-                <h3>This Week's Sales</h3>
-                <div class="stat-number">P{{ total_sales_week|floatformat:2 }}</div>
-                <div class="stat-change">
-                    <i class="fas fa-calendar-week"></i> Paid this week
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="stat-card" onclick="window.location.href='{% url 'admin_payments' %}'">
-        <div class="stat-card-inner">
-            <div class="stat-icon-wrapper">
-                <i class="fas fa-calendar-alt"></i>
-            </div>
-            <div class="stat-info">
-                <h3>This Month's Sales</h3>
-                <div class="stat-number">P{{ total_sales_month|floatformat:2 }}</div>
-                <div class="stat-change">
-                    <i class="fas fa-wallet"></i> Paid this month
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="stat-card" onclick="window.location.href='{% url 'admin_users' %}'">
-        <div class="stat-card-inner">
-            <div class="stat-icon-wrapper">
-                <i class="fas fa-users"></i>
-            </div>
-            <div class="stat-info">
-                <h3>Total Users</h3>
-                <div class="stat-number">{{ total_users|default:"0" }}</div>
-                <div class="stat-change">
-                    <i class="fas fa-user-plus"></i> Registered users
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Quick Actions -->
-<div class="quick-actions">
-    <h3><i class="fas fa-bolt"></i> Quick Actions</h3>
-    <div class="action-buttons">
-        <a href="{% url 'admin_cake_add' %}" class="action-btn">
-            <i class="fas fa-plus"></i> Add New Cake
-        </a>
-        <a href="{% url 'admin_package_add' %}" class="action-btn">
-            <i class="fas fa-plus"></i> Add New Package
-        </a>
-        <a href="{% url 'admin_payments' %}" class="action-btn outline">
-            <i class="fas fa-credit-card"></i> Verify Payments
-        </a>
-        <a href="{% url 'admin_users' %}" class="action-btn outline">
-            <i class="fas fa-user-plus"></i> Manage Users
-        </a>
-    </div>
-</div>
-
-<!-- Recent Audit Trail -->
-<div class="module-card">
-    <div class="module-header">
-        <h2><i class="fas fa-clipboard-list"></i> Recent Audit Trail</h2>
-        <a href="{% url 'admin_activity_logs' %}" class="view-all-link">
-            View All <i class="fas fa-arrow-right"></i>
-        </a>
-    </div>
-    <div class="table-responsive">
-        <table class="module-table">
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Staff</th>
-                    <th>Action</th>
-                    <th>Target</th>
-                    <th>Description</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for log in recent_activity_logs %}
-                <tr>
-                    <td>{{ log.created_at|date:"M d, Y H:i" }}</td>
-                    <td>{{ log.actor.username|default:"Deleted user" }}</td>
-                    <td>{{ log.action|title }}</td>
-                    <td>
-                        {% if log.target_type %}
-                        {{ log.target_type|title }}{% if log.target_id %} #{{ log.target_id }}{% endif %}
-                        {% else %}
-                        -
-                        {% endif %}
-                    </td>
-                    <td>{{ log.description }}</td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="5" class="empty-state">
-                        <i class="fas fa-clipboard-list"></i>
-                        <p>No audit trail entries yet</p>
-                    </td>
-                </tr>
                 {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
+            </div>
+        </div>
+    </section>
 
-<!-- Recent Cake Orders -->
-<div class="module-card">
-    <div class="module-header">
-        <h2><i class="fas fa-shopping-cart"></i> Recent Cake Orders</h2>
-        <a href="{% url 'admin_cake_orders' %}" class="view-all-link">
-            View All <i class="fas fa-arrow-right"></i>
-        </a>
-    </div>
-    <div class="table-responsive">
-        <table class="module-table">
-            <thead>
-                <tr>
-                    <th>Order ID</th>
-                    <th>Customer</th>
-                    <th>Cake</th>
-                    <th>Total</th>
-                    <th>Status</th>
-                    <th>Date</th>
-                 </thead>
-            <tbody>
-                {% for order in recent_cake_orders %}
-                 <tr>
-                     <td><strong>#{{ order.id }}</strong></td>
-                     <td>{{ order.user.username }}</td>
-                     <td>{{ order.cake.name|default:"Custom Cake" }}</td>
-                     <td><strong>₱{{ order.total_price }}</strong></td>
-                     <td><span class="status-badge status-{{ order.order_status }}">{{ order.get_order_status_display }}</span></td>
-                     <td>{{ order.created_at|date:"M d, Y" }}</td>
-                 </tr>
-                {% empty %}
-                 <tr>
-                    <td colspan="6" class="empty-state">
-                        <i class="fas fa-shopping-cart"></i>
-                        <p>No cake orders yet</p>
-                    </td>
-                 </tr>
-                {% endfor %}
-            </tbody>
-         </table>
-    </div>
-</div>
+    <section class="dashboard-stat-cluster">
+        <div class="dashboard-section-title">
+            <div>
+                <h3>Priority Overview</h3>
+                <p>These are the most actionable numbers for daily shop operations.</p>
+            </div>
+        </div>
+        <div class="stats-grid-priority">
+            {% for card in priority_cards %}
+            <div class="stat-card {% if card.tone %}is-{{ card.tone }}{% endif %}" onclick="window.location.href='{{ card.url }}'">
+                <div class="stat-card-inner">
+                    <div class="stat-icon-wrapper"><i class="fas fa-{{ card.icon }}"></i></div>
+                    <div class="stat-info">
+                        <h3>{{ card.title|safe }}</h3>
+                        <span class="stat-number">{{ card.value }}</span>
+                        <div class="stat-copy">{{ card.copy }}</div>
+                        <div class="stat-change {% if card.chip_negative %}negative{% endif %}"><i class="fas fa-circle"></i> {{ card.chip }}</div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
 
-<!-- Recent Package Orders -->
-<div class="module-card">
-    <div class="module-header">
-        <h2><i class="fas fa-calendar-check"></i> Recent Package Orders</h2>
-        <a href="{% url 'admin_package_orders' %}" class="view-all-link">
-            View All <i class="fas fa-arrow-right"></i>
-        </a>
-    </div>
-    <div class="table-responsive">
-        <table class="module-table">
-            <thead>
-                 <tr>
-                    <th>Order ID</th>
-                    <th>Customer</th>
-                    <th>Package</th>
-                    <th>Event Date</th>
-                    <th>Total</th>
-                    <th>Status</th>
-                 </tr>
-            </thead>
-            <tbody>
-                {% for order in recent_package_orders %}
-                 <tr>
-                     <td><strong>#{{ order.id }}</strong></td>
-                     <td>{{ order.user.username }}</td>
-                     <td>{{ order.package.name|default:"Custom Package" }}</td>
-                     <td>{{ order.event_date|date:"M d, Y" }}</td>
-                     <td><strong>₱{{ order.total_price }}</strong></td>
-                     <td><span class="status-badge status-{{ order.order_status }}">{{ order.get_order_status_display }}</span></td>
-                 </tr>
-                {% empty %}
-                 <tr>
-                    <td colspan="6" class="empty-state">
-                        <i class="fas fa-gift"></i>
-                        <p>No package orders yet</p>
-                    </td>
-                 </tr>
+        <div class="dashboard-section-title">
+            <div>
+                <h3>Supporting Totals</h3>
+                <p>Catalog, sales trend, and account totals that help with broader monitoring.</p>
+            </div>
+        </div>
+        <div class="stats-grid-secondary">
+            {% for card in secondary_cards %}
+            <div class="stat-card {% if card.tone %}is-{{ card.tone }}{% endif %}" onclick="window.location.href='{{ card.url }}'">
+                <div class="stat-card-inner">
+                    <div class="stat-icon-wrapper"><i class="fas fa-{{ card.icon }}"></i></div>
+                    <div class="stat-info">
+                        <h3>{{ card.title|safe }}</h3>
+                        <span class="stat-number">{{ card.value }}</span>
+                        <div class="stat-change"><i class="fas fa-check-circle"></i> {{ card.chip }}</div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="dashboard-action-grid">
+        <div class="dashboard-panel">
+            <h3><i class="fas fa-bolt"></i> Quick Actions</h3>
+            <p class="dashboard-panel-copy">The most common admin tasks are grouped here for faster daily workflows.</p>
+            <div class="quick-action-grid">
+                {% for action in quick_actions %}
+                <a href="{{ action.url }}" class="quick-action-card {% if action.priority %}is-priority{% endif %}">
+                    <div class="quick-action-icon"><i class="fas fa-{{ action.icon }}"></i></div>
+                    <div class="quick-action-content">
+                        <strong>{{ action.title }}</strong>
+                        <span>{{ action.copy }}</span>
+                    </div>
+                </a>
                 {% endfor %}
-            </tbody>
-         </table>
-    </div>
+            </div>
+        </div>
+
+        <div class="dashboard-panel">
+            <h3><i class="fas fa-triangle-exclamation"></i> Needs Attention</h3>
+            <p class="dashboard-panel-copy">These counts point to the items most likely to need staff response next.</p>
+            <div class="attention-list">
+                {% for item in attention_items %}
+                <a href="{{ item.url }}" class="attention-item {% if item.urgent %}is-urgent{% endif %}">
+                    <div class="attention-item-main">
+                        <strong>{{ item.title }}</strong>
+                        <span>{{ item.copy }}</span>
+                    </div>
+                    <span class="attention-item-value">{{ item.value }}</span>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <section class="dashboard-data-grid">
+        {% if can_view_audit_trail %}
+        <div class="module-card">
+            <div class="module-header">
+                <h2><i class="fas fa-clipboard-list"></i> Recent Audit Trail</h2>
+                <a href="{% url 'admin_activity_logs' %}" class="view-all-link">View All <i class="fas fa-arrow-right"></i></a>
+            </div>
+            <div class="table-responsive">
+                <table class="module-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>User</th>
+                            <th>Action</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in recent_activity_logs %}
+                        <tr>
+                            <td>{{ log.created_at|date:"M d, Y H:i" }}</td>
+                            <td>
+                                <div class="cell-strong">{{ log.actor.username|default:"Deleted user" }}</div>
+                                <div class="cell-muted">{{ log.target_type|default:"General"|title }}</div>
+                            </td>
+                            <td>
+                                <span class="audit-mini-badge {% if 'login' in log.action|lower %}login{% elif 'logout' in log.action|lower %}logout{% elif 'update' in log.action|lower or 'approve' in log.action|lower or 'verify' in log.action|lower %}update{% elif 'archive' in log.action|lower or 'reject' in log.action|lower or 'delete' in log.action|lower %}archive{% elif 'create' in log.action|lower or 'add' in log.action|lower %}create{% endif %}">
+                                    {{ log.action|title }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="cell-truncate">{{ log.description }}</div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="empty-state">
+                                <i class="fas fa-clipboard-list"></i>
+                                <p>No audit trail entries yet</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="table-footer-note">Showing the latest {{ recent_activity_logs|length }} audit entries. Open the full audit trail for filters and archive tools.</div>
+        </div>
+        {% endif %}
+
+        {% if can_view_cake_orders %}
+        <div class="module-card">
+            <div class="module-header">
+                <h2><i class="fas fa-shopping-cart"></i> Recent Cake Orders</h2>
+                <a href="{% url 'admin_cake_orders' %}" class="view-all-link">View All <i class="fas fa-arrow-right"></i></a>
+            </div>
+            <div class="table-responsive">
+                <table class="module-table">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Customer</th>
+                            <th>Cake</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in recent_cake_orders %}
+                        <tr>
+                            <td><span class="cell-strong">#{{ order.id }}</span></td>
+                            <td>
+                                <div class="cell-strong">{{ order.user.username }}</div>
+                                <div class="cell-muted">{{ order.created_at|date:"M d, Y" }}</div>
+                            </td>
+                            <td><div class="cell-truncate">{{ order.cake.name|default:"Custom Cake" }}</div></td>
+                            <td><span class="cell-strong">P{{ order.total_price }}</span></td>
+                            <td><span class="status-badge status-{{ order.order_status }}">{{ order.get_order_status_display }}</span></td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="empty-state">
+                                <i class="fas fa-shopping-cart"></i>
+                                <p>No cake orders yet</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="table-footer-note">Showing the latest {{ recent_cake_orders|length }} cake orders.</div>
+        </div>
+        {% endif %}
+
+        {% if can_view_package_orders %}
+        <div class="module-card full-span">
+            <div class="module-header">
+                <h2><i class="fas fa-calendar-check"></i> Recent Package Orders</h2>
+                <a href="{% url 'admin_package_orders' %}" class="view-all-link">View All <i class="fas fa-arrow-right"></i></a>
+            </div>
+            <div class="table-responsive">
+                <table class="module-table">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Customer</th>
+                            <th>Package</th>
+                            <th>Event Date</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in recent_package_orders %}
+                        <tr>
+                            <td><span class="cell-strong">#{{ order.id }}</span></td>
+                            <td>
+                                <div class="cell-strong">{{ order.user.username }}</div>
+                                <div class="cell-muted">{{ order.created_at|date:"M d, Y" }}</div>
+                            </td>
+                            <td><div class="cell-truncate">{{ order.package.name|default:"Custom Package" }}</div></td>
+                            <td>{{ order.event_date|date:"M d, Y" }}</td>
+                            <td><span class="cell-strong">P{{ order.total_price }}</span></td>
+                            <td><span class="status-badge status-{{ order.order_status }}">{{ order.get_order_status_display }}</span></td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="empty-state">
+                                <i class="fas fa-gift"></i>
+                                <p>No package orders yet</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="table-footer-note">Showing the latest {{ recent_package_orders|length }} package orders.</div>
+        </div>
+        {% endif %}
+    </section>
 </div>
 {% endblock %}
+

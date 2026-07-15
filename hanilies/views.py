@@ -47,7 +47,7 @@ from .forms import (
     build_cake_booking_window,
     build_package_booking_window,
 )
-from .models import HomeHeroImage, HomeStripImage, UserProfile, Notification, Cake, CakeOrder, CakeCustomization, Package, PackageOrder, PackageThumbnail, Payment, RefundRequest, ActivityLog
+from .models import HomeHeroImage, HomeStripImage, UserProfile, Notification, Cake, CakeOrder, CakeCustomization, Package, PackageOrder, PackageThumbnail, Payment, RefundRequest, ActivityLog, Testimonial
 from .payment_qr import build_gcash_checkout_details, get_gcash_profile
 
 
@@ -445,6 +445,8 @@ ADMIN_MENU_ITEMS = [
         'roles': PACKAGE_ORDER_ROLE_VALUES},
     {'name': 'Payments', 'url': 'admin_payments', 'icon': 'credit-card',
         'roles': PAYMENT_REVIEW_ROLE_VALUES},
+    {'name': 'Testimonials', 'url': 'admin_testimonials', 'icon': 'comments',
+        'roles': FULL_ACCESS_ROLE_VALUES},
     {'name': 'Refunds', 'url': 'admin_refunds', 'icon': 'rotate-left',
         'roles': PAYMENT_REVIEW_ROLE_VALUES},
     {'name': 'Users', 'url': 'admin_users', 'icon': 'users',
@@ -1352,6 +1354,16 @@ def _build_activity_log_summary(queryset):
         'total_records': queryset.count(),
         'unique_users': queryset.exclude(actor__isnull=True).values('actor_id').distinct().count(),
         'session_events': queryset.filter(action__in=['User login', 'User logout']).count(),
+        'login_events': queryset.filter(action__icontains='login').count(),
+        'order_events': queryset.filter(
+            Q(target_type__in=['cake_order', 'package_order'])
+            | Q(action__icontains='order')
+        ).count(),
+        'archive_events': queryset.filter(
+            Q(action__icontains='archive')
+            | Q(action__icontains='restore')
+        ).count(),
+        'module_count': queryset.exclude(target_type='').values('target_type').distinct().count(),
     }
 
 
@@ -3739,6 +3751,44 @@ def _build_home_strip_image():
     }
 
 
+def _get_homepage_testimonials(limit=3):
+    return list(
+        Testimonial.objects.select_related(
+            'cake_order__cake',
+            'package_order__package',
+        ).filter(
+            status=Testimonial.STATUS_APPROVED,
+            is_archived=False,
+        ).order_by('-reviewed_at', '-created_at')[:limit]
+    )
+
+
+def _get_order_testimonial(order_type, order):
+    if order is None:
+        return None
+
+    if order_type == 'cake':
+        return Testimonial.objects.select_related(
+            'reviewed_by',
+            'cake_order__cake',
+        ).filter(cake_order=order).first()
+
+    return Testimonial.objects.select_related(
+        'reviewed_by',
+        'package_order__package',
+    ).filter(package_order=order).first()
+
+
+def _can_submit_testimonial(order, testimonial=None):
+    if order is None or order.order_status != 'completed':
+        return False
+
+    if testimonial is None:
+        return True
+
+    return testimonial.status == Testimonial.STATUS_REJECTED and not testimonial.is_archived
+
+
 # ============================================
 # MAIN SITE PAGES
 # ============================================
@@ -3767,6 +3817,7 @@ def home(request):
         'featured_cakes': featured_cakes,
         'featured_packages': featured_packages,
         'home_insights': _build_home_insights(recommendation_profile),
+        'homepage_testimonials': _get_homepage_testimonials(),
     }
     return render(request, 'hanilies/home.html', context)
 
@@ -4159,6 +4210,8 @@ def order_tracking(request):
     cancellation_quote = None
     tracking_steps = []
     selected_notifications = []
+    selected_testimonial = None
+    can_submit_testimonial = False
     if selected_order is not None:
         selected_payments = list(_get_order_payments_queryset(selected_order))
         selected_payment = _get_order_primary_payment(selected_order)
@@ -4185,6 +4238,10 @@ def order_tracking(request):
         selected_notifications = list(
             notification_queryset.select_related('payment')[:8]
         )
+        selected_testimonial = _get_order_testimonial(
+            selected_type, selected_order)
+        can_submit_testimonial = _can_submit_testimonial(
+            selected_order, selected_testimonial)
 
     context = {
         'cake_orders': cake_orders,
@@ -4198,6 +4255,8 @@ def order_tracking(request):
         'cancellation_quote': cancellation_quote,
         'tracking_steps': tracking_steps,
         'selected_notifications': selected_notifications,
+        'selected_testimonial': selected_testimonial,
+        'can_submit_testimonial': can_submit_testimonial,
     }
     return render(request, 'hanilies/order_tracking.html', context)
 
@@ -4224,6 +4283,108 @@ def order_tracking_print(request, order_type, order_id):
         'tracking_url': f"{reverse('order_tracking')}?type={order_type}&id={order.id}",
     }
     return render(request, 'hanilies/order_tracking_print.html', context)
+
+
+@login_required
+@require_POST
+def submit_testimonial(request, order_type, order_id):
+    order = get_object_or_404(
+        _get_customer_order_queryset(request.user, order_type),
+        id=order_id,
+    )
+    tracking_url = f"{reverse('order_tracking')}?type={order_type}&id={order.id}"
+
+    if order.order_status != 'completed':
+        messages.error(
+            request, 'Testimonials can only be submitted after the order is completed.')
+        return redirect(tracking_url)
+
+    message = (request.POST.get('message') or '').strip()
+    rating_raw = (request.POST.get('rating') or '').strip()
+
+    if not message:
+        messages.error(request, 'Please write a short testimonial message.')
+        return redirect(tracking_url)
+
+    try:
+        rating = int(rating_raw)
+    except (TypeError, ValueError):
+        rating = 0
+
+    if rating < 1 or rating > 5:
+        messages.error(request, 'Please choose a rating from 1 to 5 stars.')
+        return redirect(tracking_url)
+
+    testimonial = _get_order_testimonial(order_type, order)
+    if testimonial is not None:
+        if testimonial.is_archived:
+            messages.info(
+                request, 'A testimonial record for this order was archived. Please contact the shop if it needs to be reviewed again.')
+            return redirect(tracking_url)
+
+        if testimonial.status != Testimonial.STATUS_REJECTED:
+            messages.info(
+                request, 'A testimonial for this order is already on file.')
+            return redirect(tracking_url)
+
+    customer_name = (
+        str(order.contact_name or '').strip()
+        or request.user.get_full_name().strip()
+        or request.user.username
+    )
+
+    if testimonial is None:
+        testimonial = Testimonial.objects.create(
+            user=request.user,
+            cake_order=order if order_type == 'cake' else None,
+            package_order=order if order_type == 'package' else None,
+            customer_name=customer_name,
+            rating=rating,
+            message=message,
+            status=Testimonial.STATUS_PENDING,
+        )
+        activity_action = 'testimonial_submitted'
+        activity_description = (
+            f'Submitted testimonial #{testimonial.id} for {_get_order_label(order)} #{order.id}.'
+        )
+    else:
+        testimonial.user = request.user
+        testimonial.customer_name = customer_name
+        testimonial.rating = rating
+        testimonial.message = message
+        testimonial.status = Testimonial.STATUS_PENDING
+        testimonial.admin_note = ''
+        testimonial.reviewed_by = None
+        testimonial.reviewed_at = None
+        testimonial.save(update_fields=[
+            'user',
+            'customer_name',
+            'rating',
+            'message',
+            'status',
+            'admin_note',
+            'reviewed_by',
+            'reviewed_at',
+            'updated_at',
+        ])
+        activity_action = 'testimonial_resubmitted'
+        activity_description = (
+            f'Resubmitted testimonial #{testimonial.id} for {_get_order_label(order)} #{order.id}.'
+        )
+
+    actor_role = request.user.profile.get_role_display() if hasattr(
+        request.user, 'profile') else 'Customer'
+    ActivityLog.objects.create(
+        actor=request.user,
+        actor_role=actor_role,
+        action=activity_action,
+        target_type='testimonial',
+        target_id=testimonial.id,
+        description=activity_description,
+    )
+    messages.success(
+        request, 'Thank you. Your testimonial has been submitted for admin review.')
+    return redirect(tracking_url)
 
 
 @login_required
@@ -5001,26 +5162,296 @@ def admin_dashboard(request):
         paid_at__date__gte=start_of_month,
         paid_at__date__lte=today,
     ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    pending_cake_approvals = CakeOrder.objects.filter(
+        order_status__in=['pending', 'payment_retry'],
+        is_archived=False,
+    ).count()
+    pending_package_approvals = PackageOrder.objects.filter(
+        order_status__in=['pending', 'payment_retry'],
+        is_archived=False,
+    ).count()
+    pending_payments = Payment.objects.filter(
+        payment_status__in=['pending', 'verifying'],
+    ).count()
+    pending_refunds = RefundRequest.objects.filter(status='requested').count()
+    pending_testimonials = Testimonial.objects.filter(
+        status=Testimonial.STATUS_PENDING,
+        is_archived=False,
+    ).count()
+    total_cakes = _get_public_cake_queryset().count()
+    total_cake_orders = CakeOrder.objects.count()
+    total_packages = _get_public_package_queryset().count()
+    total_package_orders = PackageOrder.objects.count()
+    total_users = User.objects.filter(is_active=True).count()
+
+    role_value = role.role if role else 'admin'
+
+    def user_allowed(allowed_roles):
+        return request.user.is_superuser or role_value in allowed_roles
+
+    can_view_audit_trail = user_allowed(AUDIT_TRAIL_ROLE_VALUES)
+    can_manage_users = user_allowed(USER_MANAGEMENT_ROLE_VALUES)
+    can_review_testimonials = user_allowed(FULL_ACCESS_ROLE_VALUES)
+    can_view_payments = user_allowed(PAYMENT_REVIEW_ROLE_VALUES)
+    can_view_cakes = user_allowed(CAKE_PRODUCT_ROLE_VALUES)
+    can_view_packages = user_allowed(PACKAGE_PRODUCT_ROLE_VALUES)
+    can_view_cake_orders = user_allowed(CAKE_ORDER_ROLE_VALUES)
+    can_view_package_orders = user_allowed(PACKAGE_ORDER_ROLE_VALUES)
+    can_view_refunds = user_allowed(PAYMENT_REVIEW_ROLE_VALUES)
+
+    priority_cards = []
+    if can_view_payments:
+        priority_cards.append({
+            'title': 'Pending Payments',
+            'value': pending_payments,
+            'copy': 'Payments still waiting for admin or cashier verification.',
+            'chip': 'Needs review',
+            'chip_negative': True,
+            'icon': 'clock',
+            'url': reverse('admin_payments'),
+            'tone': 'urgent',
+        })
+    if can_view_cake_orders:
+        priority_cards.append({
+            'title': 'Cake Orders',
+            'value': CakeOrder.objects.count(),
+            'copy': f'{pending_cake_approvals} cake orders currently need approval or payment follow-up.',
+            'chip': 'Order queue',
+            'icon': 'shopping-cart',
+            'url': reverse('admin_cake_orders'),
+            'tone': '',
+        })
+    if can_view_package_orders:
+        priority_cards.append({
+            'title': 'Package Orders',
+            'value': PackageOrder.objects.count(),
+            'copy': f'{pending_package_approvals} package orders currently need approval or payment follow-up.',
+            'chip': 'Event pipeline',
+            'icon': 'calendar-check',
+            'url': reverse('admin_package_orders'),
+            'tone': '',
+        })
+    if can_view_payments:
+        priority_cards.append({
+            'title': "Today's Sales",
+            'value': f'P{total_sales_today:.2f}',
+            'copy': f'Paid transactions recorded for {today.strftime("%B %d, %Y")}.',
+            'chip': 'Paid today',
+            'icon': 'peso-sign',
+            'url': reverse('admin_payments'),
+            'tone': 'sales',
+        })
+
+    secondary_cards = []
+    if can_view_cakes:
+        secondary_cards.append({
+            'title': 'Total Cakes',
+            'value': total_cakes,
+            'chip': 'Active products',
+            'icon': 'birthday-cake',
+            'url': reverse('admin_cakes'),
+            'tone': 'neutral',
+        })
+    if can_view_packages:
+        secondary_cards.append({
+            'title': 'Total Packages',
+            'value': total_packages,
+            'chip': 'Active packages',
+            'icon': 'gift',
+            'url': reverse('admin_packages'),
+            'tone': 'neutral',
+        })
+    if can_view_payments:
+        secondary_cards.extend([
+            {
+                'title': "This Week's Sales",
+                'value': f'P{total_sales_week:.2f}',
+                'chip': 'Paid this week',
+                'icon': 'chart-line',
+                'url': reverse('admin_payments'),
+                'tone': 'sales',
+            },
+            {
+                'title': "This Month's Sales",
+                'value': f'P{total_sales_month:.2f}',
+                'chip': 'Paid this month',
+                'icon': 'calendar-alt',
+                'url': reverse('admin_payments'),
+                'tone': 'sales',
+            },
+        ])
+    if can_manage_users:
+        secondary_cards.append({
+            'title': 'Total Users',
+            'value': total_users,
+            'chip': 'Registered users',
+            'icon': 'users',
+            'url': reverse('admin_users'),
+            'tone': '',
+        })
+
+    quick_actions = []
+    if can_view_payments:
+        quick_actions.append({
+            'title': 'Verify Payments',
+            'copy': 'Review GCash submissions and collect balances.',
+            'icon': 'credit-card',
+            'url': reverse('admin_payments'),
+            'priority': True,
+        })
+    if can_view_cake_orders:
+        quick_actions.append({
+            'title': 'View Cake Orders',
+            'copy': 'Open the current cake order queue immediately.',
+            'icon': 'list-check',
+            'url': reverse('admin_cake_orders'),
+            'priority': False,
+        })
+    if can_view_package_orders:
+        quick_actions.append({
+            'title': 'View Package Orders',
+            'copy': 'Check the live package and event booking queue.',
+            'icon': 'calendar-week',
+            'url': reverse('admin_package_orders'),
+            'priority': False,
+        })
+    if can_view_cakes:
+        quick_actions.append({
+            'title': 'Add New Cake',
+            'copy': 'Create a new cake listing for the storefront.',
+            'icon': 'plus',
+            'url': reverse('admin_cake_add'),
+            'priority': False,
+        })
+    if can_view_packages:
+        quick_actions.append({
+            'title': 'Add New Package',
+            'copy': 'Publish another event package offering.',
+            'icon': 'gift',
+            'url': reverse('admin_package_add'),
+            'priority': False,
+        })
+    if can_manage_users:
+        quick_actions.append({
+            'title': 'Manage Users',
+            'copy': 'Review accounts, roles, and staff access.',
+            'icon': 'users-cog',
+            'url': reverse('admin_users'),
+            'priority': False,
+        })
+    if can_review_testimonials:
+        quick_actions.append({
+            'title': 'Review Testimonials',
+            'copy': 'Approve or hide recent customer feedback.',
+            'icon': 'comments',
+            'url': reverse('admin_testimonials'),
+            'priority': False,
+        })
+
+    attention_items = []
+    if can_view_payments:
+        attention_items.append({
+            'title': 'Payments Waiting for Verification',
+            'copy': 'Pending and verifying payment submissions.',
+            'value': pending_payments,
+            'url': reverse('admin_payments'),
+            'urgent': True,
+        })
+    if can_view_refunds:
+        attention_items.append({
+            'title': 'Refund Requests',
+            'copy': 'Customer cancellation or refund requests awaiting review.',
+            'value': pending_refunds,
+            'url': reverse('admin_refunds'),
+            'urgent': False,
+        })
+    if can_view_cake_orders:
+        attention_items.append({
+            'title': 'Cake Orders Requiring Action',
+            'copy': 'Pending approval or payment resubmission follow-up.',
+            'value': pending_cake_approvals,
+            'url': reverse('admin_cake_orders'),
+            'urgent': False,
+        })
+    if can_view_package_orders:
+        attention_items.append({
+            'title': 'Package Orders Requiring Action',
+            'copy': 'Pending approval or payment resubmission follow-up.',
+            'value': pending_package_approvals,
+            'url': reverse('admin_package_orders'),
+            'urgent': False,
+        })
+    if can_review_testimonials:
+        attention_items.append({
+            'title': 'Testimonials Pending Review',
+            'copy': 'Customer feedback waiting for moderation.',
+            'value': pending_testimonials,
+            'url': reverse('admin_testimonials'),
+            'urgent': False,
+        })
+
+    hero_summary_items = []
+    if can_view_payments:
+        hero_summary_items.append({
+            'label': 'Needs Attention',
+            'value': pending_payments + pending_refunds + (pending_testimonials if can_review_testimonials else 0),
+        })
+        hero_summary_items.append({
+            'label': 'Today Sales',
+            'value': f'P{total_sales_today:.2f}',
+        })
+    if can_view_cake_orders or can_view_package_orders:
+        hero_summary_items.append({
+            'label': 'Visible Orders',
+            'value': (
+                (total_cake_orders if can_view_cake_orders else 0)
+                + (total_package_orders if can_view_package_orders else 0)
+            ),
+        })
+    if can_view_cakes or can_view_packages:
+        hero_summary_items.append({
+            'label': 'Active Catalog',
+            'value': (
+                (total_cakes if can_view_cakes else 0)
+                + (total_packages if can_view_packages else 0)
+            ),
+        })
+    if can_manage_users and len(hero_summary_items) < 4:
+        hero_summary_items.append({
+            'label': 'Active Users',
+            'value': total_users,
+        })
+    hero_summary_items = hero_summary_items[:4]
 
     context = {
         'admin_menu': admin_menu,
-        'role': role.role if role else 'admin',
+        'role': role_value,
         'role_display': role.get_role_display() if role else 'Administrator',
-        'total_cakes': _get_public_cake_queryset().count(),
-        'total_cake_orders': CakeOrder.objects.count(),
-        'total_packages': _get_public_package_queryset().count(),
-        'total_package_orders': PackageOrder.objects.count(),
-        'total_users': User.objects.filter(is_active=True).count(),
-        'pending_payments': Payment.objects.filter(
-            payment_status__in=['pending', 'verifying']).count(),
-        'pending_refunds': RefundRequest.objects.filter(status='requested').count(),
+        'total_cakes': total_cakes,
+        'total_cake_orders': total_cake_orders,
+        'total_packages': total_packages,
+        'total_package_orders': total_package_orders,
+        'total_users': total_users,
+        'pending_payments': pending_payments,
+        'pending_refunds': pending_refunds,
+        'pending_cake_approvals': pending_cake_approvals,
+        'pending_package_approvals': pending_package_approvals,
+        'pending_testimonials': pending_testimonials,
         'total_sales_today': total_sales_today,
         'total_sales_week': total_sales_week,
         'total_sales_month': total_sales_month,
         'recent_activity_logs': ActivityLog.objects.select_related('actor').filter(is_archived=False)[:5],
-        'recent_cake_orders': CakeOrder.objects.filter(is_archived=False).order_by('-created_at')[:5],
-        'recent_package_orders': PackageOrder.objects.filter(is_archived=False).order_by('-created_at')[:5],
+        'recent_cake_orders': CakeOrder.objects.filter(is_archived=False).order_by('-created_at')[:5] if can_view_cake_orders else [],
+        'recent_package_orders': PackageOrder.objects.filter(is_archived=False).order_by('-created_at')[:5] if can_view_package_orders else [],
         'now': timezone.now(),
+        'can_view_audit_trail': can_view_audit_trail,
+        'can_view_cake_orders': can_view_cake_orders,
+        'can_view_package_orders': can_view_package_orders,
+        'priority_cards': priority_cards[:4],
+        'secondary_cards': secondary_cards[:5],
+        'quick_actions': quick_actions[:6],
+        'attention_items': attention_items[:5],
+        'hero_summary_items': hero_summary_items,
     }
 
     return render(request, 'admin/dashboard.html', context)
@@ -6328,6 +6759,129 @@ def admin_payment_delete(request, payment_id):
     messages.success(
         request, f'Payment #{payment_id_value} archived successfully!')
     return redirect(_get_safe_admin_return_url(request, 'admin_payments'))
+
+
+@login_required
+def admin_testimonials(request):
+    """List testimonials for moderation."""
+    access_denied = _require_admin_roles(request, FULL_ACCESS_ROLE_VALUES)
+    if access_denied:
+        return access_denied
+
+    is_archived_view = _is_archived_admin_view(request)
+    testimonials = Testimonial.objects.select_related(
+        'user',
+        'cake_order__cake',
+        'package_order__package',
+        'reviewed_by',
+    ).filter(is_archived=is_archived_view).order_by('-created_at')
+
+    pending_testimonials = testimonials.filter(status=Testimonial.STATUS_PENDING)
+    reviewed_testimonials = testimonials.exclude(status=Testimonial.STATUS_PENDING)
+    approved_testimonials = testimonials.filter(
+        status=Testimonial.STATUS_APPROVED)
+
+    pending_testimonials_page, pending_testimonials_pagination = _paginate_admin_queryset(
+        request, pending_testimonials, 'pending_page')
+    reviewed_testimonials_page, reviewed_testimonials_pagination = _paginate_admin_queryset(
+        request, reviewed_testimonials, 'reviewed_page')
+
+    return render(request, 'admin/testimonials/list.html', {
+        'pending_testimonials_page': pending_testimonials_page,
+        'pending_testimonials_pagination': pending_testimonials_pagination,
+        'reviewed_testimonials_page': reviewed_testimonials_page,
+        'reviewed_testimonials_pagination': reviewed_testimonials_pagination,
+        'approved_testimonial_count': approved_testimonials.count(),
+        'is_archived_view': is_archived_view,
+        'admin_menu': get_admin_menu(request),
+    })
+
+
+@login_required
+@require_POST
+def admin_testimonial_update(request, testimonial_id):
+    """Approve, reject, or hide a testimonial."""
+    access_denied = _require_admin_roles(request, FULL_ACCESS_ROLE_VALUES)
+    if access_denied:
+        return access_denied
+
+    testimonial = get_object_or_404(Testimonial, id=testimonial_id)
+    if testimonial.is_archived:
+        messages.error(
+            request, 'Restore this testimonial before changing its review status.')
+        return redirect(_get_safe_admin_return_url(request, 'admin_testimonials'))
+
+    action = (request.POST.get('action') or '').strip().lower()
+    admin_note = (request.POST.get('admin_note') or '').strip()
+    status_map = {
+        'approve': Testimonial.STATUS_APPROVED,
+        'reject': Testimonial.STATUS_REJECTED,
+        'hide': Testimonial.STATUS_HIDDEN,
+    }
+    next_status = status_map.get(action)
+    if next_status is None:
+        messages.error(request, 'Unknown testimonial action.')
+        return redirect(_get_safe_admin_return_url(request, 'admin_testimonials'))
+
+    previous_status = testimonial.status
+    testimonial.status = next_status
+    testimonial.admin_note = admin_note
+    testimonial.reviewed_by = request.user
+    testimonial.reviewed_at = timezone.now()
+    testimonial.save(update_fields=[
+        'status',
+        'admin_note',
+        'reviewed_by',
+        'reviewed_at',
+        'updated_at',
+    ])
+
+    _log_staff_activity(
+        request.user,
+        f'testimonial_{next_status}',
+        f'Updated testimonial #{testimonial.id} from {previous_status} to {next_status}.',
+        'testimonial',
+        testimonial.id,
+    )
+    messages.success(
+        request, f'Testimonial #{testimonial.id} marked as {testimonial.get_status_display().lower()}.')
+    return redirect(_get_safe_admin_return_url(request, 'admin_testimonials'))
+
+
+@login_required
+@require_POST
+def admin_testimonial_delete(request, testimonial_id):
+    """Archive or restore a testimonial."""
+    access_denied = _require_admin_roles(request, FULL_ACCESS_ROLE_VALUES)
+    if access_denied:
+        return access_denied
+
+    testimonial = get_object_or_404(Testimonial, id=testimonial_id)
+
+    if testimonial.is_archived:
+        _restore_model_instance(testimonial)
+        _log_staff_activity(
+            request.user,
+            'testimonial_restored',
+            f'Restored testimonial #{testimonial.id}.',
+            'testimonial',
+            testimonial.id,
+        )
+        messages.success(
+            request, f'Testimonial #{testimonial.id} restored successfully!')
+        return redirect(_get_safe_admin_return_url(request, 'admin_testimonials'))
+
+    _archive_model_instance(testimonial)
+    _log_staff_activity(
+        request.user,
+        'testimonial_archived',
+        f'Archived testimonial #{testimonial.id}.',
+        'testimonial',
+        testimonial.id,
+    )
+    messages.success(
+        request, f'Testimonial #{testimonial.id} archived successfully!')
+    return redirect(_get_safe_admin_return_url(request, 'admin_testimonials'))
 
 
 @login_required

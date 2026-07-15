@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Q
 from django.contrib.auth.models import User
 from django.utils import timezone
 
@@ -383,6 +384,103 @@ class PackageOrder(models.Model):
     @status.setter
     def status(self, value):
         self.order_status = value
+
+
+class Testimonial(models.Model):
+    STATUS_PENDING = 'pending'
+    STATUS_APPROVED = 'approved'
+    STATUS_REJECTED = 'rejected'
+    STATUS_HIDDEN = 'hidden'
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pending Review'),
+        (STATUS_APPROVED, 'Approved'),
+        (STATUS_REJECTED, 'Rejected'),
+        (STATUS_HIDDEN, 'Hidden'),
+    ]
+
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='testimonials')
+    cake_order = models.ForeignKey(
+        CakeOrder, on_delete=models.CASCADE, null=True, blank=True, related_name='testimonials')
+    package_order = models.ForeignKey(
+        PackageOrder, on_delete=models.CASCADE, null=True, blank=True, related_name='testimonials')
+    customer_name = models.CharField(max_length=100)
+    rating = models.PositiveSmallIntegerField(default=5)
+    message = models.TextField()
+    admin_note = models.TextField(blank=True)
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_testimonials',
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    is_archived = models.BooleanField(default=False)
+    archived_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    Q(cake_order__isnull=False, package_order__isnull=True)
+                    | Q(cake_order__isnull=True, package_order__isnull=False)
+                ),
+                name='testimonial_requires_exactly_one_order',
+            ),
+            models.UniqueConstraint(
+                fields=['cake_order'],
+                condition=Q(cake_order__isnull=False),
+                name='unique_testimonial_per_cake_order',
+            ),
+            models.UniqueConstraint(
+                fields=['package_order'],
+                condition=Q(package_order__isnull=False),
+                name='unique_testimonial_per_package_order',
+            ),
+        ]
+
+    def __str__(self):
+        return f"Testimonial #{self.id} - {self.customer_name}"
+
+    @property
+    def order(self):
+        return self.cake_order if self.cake_order_id else self.package_order
+
+    @property
+    def order_type(self):
+        return 'cake' if self.cake_order_id else 'package'
+
+    @property
+    def display_name(self):
+        parts = [part for part in self.customer_name.split() if part]
+        if len(parts) <= 1:
+            return self.customer_name
+        return f"{parts[0]} {parts[-1][0]}."
+
+    @property
+    def display_context(self):
+        if self.cake_order_id:
+            if self.cake_order and self.cake_order.theme:
+                return self.cake_order.theme
+            if self.cake_order and self.cake_order.cake:
+                return self.cake_order.cake.get_category_display()
+            return 'Cake Order'
+        if self.package_order and self.package_order.package:
+            return self.package_order.package.name
+        if self.package_order:
+            return self.package_order.get_event_type_display()
+        return 'Customer Order'
+
+    @property
+    def star_range(self):
+        return range(max(1, min(int(self.rating or 0), 5)))
 
 
 class Payment(models.Model):

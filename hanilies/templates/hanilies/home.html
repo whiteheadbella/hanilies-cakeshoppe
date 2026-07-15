@@ -78,48 +78,69 @@
         </div>
 
         <div class="row g-4">
-            <div class="col-md-6 col-lg-4">
-                <div class="testimonial-card card border-0 shadow-sm h-100">
-                    <div class="card-body p-4">
-                        <div class="testimonial-stars mb-3">
-                            <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
-                        </div>
-                        <p class="testimonial-quote mb-4">The cake looked exactly like the peg we sent, and the ordering steps were easy to follow from start to finish.</p>
-                        <div class="testimonial-author">
-                            <strong>Marian T.</strong>
-                            <span>Birthday Celebration</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6 col-lg-4">
-                <div class="testimonial-card card border-0 shadow-sm h-100">
-                    <div class="card-body p-4">
-                        <div class="testimonial-stars mb-3">
-                            <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
-                        </div>
-                        <p class="testimonial-quote mb-4">We booked a package for our family party, and everything from the add-ons to the cake setup felt organized and on time.</p>
-                        <div class="testimonial-author">
-                            <strong>Jessa R.</strong>
-                            <span>Family Event Package</span>
+            {% if homepage_testimonials %}
+                {% for testimonial in homepage_testimonials %}
+                <div class="col-md-6 col-lg-4">
+                    <div class="testimonial-card card border-0 shadow-sm h-100">
+                        <div class="card-body p-4">
+                            <div class="testimonial-stars mb-3">
+                                {% for _ in testimonial.star_range %}
+                                <i class="fas fa-star"></i>
+                                {% endfor %}
+                            </div>
+                            <p class="testimonial-quote mb-4">{{ testimonial.message }}</p>
+                            <div class="testimonial-author">
+                                <strong>{{ testimonial.display_name }}</strong>
+                                <span>{{ testimonial.display_context }}</span>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-            <div class="col-md-6 col-lg-4">
-                <div class="testimonial-card card border-0 shadow-sm h-100">
-                    <div class="card-body p-4">
-                        <div class="testimonial-stars mb-3">
-                            <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
-                        </div>
-                        <p class="testimonial-quote mb-4">The shop was responsive, the payment instructions were clear, and the final order matched the event theme beautifully.</p>
-                        <div class="testimonial-author">
-                            <strong>Angela P.</strong>
-                            <span>Customized Cake Order</span>
+                {% endfor %}
+            {% else %}
+                <div class="col-md-6 col-lg-4">
+                    <div class="testimonial-card card border-0 shadow-sm h-100">
+                        <div class="card-body p-4">
+                            <div class="testimonial-stars mb-3">
+                                <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
+                            </div>
+                            <p class="testimonial-quote mb-4">The cake looked exactly like the peg we sent, and the ordering steps were easy to follow from start to finish.</p>
+                            <div class="testimonial-author">
+                                <strong>Marian T.</strong>
+                                <span>Birthday Celebration</span>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="testimonial-card card border-0 shadow-sm h-100">
+                        <div class="card-body p-4">
+                            <div class="testimonial-stars mb-3">
+                                <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
+                            </div>
+                            <p class="testimonial-quote mb-4">We booked a package for our family party, and everything from the add-ons to the cake setup felt organized and on time.</p>
+                            <div class="testimonial-author">
+                                <strong>Jessa R.</strong>
+                                <span>Family Event Package</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="testimonial-card card border-0 shadow-sm h-100">
+                        <div class="card-body p-4">
+                            <div class="testimonial-stars mb-3">
+                                <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
+                            </div>
+                            <p class="testimonial-quote mb-4">The shop was responsive, the payment instructions were clear, and the final order matched the event theme beautifully.</p>
+                            <div class="testimonial-author">
+                                <strong>Angela P.</strong>
+                                <span>Customized Cake Order</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
         </div>
     </div>
 </section>

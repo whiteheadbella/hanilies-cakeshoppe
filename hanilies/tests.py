@@ -31,7 +31,7 @@ from .forms import (
     build_package_booking_window,
 )
 from .management.commands.demo_bot import Command as DemoBotCommand
-from .models import ActivityLog, Cake, CakeCustomization, CakeOrder, HomeHeroImage, HomeStripImage, Notification, Package, PackageOrder, PackageThumbnail, Payment, RefundRequest, UserProfile
+from .models import ActivityLog, Cake, CakeCustomization, CakeOrder, HomeHeroImage, HomeStripImage, Notification, Package, PackageOrder, PackageThumbnail, Payment, RefundRequest, Testimonial, UserProfile
 from .payment_qr import build_gcash_checkout_details
 from .views import (
     CAKE_CUSTOMIZATION_GROUP_SPECS,
@@ -2270,7 +2270,7 @@ class OrderingIntegrationTests(TestCase):
             contact_email='integration@example.com',
         )
 
-        response = self.client.get(reverse('profile'))
+        response = self.client.get(f'{reverse("profile")}?section=orders')
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context['order_count'], 2)
@@ -2379,6 +2379,18 @@ class SecurityValidationTests(TestCase):
             email='cashier@example.com',
         )
         UserProfile.objects.create(user=self.cashier_user, role='cashier')
+        self.baker_user = User.objects.create_user(
+            username='baker-user',
+            password='TestPass123!',
+            email='baker@example.com',
+        )
+        UserProfile.objects.create(user=self.baker_user, role='baker')
+        self.packager_user = User.objects.create_user(
+            username='packager-user',
+            password='TestPass123!',
+            email='packager@example.com',
+        )
+        UserProfile.objects.create(user=self.packager_user, role='packager')
         self.supervisor_user = User.objects.create_user(
             username='supervisor-user',
             password='TestPass123!',
@@ -2638,6 +2650,50 @@ class SecurityValidationTests(TestCase):
         self.assertEqual(refunds_response.status_code, 200)
         self.assertEqual(users_response.status_code, 200)
 
+    def test_baker_dashboard_hides_irrelevant_modules(self):
+        self.client.login(username='baker-user', password='TestPass123!')
+
+        response = self.client.get(reverse('admin_dashboard'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Cake Orders')
+        self.assertContains(response, 'Total Cakes')
+        self.assertContains(response, 'Add New Cake')
+        self.assertContains(response, 'Recent Cake Orders')
+        self.assertNotContains(response, 'Verify Payments')
+        self.assertNotContains(response, 'Manage Users')
+        self.assertNotContains(response, 'Recent Package Orders')
+        self.assertNotContains(response, 'Recent Audit Trail')
+
+    def test_packager_dashboard_hides_irrelevant_modules(self):
+        self.client.login(username='packager-user', password='TestPass123!')
+
+        response = self.client.get(reverse('admin_dashboard'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Package Orders')
+        self.assertContains(response, 'Total Packages')
+        self.assertContains(response, 'Add New Package')
+        self.assertContains(response, 'Recent Package Orders')
+        self.assertNotContains(response, 'Verify Payments')
+        self.assertNotContains(response, 'Manage Users')
+        self.assertNotContains(response, 'Recent Cake Orders')
+        self.assertNotContains(response, 'Recent Audit Trail')
+
+    def test_cashier_dashboard_shows_payment_tools_but_hides_admin_only_modules(self):
+        self.client.login(username='cashier-user', password='TestPass123!')
+
+        response = self.client.get(reverse('admin_dashboard'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Verify Payments')
+        self.assertContains(response, "Today's Sales")
+        self.assertContains(response, 'Recent Cake Orders')
+        self.assertContains(response, 'Recent Package Orders')
+        self.assertNotContains(response, 'Manage Users')
+        self.assertNotContains(response, 'Review Testimonials')
+        self.assertNotContains(response, 'Recent Audit Trail')
+
     def test_admin_can_access_activity_logs_page(self):
         ActivityLog.objects.create(
             actor=self.admin_user,
@@ -2676,7 +2732,6 @@ class SecurityValidationTests(TestCase):
             response,
             reverse('admin_activity_log_delete', args=[log.id]),
         )
-        self.assertNotContains(response, 'View Details')
 
     def test_admin_activity_logs_archived_view_renders_restore_action(self):
         log = ActivityLog.objects.create(
@@ -2702,7 +2757,6 @@ class SecurityValidationTests(TestCase):
             response,
             reverse('admin_activity_log_delete', args=[log.id]),
         )
-        self.assertNotContains(response, 'View Details')
 
     def test_admin_can_delete_activity_log_via_post_route(self):
         log = ActivityLog.objects.create(
@@ -2776,16 +2830,15 @@ class SecurityValidationTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context['current_tab'], 'export')
-        self.assertContains(response, '[Export Logs]')
+        self.assertContains(response, 'Export Logs')
         self.assertContains(response, reverse(
             'admin_activity_logs_export', args=['csv']))
         self.assertContains(response, reverse(
             'admin_activity_logs_export', args=['xlsx']))
         self.assertContains(response, reverse('admin_activity_logs_print'))
-        self.assertContains(response, 'Login / Logout')
+        self.assertContains(response, 'Module')
         self.assertContains(response, 'Status')
         self.assertNotContains(response, '<th>Target</th>', html=True)
-        self.assertNotContains(response, '<th>Module</th>', html=True)
 
     def test_admin_activity_logs_export_tab_paginates_preview_rows(self):
         for index in range(12):
@@ -5689,6 +5742,246 @@ class HomeRecommendationTests(TestCase):
             response, 'Celebration Styling for Every Milestone')
 
 
+class TestimonialWorkflowTests(TestCase):
+    def setUp(self):
+        self.customer = User.objects.create_user(
+            username='testimonial-customer',
+            password='TestPass123!',
+            first_name='Taylor',
+            last_name='Customer',
+            email='testimonial@example.com',
+        )
+        UserProfile.objects.create(user=self.customer, role='customer')
+
+        self.admin_user = User.objects.create_user(
+            username='testimonial-admin',
+            password='AdminPass123!',
+            email='admin-testimonial@example.com',
+        )
+        UserProfile.objects.create(user=self.admin_user, role='admin')
+        self.admin_user.is_staff = True
+        self.admin_user.save(update_fields=['is_staff'])
+
+        self.cake = Cake.objects.create(
+            name='Celebration Cake',
+            category='birthday',
+            description='Soft sponge cake for milestone events.',
+            price=Decimal('1200.00'),
+            stock=3,
+            is_active=True,
+        )
+        self.package = Package.objects.create(
+            name='Celebration Package',
+            package_type='christening',
+            description='Complete event package.',
+            base_price=Decimal('8500.00'),
+            status='active',
+        )
+
+        self.completed_cake_order = CakeOrder.objects.create(
+            user=self.customer,
+            cake=self.cake,
+            quantity=1,
+            total_price=Decimal('1200.00'),
+            order_status='completed',
+            theme='Anniversary',
+            flavor='Chocolate',
+            frosting='Buttercream',
+            delivery_address='Oroquieta City',
+            contact_name='Taylor Customer',
+            contact_phone='09123456789',
+            contact_email='testimonial@example.com',
+        )
+        self.pending_cake_order = CakeOrder.objects.create(
+            user=self.customer,
+            cake=self.cake,
+            quantity=1,
+            total_price=Decimal('1200.00'),
+            order_status='pending',
+            theme='Birthday',
+            flavor='Chocolate',
+            frosting='Buttercream',
+            delivery_address='Oroquieta City',
+            contact_name='Taylor Customer',
+            contact_phone='09123456789',
+            contact_email='testimonial@example.com',
+        )
+        self.completed_package_order = PackageOrder.objects.create(
+            user=self.customer,
+            package=self.package,
+            total_price=Decimal('8500.00'),
+            order_status='completed',
+            event_type='christening',
+            event_date=date(2026, 6, 15),
+            event_time=time(14, 0),
+            venue='Oroquieta City',
+            contact_name='Taylor Customer',
+            contact_phone='09123456789',
+            contact_email='testimonial@example.com',
+            cake_flavor='Chocolate',
+            cake_frosting='Buttercream',
+        )
+
+    def test_customer_can_submit_testimonial_for_completed_cake_order(self):
+        self.client.login(username='testimonial-customer',
+                          password='TestPass123!')
+
+        response = self.client.post(
+            reverse('submit_testimonial',
+                    args=['cake', self.completed_cake_order.id]),
+            {
+                'rating': '5',
+                'message': 'The cake looked beautiful and tasted amazing.',
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        testimonial = Testimonial.objects.get(cake_order=self.completed_cake_order)
+        self.assertEqual(testimonial.status, Testimonial.STATUS_PENDING)
+        self.assertEqual(testimonial.rating, 5)
+        self.assertTrue(
+            ActivityLog.objects.filter(
+                actor=self.customer,
+                action='testimonial_submitted',
+                target_type='testimonial',
+                target_id=testimonial.id,
+            ).exists()
+        )
+
+    def test_customer_can_submit_testimonial_for_completed_package_order(self):
+        self.client.login(username='testimonial-customer',
+                          password='TestPass123!')
+
+        response = self.client.post(
+            reverse('submit_testimonial',
+                    args=['package', self.completed_package_order.id]),
+            {
+                'rating': '4',
+                'message': 'The package setup arrived on time and felt organized.',
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        testimonial = Testimonial.objects.get(
+            package_order=self.completed_package_order)
+        self.assertEqual(testimonial.status, Testimonial.STATUS_PENDING)
+        self.assertEqual(testimonial.rating, 4)
+
+    def test_customer_cannot_submit_testimonial_for_incomplete_order(self):
+        self.client.login(username='testimonial-customer',
+                          password='TestPass123!')
+
+        response = self.client.post(
+            reverse('submit_testimonial', args=['cake', self.pending_cake_order.id]),
+            {
+                'rating': '5',
+                'message': 'Trying to submit too early.',
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(
+            Testimonial.objects.filter(cake_order=self.pending_cake_order).exists())
+        self.assertContains(
+            response, 'Testimonials can only be submitted after the order is completed.')
+
+    def test_homepage_shows_only_approved_testimonials(self):
+        approved_testimonial = Testimonial.objects.create(
+            user=self.customer,
+            cake_order=self.completed_cake_order,
+            customer_name='Taylor Customer',
+            rating=5,
+            message='Approved testimonial for the homepage.',
+            status=Testimonial.STATUS_APPROVED,
+            reviewed_by=self.admin_user,
+            reviewed_at=timezone.now(),
+        )
+        Testimonial.objects.create(
+            user=self.customer,
+            package_order=self.completed_package_order,
+            customer_name='Taylor Customer',
+            rating=3,
+            message='Pending testimonial should stay hidden.',
+            status=Testimonial.STATUS_PENDING,
+        )
+
+        response = self.client.get(reverse('home'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(approved_testimonial, response.context['homepage_testimonials'])
+        self.assertContains(response, 'Approved testimonial for the homepage.')
+        self.assertNotContains(response, 'Pending testimonial should stay hidden.')
+
+    def test_admin_can_approve_pending_testimonial(self):
+        testimonial = Testimonial.objects.create(
+            user=self.customer,
+            cake_order=self.completed_cake_order,
+            customer_name='Taylor Customer',
+            rating=5,
+            message='Please approve this testimonial.',
+            status=Testimonial.STATUS_PENDING,
+        )
+        self.client.login(username='testimonial-admin',
+                          password='AdminPass123!')
+
+        response = self.client.post(
+            reverse('admin_testimonial_update', args=[testimonial.id]),
+            {
+                'action': 'approve',
+                'admin_note': 'Verified completed order feedback.',
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        testimonial.refresh_from_db()
+        self.assertEqual(testimonial.status, Testimonial.STATUS_APPROVED)
+        self.assertEqual(testimonial.reviewed_by, self.admin_user)
+        self.assertEqual(testimonial.admin_note,
+                         'Verified completed order feedback.')
+
+    def test_rejected_testimonial_can_be_resubmitted(self):
+        testimonial = Testimonial.objects.create(
+            user=self.customer,
+            cake_order=self.completed_cake_order,
+            customer_name='Taylor Customer',
+            rating=2,
+            message='Initial version',
+            status=Testimonial.STATUS_REJECTED,
+            admin_note='Please revise the message.',
+            reviewed_by=self.admin_user,
+            reviewed_at=timezone.now(),
+        )
+        self.client.login(username='testimonial-customer',
+                          password='TestPass123!')
+
+        response = self.client.post(
+            reverse('submit_testimonial',
+                    args=['cake', self.completed_cake_order.id]),
+            {
+                'rating': '5',
+                'message': 'Updated version after revision.',
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        testimonial.refresh_from_db()
+        self.assertEqual(testimonial.status, Testimonial.STATUS_PENDING)
+        self.assertEqual(testimonial.message, 'Updated version after revision.')
+        self.assertEqual(testimonial.rating, 5)
+        self.assertEqual(testimonial.admin_note, '')
+        self.assertIsNone(testimonial.reviewed_by)
+        self.assertIsNone(testimonial.reviewed_at)
+
+    def test_non_admin_cannot_open_admin_testimonials_page(self):
+        self.client.login(username='testimonial-customer',
+                          password='TestPass123!')
+
+        response = self.client.get(reverse('admin_testimonials'))
+
+        self.assertEqual(response.status_code, 302)
+
+
 class AuthenticationFlowTests(TestCase):
     def setUp(self):
         cache.clear()
@@ -6333,3 +6626,5 @@ class CatalogSeedCommandTests(TestCase):
                          f'PKG-{existing_package.id:04d}')
         self.assertIn(
             'Assigned product codes to 1 cakes and 1 packages.', output.getvalue())
+
+
