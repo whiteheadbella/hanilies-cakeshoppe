@@ -2248,6 +2248,9 @@ REMOVED_PACKAGE_CAKE_DECORATION_IDENTITIES = {
     'edible-image',
     'edible-image-print',
 }
+REMOVED_CAKE_STOREFRONT_TIER_IDENTITIES = {
+    '5-tier',
+}
 
 
 def _filter_removed_package_cake_decorations(raw_groups):
@@ -2270,6 +2273,20 @@ def _filter_removed_package_cake_decorations(raw_groups):
         normalized.pop('cake_decorations', None)
 
     return normalized
+
+
+def _filter_removed_cake_storefront_tiers(option_groups):
+    filtered_groups = dict(option_groups)
+    size_options = filtered_groups.get('sizes', [])
+    if not size_options:
+        return filtered_groups
+
+    filtered_groups['sizes'] = [
+        item for item in size_options
+        if _build_checkbox_option_dedupe_identity(item.get('label'))
+        not in REMOVED_CAKE_STOREFRONT_TIER_IDENTITIES
+    ]
+    return filtered_groups
 
 
 def _build_option_image_field_name(group_key, index):
@@ -2382,12 +2399,14 @@ def _resolve_selected_option(selected_value, option_items):
 
 
 def _get_cake_storefront_options(cake):
-    return _build_storefront_option_groups(
-        _synchronize_cake_size_option_groups(
-            getattr(cake, 'customization_options', {}),
-        ),
-        DEFAULT_CAKE_CUSTOMIZATION_OPTIONS,
-        CAKE_CUSTOMIZATION_GROUP_SPECS,
+    return _filter_removed_cake_storefront_tiers(
+        _build_storefront_option_groups(
+            _synchronize_cake_size_option_groups(
+                getattr(cake, 'customization_options', {}),
+            ),
+            DEFAULT_CAKE_CUSTOMIZATION_OPTIONS,
+            CAKE_CUSTOMIZATION_GROUP_SPECS,
+        )
     )
 
 

@@ -812,7 +812,8 @@ class CakeOrderViewUnitTests(TestCase):
         self.assertContains(response, 'Vanilla')
         self.assertContains(response, 'Chocolate')
         self.assertContains(response, '8 inches')
-        self.assertContains(response, '5 Tier')
+        self.assertNotContains(response, '5 Tier')
+        self.assertContains(response, '4 Tier')
         self.assertContains(
             response, '/media/cake-options/demo/flavors/vanilla.jpg')
         self.assertContains(
