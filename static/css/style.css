@@ -1241,6 +1241,23 @@ main { flex: 1 0 auto; width: 100%; }
     font-size: 0.7rem;
 }
 
+.homepage-section-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.62rem 1rem;
+    border-radius: 999px;
+    font-size: 0.84rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    line-height: 1;
+    box-shadow: 0 8px 18px rgba(255, 105, 180, 0.16);
+}
+
+.homepage-section-badge i {
+    font-size: 0.8rem;
+}
+
 .badge.bg-success, .badge.bg-warning, .badge.bg-info, .badge.bg-primary, .badge.bg-danger, .badge.bg-gold, .badge.bg-pink {
     color: white !important;
 }
@@ -1676,6 +1693,11 @@ main { flex: 1 0 auto; width: 100%; }
     }
     .home-strip-zoom span {
         display: none;
+    }
+
+    .homepage-section-badge {
+        font-size: 0.78rem;
+        padding: 0.56rem 0.88rem;
     }
 }
 
