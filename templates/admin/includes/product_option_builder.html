@@ -11,7 +11,7 @@
     <div class="product-option-builder-grid">
         <div>
             {% for group in option_editor_groups %}
-            <section class="product-option-group" data-group-key="{{ group.key }}" data-item-label="{{ group.item_label }}" data-group-label="{{ group.label }}">
+            <section class="product-option-group" data-group-key="{{ group.key }}" data-item-label="{{ group.item_label }}" data-group-label="{{ group.label }}" data-group-input-type="{{ group.input_type }}">
                 <div class="product-option-group__header">
                     <div>
                         <h3>{{ group.label }}</h3>
@@ -40,7 +40,14 @@
                         <tbody>
                             {% for item in group.items %}
                             <tr class="product-option-row">
-                                <td><input type="text" class="form-control" data-field="label" value="{{ item.label }}" placeholder="{{ group.item_label }} name"></td>
+                                <td>
+                                    {% if group.input_type == 'checkbox' %}
+                                    <input type="hidden" data-field="key" value="{{ item.key|default:'' }}">
+                                    {% else %}
+                                    <input type="hidden" data-field="value" value="{{ item.value|default:item.label }}">
+                                    {% endif %}
+                                    <input type="text" class="form-control" data-field="label" value="{{ item.label }}" placeholder="{{ group.item_label }} name">
+                                </td>
                                 <td><input type="number" class="form-control" data-field="price" value="{{ item.price }}" step="0.01" min="0" placeholder="0.00"></td>
                                 {% if show_option_images %}
                                 <td>
@@ -248,6 +255,14 @@
 
 <script>
     (function () {
+        function buildIdentityFieldMarkup(group, item) {
+            if (group.dataset.groupInputType === 'checkbox') {
+                return `<input type="hidden" data-field="key" value="${item.key || ''}">`;
+            }
+
+            return `<input type="hidden" data-field="value" value="${item.value || item.label || ''}">`;
+        }
+
         function buildImageMarkup(item) {
             if (!item.showImages) {
                 return '';
@@ -273,7 +288,10 @@
             row.className = 'product-option-row';
             const showImages = group.closest('.product-option-builder').dataset.showOptionImages === 'true';
             row.innerHTML = `
-                <td><input type="text" class="form-control" data-field="label" value="${item.label}" placeholder="${group.dataset.itemLabel} name"></td>
+                <td>
+                    ${buildIdentityFieldMarkup(group, item)}
+                    <input type="text" class="form-control" data-field="label" value="${item.label}" placeholder="${group.dataset.itemLabel} name">
+                </td>
                 <td><input type="number" class="form-control" data-field="price" value="${item.price}" step="0.01" min="0" placeholder="0.00"></td>
                 ${buildImageMarkup({
                     showImages,
@@ -335,6 +353,14 @@
                             label,
                             price: Number.isFinite(parsedPrice) ? parsedPrice.toFixed(2) : '0.00',
                         };
+                        const keyInput = row.querySelector('[data-field="key"]');
+                        if (keyInput && keyInput.value.trim()) {
+                            item.key = keyInput.value.trim();
+                        }
+                        const valueInput = row.querySelector('[data-field="value"]');
+                        if (valueInput) {
+                            item.value = valueInput.value.trim() || label;
+                        }
                         const imagePathInput = row.querySelector('[data-field="image"]');
                         const imagePath = imagePathInput ? imagePathInput.value.trim() : '';
                         if (imagePath) {

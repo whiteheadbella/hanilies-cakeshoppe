@@ -563,6 +563,51 @@
         margin-top: 0.2rem;
     }
 
+    .addon-option {
+        align-items: flex-start;
+        display: flex;
+        gap: 0.85rem;
+    }
+
+    .addon-option-label {
+        color: inherit;
+        display: grid;
+        gap: 0.7rem;
+        min-width: 0;
+        width: 100%;
+    }
+
+    .addon-option-media {
+        background: linear-gradient(180deg, rgba(255, 247, 240, 0.98), rgba(255, 255, 255, 0.96));
+        border: 1px solid rgba(214, 174, 106, 0.20);
+        border-radius: 16px;
+        display: block;
+        overflow: hidden;
+    }
+
+    .addon-option-media img {
+        display: block;
+        height: 118px;
+        object-fit: cover;
+        width: 100%;
+    }
+
+    .addon-option-copy {
+        line-height: 1.45;
+    }
+
+    .addon-option-copy strong {
+        color: #3b2d36;
+        display: block;
+        font-size: 1rem;
+        margin-bottom: 0.15rem;
+    }
+
+    .addon-option-copy .text-muted {
+        color: #7f6b73 !important;
+        font-weight: 600;
+    }
+
     .qr-panel {
         background: linear-gradient(135deg, rgba(255, 246, 238, 0.92), rgba(255, 255, 255, 1));
         border: 1px solid rgba(214, 174, 106, 0.24);
@@ -1100,9 +1145,16 @@
                                     {% for option in decoration_options %}
                                     <label class="form-check addon-option">
                                         <input class="form-check-input addon-checkbox" type="checkbox" name="decorations" value="{{ option.key }}" data-price="{{ option.price }}">
-                                        <span class="form-check-label ms-2">
-                                            <strong>{{ option.label }}</strong><br>
-                                            <span class="text-muted">+ P{{ option.price }}</span>
+                                        <span class="form-check-label addon-option-label">
+                                            {% if option.image_url %}
+                                            <span class="addon-option-media">
+                                                <img src="{{ option.image_url }}" alt="{{ option.label }} decoration add-on">
+                                            </span>
+                                            {% endif %}
+                                            <span class="addon-option-copy">
+                                                <strong>{{ option.label }}</strong>
+                                                <span class="text-muted">+ P{{ option.price }}</span>
+                                            </span>
                                         </span>
                                     </label>
                                     {% endfor %}

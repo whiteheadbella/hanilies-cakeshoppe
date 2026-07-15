@@ -32,7 +32,15 @@ from .forms import (
 from .management.commands.demo_bot import Command as DemoBotCommand
 from .models import ActivityLog, Cake, CakeCustomization, CakeOrder, HomeHeroImage, HomeStripImage, Notification, Package, PackageOrder, PackageThumbnail, Payment, RefundRequest, UserProfile
 from .payment_qr import build_gcash_checkout_details
-from .views import CAKE_DECORATION_OPTIONS, _get_selected_option_labels, _parse_delivery_datetime
+from .views import (
+    CAKE_CUSTOMIZATION_GROUP_SPECS,
+    CAKE_DECORATION_OPTIONS,
+    DEFAULT_CAKE_CUSTOMIZATION_OPTIONS,
+    _build_option_editor_groups,
+    _get_selected_option_labels,
+    _parse_customization_options_payload,
+    _parse_delivery_datetime,
+)
 
 
 TEST_MEDIA_ROOT = tempfile.mkdtemp()
@@ -82,6 +90,63 @@ class ViewHelperUnitTests(TestCase):
 
         self.assertEqual(labels, ['Fresh Flowers', 'Edible Sprinkles'])
         self.assertEqual(total, Decimal('400.00'))
+
+    def test_parse_customization_payload_deduplicates_checkbox_rows_by_label(self):
+        payload = json.dumps({
+            'decorations': [
+                {'label': 'Fresh Flowers', 'price': '300.00', 'key': 'fresh-flowers'},
+                {'label': 'Fresh Flowers', 'price': '125.00', 'key': 'fresh-flowers-2', 'image': 'cake-options/25/decorations/fresh-flowers.jpg'},
+            ],
+        })
+
+        parsed = _parse_customization_options_payload(
+            payload,
+            CAKE_CUSTOMIZATION_GROUP_SPECS,
+        )
+
+        self.assertEqual(len(parsed['decorations']), 1)
+        self.assertEqual(parsed['decorations'][0]['label'], 'Fresh Flowers')
+        self.assertEqual(parsed['decorations'][0]['price'], '125.00')
+        self.assertEqual(
+            parsed['decorations'][0]['key'],
+            'fresh-flowers',
+        )
+        self.assertEqual(
+            parsed['decorations'][0]['image'],
+            'cake-options/25/decorations/fresh-flowers.jpg',
+        )
+
+    def test_option_editor_groups_merge_saved_decoration_with_default_key_variants(self):
+        option_editor_groups = _build_option_editor_groups(
+            {
+                'decorations': [
+                    {
+                        'label': 'Fresh Flowers',
+                        'price': '125.00',
+                        'key': 'fresh-flowers',
+                        'image': 'cake-options/25/decorations/fresh-flowers.jpg',
+                    },
+                ],
+            },
+            CAKE_CUSTOMIZATION_GROUP_SPECS,
+            DEFAULT_CAKE_CUSTOMIZATION_OPTIONS,
+        )
+
+        decorations_group = next(
+            group for group in option_editor_groups if group['key'] == 'decorations'
+        )
+        fresh_flower_rows = [
+            item for item in decorations_group['items']
+            if item['label'] == 'Fresh Flowers'
+        ]
+
+        self.assertEqual(len(fresh_flower_rows), 1)
+        self.assertEqual(fresh_flower_rows[0]['price'], '125.00')
+        self.assertEqual(fresh_flower_rows[0]['key'], 'fresh-flowers')
+        self.assertEqual(
+            fresh_flower_rows[0]['image'],
+            'cake-options/25/decorations/fresh-flowers.jpg',
+        )
 
 
 class BookingDateFormTests(TestCase):
@@ -394,7 +459,7 @@ class CakeOrderViewUnitTests(TestCase):
         self.assertContains(response, 'Review Design')
         self.assertContains(response, 'Confirm')
         self.assertContains(response, 'Choose Tier')
-        self.assertNotContains(response, 'Choose Size')
+        self.assertContains(response, 'Choose Size')
         self.assertContains(response, 'Choose Shape')
         self.assertContains(response, 'Choose Flavor')
         self.assertContains(response, 'Choose Frosting')
@@ -443,6 +508,31 @@ class CakeOrderViewUnitTests(TestCase):
         self.assertContains(response, 'Choose Size')
         self.assertContains(response, '1 Tier')
         self.assertContains(response, '8 Inches')
+
+    def test_cake_customize_renders_decoration_addon_images(self):
+        self.cake.customization_options = {
+            'decorations': [
+                {
+                    'label': 'Fresh Flowers',
+                    'price': '300.00',
+                    'key': 'fresh_flowers',
+                    'image': 'cake-options/25/decorations/fresh-flowers.jpg',
+                },
+            ],
+        }
+        self.cake.save(update_fields=['customization_options'])
+
+        response = self.client.get(reverse('cake_customize'), {
+            'cake_id': str(self.cake.id),
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'addon-option-media')
+        self.assertContains(
+            response,
+            '/media/cake-options/25/decorations/fresh-flowers.jpg',
+        )
+        self.assertContains(response, 'Fresh Flowers')
 
     def test_cake_customize_get_renders_special_occasions_theme_option(self):
         self.cake.category = 'custom'
@@ -928,6 +1018,31 @@ class PackageFlowUnitTests(TestCase):
             description='Party package with themed cake and balloons.',
             base_price=Decimal('6500.00'),
             status='active',
+            customization_options={
+                'addons': [
+                    {'key': 'brownies', 'label': 'Chocofudge Brownies', 'price': '300.00'},
+                    {'key': 'cookies', 'label': 'Chocochip Cookies', 'price': '250.00'},
+                    {'key': 'cupcakes', 'label': 'Themed Cupcakes', 'price': '350.00'},
+                ],
+                'cake_sizes': [
+                    {'value': 'upgrade_10', 'label': 'Upgrade to 10 inches', 'price': '500.00'},
+                ],
+                'cake_shapes': [
+                    {'label': 'Round', 'price': '0.00'},
+                ],
+                'cake_flavors': [
+                    {'label': 'Chocolate', 'price': '0.00'},
+                ],
+                'cake_frostings': [
+                    {'label': 'Buttercream', 'price': '0.00'},
+                ],
+                'cake_fillings': [
+                    {'label': 'Chocolate Ganache', 'price': '0.00'},
+                ],
+                'cake_decorations': [
+                    {'key': 'fresh_flowers', 'label': 'Fresh Flowers', 'price': '300.00'},
+                ],
+            },
         )
         self.client.login(username='package-tester', password='TestPass123!')
 
@@ -1103,6 +1218,21 @@ class PackageFlowUnitTests(TestCase):
             '/media/package-options/999/addons/brownies-option.jpg',
         )
         self.assertContains(response, 'alt="Chocofudge Brownies add-on"')
+
+    def test_package_order_hides_default_addons_when_builder_has_no_choices(self):
+        self.package.customization_options = {}
+        self.package.save(update_fields=['customization_options'])
+
+        response = self.client.get(reverse('package_order'), {
+            'package_id': str(self.package.id),
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            'No optional add-ons are available for this package yet.',
+        )
+        self.assertNotContains(response, 'Chocofudge Brownies')
 
     def test_package_order_renders_structured_included_items(self):
         self.package.customization_options = {
@@ -1488,6 +1618,103 @@ class PackageFlowUnitTests(TestCase):
         self.assertContains(
             response, '/media/package-options/321/cake_flavors/cookies-and-cream.jpg')
 
+    def test_package_cake_customize_deduplicates_saved_decoration_key_variants(self):
+        self.package.customization_options = {
+            'cake_decorations': [
+                {
+                    'key': 'custom-cake-topper',
+                    'label': 'Custom Cake Topper',
+                    'price': '325.00',
+                    'image': 'package-options/321/cake_decorations/custom-cake-topper.jpg',
+                },
+            ],
+        }
+        self.package.save(update_fields=['customization_options'])
+
+        session = self.client.session
+        session['package_order_draft'] = {
+            'package_id': str(self.package.id),
+            'base_total': '6500.00',
+        }
+        session.save()
+
+        response = self.client.get(reverse('package_cake_customize'))
+
+        self.assertEqual(response.status_code, 200)
+        decoration_options = response.context['decoration_options']
+        custom_topper_options = [
+            option for option in decoration_options
+            if option['label'] == 'Custom Cake Topper'
+        ]
+
+        self.assertEqual(len(custom_topper_options), 1)
+        self.assertEqual(custom_topper_options[0]['price'], '325.00')
+        self.assertEqual(custom_topper_options[0]['key'], 'custom-cake-topper')
+        self.assertContains(response, 'addon-option-media')
+        self.assertContains(
+            response,
+            '/media/package-options/321/cake_decorations/custom-cake-topper.jpg',
+        )
+
+    def test_package_cake_customize_hides_removed_edible_image_print_decoration(self):
+        self.package.customization_options = {
+            'cake_decorations': [
+                {
+                    'key': 'edible_image',
+                    'label': 'Edible Image Print',
+                    'price': '200.00',
+                    'image': 'package-options/321/cake_decorations/edible-image-print.jpg',
+                },
+            ],
+        }
+        self.package.save(update_fields=['customization_options'])
+
+        session = self.client.session
+        session['package_order_draft'] = {
+            'package_id': str(self.package.id),
+            'base_total': '6500.00',
+        }
+        session.save()
+
+        response = self.client.get(reverse('package_cake_customize'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'Edible Image Print')
+        self.assertFalse(
+            any(
+                option['label'] == 'Edible Image Print'
+                for option in response.context['decoration_options']
+            )
+        )
+
+    def test_package_cake_customize_hides_default_option_cards_when_builder_has_no_choices(self):
+        self.package.customization_options = {}
+        self.package.save(update_fields=['customization_options'])
+
+        session = self.client.session
+        session['package_order_draft'] = {
+            'package_id': str(self.package.id),
+            'base_total': '6500.00',
+        }
+        session.save()
+
+        response = self.client.get(reverse('package_cake_customize'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            'No package cake styling options are available for this package yet.',
+        )
+        self.assertNotContains(response, 'Choose Size Upgrade')
+        self.assertNotContains(response, 'Choose Shape')
+        self.assertNotContains(response, 'Choose Flavor')
+        self.assertNotContains(response, 'Choose Frosting')
+        self.assertNotContains(response, 'Choose Filling')
+        self.assertNotContains(response, 'Optional Cake Decorations')
+        self.assertNotContains(response, 'Upgrade to 10 inches')
+        self.assertNotContains(response, 'Round')
+        self.assertNotContains(response, 'Chocolate Ganache')
+
     def test_package_payment_rejects_event_date_beyond_30_days(self):
         session = self.client.session
         session['package_order_draft'] = {
@@ -1724,6 +1951,30 @@ class OrderingIntegrationTests(TestCase):
             description='Package with cake and add-ons.',
             base_price=Decimal('7000.00'),
             status='active',
+            customization_options={
+                'addons': [
+                    {'key': 'brownies', 'label': 'Chocofudge Brownies', 'price': '300.00'},
+                    {'key': 'cupcakes', 'label': 'Themed Cupcakes', 'price': '350.00'},
+                ],
+                'cake_sizes': [
+                    {'value': 'upgrade_10', 'label': 'Upgrade to 10 inches', 'price': '500.00'},
+                ],
+                'cake_shapes': [
+                    {'label': 'Round', 'price': '0.00'},
+                ],
+                'cake_flavors': [
+                    {'label': 'Chocolate', 'price': '0.00'},
+                ],
+                'cake_frostings': [
+                    {'label': 'Buttercream', 'price': '0.00'},
+                ],
+                'cake_fillings': [
+                    {'label': 'Chocolate Ganache', 'price': '0.00'},
+                ],
+                'cake_decorations': [
+                    {'key': 'fresh_flowers', 'label': 'Fresh Flowers', 'price': '300.00'},
+                ],
+            },
         )
         self.client.login(username='integration-user', password='TestPass123!')
 
@@ -4768,6 +5019,70 @@ class AdminCakeCustomizationOptionImageTests(TestCase):
         self.assertFalse(
             (Path(TEST_MEDIA_ROOT) / original_image_path).exists())
 
+    def test_admin_cake_edit_deduplicates_saved_decoration_rows_on_render_and_update(self):
+        cake = Cake.objects.create(
+            name='Duplicated Decoration Cake',
+            category='birthday',
+            description='Cake with duplicated decoration rows from an older builder save.',
+            price=Decimal('1550.00'),
+            stock=2,
+            is_active=True,
+            customization_options={
+                'decorations': [
+                    {'label': 'Fresh Flowers', 'price': '300.00', 'key': 'fresh-flowers'},
+                    {
+                        'label': 'Fresh Flowers',
+                        'price': '125.00',
+                        'key': 'fresh-flowers-2',
+                        'image': 'cake-options/25/decorations/fresh-flowers.jpg',
+                    },
+                ],
+            },
+        )
+
+        response = self.client.get(reverse('admin_cake_edit', args=[cake.id]))
+
+        self.assertEqual(response.status_code, 200)
+        option_groups = {
+            group['key']: group['items']
+            for group in response.context['option_editor_groups']
+        }
+        fresh_flower_rows = [
+            item for item in option_groups['decorations']
+            if item['label'] == 'Fresh Flowers'
+        ]
+
+        self.assertEqual(len(fresh_flower_rows), 1)
+        self.assertEqual(fresh_flower_rows[0]['price'], '125.00')
+        self.assertEqual(fresh_flower_rows[0]['key'], 'fresh-flowers')
+
+        edit_response = self.client.post(reverse('admin_cake_edit', args=[cake.id]), {
+            'name': cake.name,
+            'category': cake.category,
+            'description': cake.description,
+            'price': '1550.00',
+            'stock': '2',
+            'is_active': 'on',
+            'customization_options_payload': json.dumps({
+                'decorations': [
+                    {
+                        'label': 'Fresh Flowers',
+                        'price': '125.00',
+                        'key': 'fresh-flowers',
+                        'image': 'cake-options/25/decorations/fresh-flowers.jpg',
+                    },
+                ],
+            }),
+        })
+
+        self.assertEqual(edit_response.status_code, 302)
+        cake.refresh_from_db()
+        self.assertEqual(len(cake.customization_options['decorations']), 1)
+        self.assertEqual(
+            cake.customization_options['decorations'][0]['key'],
+            'fresh-flowers',
+        )
+
 
 @override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
 class AdminPackageCustomizationOptionImageTests(TestCase):
@@ -4908,6 +5223,111 @@ class AdminPackageCustomizationOptionImageTests(TestCase):
         self.assertNotEqual(updated_image_path, original_image_path)
         self.assertFalse(
             (Path(TEST_MEDIA_ROOT) / original_image_path).exists())
+
+    def test_admin_package_edit_deduplicates_saved_decoration_rows_on_render_and_update(self):
+        package = Package.objects.create(
+            name='Duplicated Decoration Package',
+            package_type='christening',
+            description='Package with duplicated decoration rows from an older builder save.',
+            base_price=Decimal('5200.00'),
+            status='active',
+            features='Backdrop',
+            customization_options={
+                'cake_decorations': [
+                    {'label': 'Custom Cake Topper', 'price': '250.00', 'key': 'custom_topper'},
+                    {
+                        'label': 'Custom Cake Topper',
+                        'price': '325.00',
+                        'key': 'custom-cake-topper',
+                        'image': 'package-options/25/cake_decorations/custom-cake-topper.jpg',
+                    },
+                ],
+            },
+        )
+
+        response = self.client.get(reverse('admin_package_edit', args=[package.id]))
+
+        self.assertEqual(response.status_code, 200)
+        option_groups = {
+            group['key']: group['items']
+            for group in response.context['option_editor_groups']
+        }
+        custom_topper_rows = [
+            item for item in option_groups['cake_decorations']
+            if item['label'] == 'Custom Cake Topper'
+        ]
+
+        self.assertEqual(len(custom_topper_rows), 1)
+        self.assertEqual(custom_topper_rows[0]['price'], '325.00')
+        self.assertEqual(custom_topper_rows[0]['key'], 'custom_topper')
+
+        edit_response = self.client.post(reverse('admin_package_edit', args=[package.id]), {
+            'name': package.name,
+            'package_type': package.package_type,
+            'description': package.description,
+            'base_price': '5200.00',
+            'status': package.status,
+            'package_inclusions_payload': json.dumps([
+                {
+                    'label': 'Backdrop',
+                    'quantity': 1,
+                    'price': '0.00',
+                },
+            ]),
+            'customization_options_payload': json.dumps({
+                'cake_decorations': [
+                    {
+                        'label': 'Custom Cake Topper',
+                        'price': '325.00',
+                        'key': 'custom_topper',
+                        'image': 'package-options/25/cake_decorations/custom-cake-topper.jpg',
+                    },
+                ],
+            }),
+        })
+
+        self.assertEqual(edit_response.status_code, 302)
+        package.refresh_from_db()
+        self.assertEqual(len(package.customization_options['cake_decorations']), 1)
+        self.assertEqual(
+            package.customization_options['cake_decorations'][0]['key'],
+            'custom_topper',
+        )
+
+    def test_admin_package_edit_hides_removed_edible_image_print_decoration(self):
+        package = Package.objects.create(
+            name='Legacy Edible Image Package',
+            package_type='christening',
+            description='Package with removed edible image print decoration still saved.',
+            base_price=Decimal('5200.00'),
+            status='active',
+            features='Backdrop',
+            customization_options={
+                'cake_decorations': [
+                    {
+                        'label': 'Edible Image Print',
+                        'price': '200.00',
+                        'key': 'edible_image',
+                        'image': 'package-options/25/cake_decorations/edible-image-print.jpg',
+                    },
+                ],
+            },
+        )
+
+        response = self.client.get(reverse('admin_package_edit', args=[package.id]))
+
+        self.assertEqual(response.status_code, 200)
+        option_groups = {
+            group['key']: group['items']
+            for group in response.context['option_editor_groups']
+        }
+        self.assertFalse(
+            any(
+                item['label'] == 'Edible Image Print'
+                for item in option_groups['cake_decorations']
+            )
+        )
+        self.assertNotContains(response, 'Edible Image Print')
 
 
 class PackageThumbnailCatalogTests(TestCase):

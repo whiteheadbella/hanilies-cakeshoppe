@@ -251,7 +251,6 @@ DEFAULT_PACKAGE_CUSTOMIZATION_OPTIONS = {
         {'key': 'edible_gold', 'label': 'Edible Gold Leaf', 'price': '500.00'},
         {'key': 'fresh_flowers', 'label': 'Fresh Flowers', 'price': '300.00'},
         {'key': 'custom_topper', 'label': 'Custom Cake Topper', 'price': '250.00'},
-        {'key': 'edible_image', 'label': 'Edible Image Print', 'price': '200.00'},
         {'key': 'sprinkles', 'label': 'Edible Sprinkles', 'price': '100.00'},
         {'key': 'fresh_fruits', 'label': 'Fresh Fruit Toppings', 'price': '200.00'},
     ],
@@ -282,7 +281,6 @@ PACKAGE_CAKE_DECORATIONS = {
     'edible_gold': {'label': 'Edible Gold Leaf', 'price': Decimal('500.00')},
     'fresh_flowers': {'label': 'Fresh Flowers', 'price': Decimal('300.00')},
     'custom_topper': {'label': 'Custom Cake Topper', 'price': Decimal('250.00')},
-    'edible_image': {'label': 'Edible Image Print', 'price': Decimal('200.00')},
     'sprinkles': {'label': 'Edible Sprinkles', 'price': Decimal('100.00')},
     'fresh_fruits': {'label': 'Fresh Fruit Toppings', 'price': Decimal('200.00')},
 }
@@ -1933,8 +1931,34 @@ def _build_unique_option_key(label, used_keys, preferred_key=''):
     return candidate
 
 
+def _build_checkbox_option_dedupe_identity(label):
+    return slugify(str(label or '').strip()) or str(label or '').strip().lower()
+
+
+def _build_checkbox_option_merge_identity(item):
+    raw_key = str(item.get('key') or '').strip()
+    if raw_key:
+        return slugify(raw_key.replace('_', ' ')) or raw_key.lower()
+
+    return _build_checkbox_option_dedupe_identity(item.get('label'))
+
+
+def _build_checkbox_option_merge_identities(item):
+    identities = set()
+    label_identity = _build_checkbox_option_dedupe_identity(item.get('label'))
+    if label_identity:
+        identities.add(label_identity)
+
+    key_identity = _build_checkbox_option_merge_identity(item)
+    if key_identity:
+        identities.add(key_identity)
+
+    return identities
+
+
 def _normalize_option_items(raw_items, spec):
-    items = []
+    normalized_entries = []
+    checkbox_entry_indexes = {}
     used_keys = set()
     input_type = spec['input_type']
 
@@ -1963,17 +1987,46 @@ def _normalize_option_items(raw_items, spec):
         if not label:
             continue
 
-        item = {
+        entry = {
             'label': label,
             'price': f'{_parse_decimal(price):.2f}',
+            'preferred_key': preferred_key,
+            'preferred_value': preferred_value,
+            'image_path': image_path,
         }
-        if image_path:
-            item['image'] = image_path
+
+        if input_type == 'checkbox':
+            identity = _build_checkbox_option_dedupe_identity(label)
+            existing_index = checkbox_entry_indexes.get(identity)
+            if existing_index is not None:
+                existing_entry = normalized_entries[existing_index]
+                normalized_entries[existing_index] = {
+                    **existing_entry,
+                    'label': entry['label'],
+                    'price': entry['price'],
+                    'preferred_value': entry['preferred_value'] or existing_entry['preferred_value'],
+                    'image_path': entry['image_path'] or existing_entry['image_path'],
+                    'preferred_key': existing_entry['preferred_key'] or entry['preferred_key'],
+                }
+                continue
+
+            checkbox_entry_indexes[identity] = len(normalized_entries)
+
+        normalized_entries.append(entry)
+
+    items = []
+    for entry in normalized_entries:
+        item = {
+            'label': entry['label'],
+            'price': entry['price'],
+        }
+        if entry['image_path']:
+            item['image'] = entry['image_path']
         if input_type == 'checkbox':
             item['key'] = _build_unique_option_key(
-                label, used_keys, preferred_key)
+                entry['label'], used_keys, entry['preferred_key'])
         else:
-            item['value'] = preferred_value or label
+            item['value'] = entry['preferred_value'] or entry['label']
         items.append(item)
 
     return items
@@ -2046,7 +2099,7 @@ def _synchronize_cake_size_option_groups(raw_groups):
 
 def _build_option_merge_identity(item, input_type):
     if input_type == 'checkbox':
-        return (item.get('key') or item.get('label') or '').strip().lower()
+        return _build_checkbox_option_merge_identity(item)
 
     return (
         item.get('value')
@@ -2056,6 +2109,40 @@ def _build_option_merge_identity(item, input_type):
 
 
 def _merge_option_item_lists(default_items, configured_items, input_type):
+    if input_type == 'checkbox':
+        merged_items = []
+        configured_entries = [
+            (item, _build_checkbox_option_merge_identities(item))
+            for item in configured_items
+        ]
+        consumed_indexes = set()
+
+        for default_item in default_items:
+            default_identities = _build_checkbox_option_merge_identities(
+                default_item,
+            )
+            matched_index = None
+
+            for index, (configured_item, configured_identities) in enumerate(
+                configured_entries,
+            ):
+                if index in consumed_indexes:
+                    continue
+                if default_identities & configured_identities:
+                    matched_index = index
+                    merged_items.append({**default_item, **configured_item})
+                    consumed_indexes.add(index)
+                    break
+
+            if matched_index is None:
+                merged_items.append(default_item)
+
+        for index, (configured_item, _) in enumerate(configured_entries):
+            if index not in consumed_indexes:
+                merged_items.append(configured_item)
+
+        return merged_items
+
     merged_items = []
     configured_by_identity = {}
     configured_order = []
@@ -2155,6 +2242,34 @@ def _build_storefront_option_groups(raw_groups, default_groups, specs):
         ]
         for spec in specs
     }
+
+
+REMOVED_PACKAGE_CAKE_DECORATION_IDENTITIES = {
+    'edible-image',
+    'edible-image-print',
+}
+
+
+def _filter_removed_package_cake_decorations(raw_groups):
+    normalized = _normalize_option_groups(
+        raw_groups, PACKAGE_CUSTOMIZATION_GROUP_SPECS)
+    decoration_items = normalized.get('cake_decorations', [])
+    if not decoration_items:
+        return normalized
+
+    normalized['cake_decorations'] = [
+        item for item in decoration_items
+        if not (
+            _build_checkbox_option_merge_identity(item)
+            in REMOVED_PACKAGE_CAKE_DECORATION_IDENTITIES
+            or _build_checkbox_option_dedupe_identity(item.get('label'))
+            in REMOVED_PACKAGE_CAKE_DECORATION_IDENTITIES
+        )
+    ]
+    if not normalized['cake_decorations']:
+        normalized.pop('cake_decorations', None)
+
+    return normalized
 
 
 def _build_option_image_field_name(group_key, index):
@@ -2278,8 +2393,10 @@ def _get_cake_storefront_options(cake):
 
 def _get_package_storefront_options(package):
     return _build_storefront_option_groups(
-        getattr(package, 'customization_options', {}),
-        DEFAULT_PACKAGE_CUSTOMIZATION_OPTIONS,
+        _filter_removed_package_cake_decorations(
+            getattr(package, 'customization_options', {}),
+        ),
+        {},
         PACKAGE_CUSTOMIZATION_GROUP_SPECS,
     )
 
@@ -4344,7 +4461,7 @@ def package_cake_customize(request):
         package_option_groups['cake_decorations'])
 
     if request.method == 'POST':
-        size_key = request.POST.get('cake_size', 'standard')
+        size_key = request.POST.get('cake_size', '')
         selected_decorations = request.POST.getlist('cake_decorations')
         decoration_labels, decoration_total = _get_selected_option_labels(
             selected_decorations, decoration_option_lookup)
@@ -5379,9 +5496,11 @@ def admin_package_add(request):
     if request.method == 'POST':
         try:
             package_type = request.POST.get('package_type')
-            customization_options = _parse_customization_options_payload(
-                request.POST.get('customization_options_payload'),
-                PACKAGE_CUSTOMIZATION_GROUP_SPECS,
+            customization_options = _filter_removed_package_cake_decorations(
+                _parse_customization_options_payload(
+                    request.POST.get('customization_options_payload'),
+                    PACKAGE_CUSTOMIZATION_GROUP_SPECS,
+                )
             )
             package_inclusion_items = _resolve_package_inclusion_submission(
                 request.POST,
@@ -5399,7 +5518,9 @@ def admin_package_add(request):
                         package_inclusion_items,
                     ),
                     'option_editor_groups': _build_option_editor_groups(
-                        customization_options,
+                        _filter_removed_package_cake_decorations(
+                            customization_options,
+                        ),
                         PACKAGE_CUSTOMIZATION_GROUP_SPECS,
                     ),
                 })
@@ -5490,9 +5611,11 @@ def admin_package_edit(request, package_id):
                 _get_package_inclusion_items(package, for_display=False),
             )
             package_type = request.POST.get('package_type')
-            customization_options = _parse_customization_options_payload(
-                request.POST.get('customization_options_payload'),
-                PACKAGE_CUSTOMIZATION_GROUP_SPECS,
+            customization_options = _filter_removed_package_cake_decorations(
+                _parse_customization_options_payload(
+                    request.POST.get('customization_options_payload'),
+                    PACKAGE_CUSTOMIZATION_GROUP_SPECS,
+                )
             )
             package_inclusion_items = _resolve_package_inclusion_submission(
                 request.POST,
@@ -5512,7 +5635,9 @@ def admin_package_edit(request, package_id):
                         package_inclusion_items,
                     ),
                     'option_editor_groups': _build_option_editor_groups(
-                        customization_options,
+                        _filter_removed_package_cake_decorations(
+                            customization_options,
+                        ),
                         PACKAGE_CUSTOMIZATION_GROUP_SPECS,
                     ),
                 })
@@ -5597,7 +5722,9 @@ def admin_package_edit(request, package_id):
             _get_package_inclusion_items(package, for_display=False),
         ),
         'option_editor_groups': _build_option_editor_groups(
-            package.customization_options,
+            _filter_removed_package_cake_decorations(
+                package.customization_options,
+            ),
             PACKAGE_CUSTOMIZATION_GROUP_SPECS,
         ),
     })
