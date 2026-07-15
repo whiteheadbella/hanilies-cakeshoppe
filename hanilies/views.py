@@ -5,10 +5,13 @@ import signal
 import subprocess
 import sys
 import csv
+import hashlib
+import time
 from urllib.parse import urlencode
 from io import BytesIO
 
 from django.conf import settings
+from django.core.cache import cache
 from django.core.files.storage import default_storage
 from django.core.paginator import Paginator
 from django.core.mail import send_mail
@@ -17,13 +20,14 @@ from django.http import HttpResponse, JsonResponse
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.views import PasswordResetConfirmView, PasswordResetDoneView, PasswordResetView
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
 from django.urls import reverse, reverse_lazy
 from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Sum, Count, Q, OuterRef, Subquery, DateTimeField, F, Prefetch
 from django.db.models.functions import Coalesce, Greatest
 from django.utils import timezone
@@ -2688,6 +2692,79 @@ def _log_staff_activity(actor, action, description, target_type='', target_id=No
     )
 
 
+def _get_password_validation_errors(password, user=None):
+    try:
+        validate_password(password, user=user)
+    except ValidationError as error:
+        return error.messages
+    return []
+
+
+def _build_login_throttle_cache_prefix(request, username):
+    forwarded_for = str(request.META.get('HTTP_X_FORWARDED_FOR', '') or '')
+    client_ip = forwarded_for.split(',')[0].strip() or str(
+        request.META.get('REMOTE_ADDR', '') or 'unknown')
+    normalized_username = (username or '').strip().lower() or 'unknown'
+    digest = hashlib.sha256(
+        f'{client_ip}|{normalized_username}'.encode('utf-8')
+    ).hexdigest()
+    return f'login-throttle:{digest}'
+
+
+def _get_login_throttle_keys(request, username):
+    cache_prefix = _build_login_throttle_cache_prefix(request, username)
+    return f'{cache_prefix}:count', f'{cache_prefix}:lock'
+
+
+def _clear_login_throttle(request, username):
+    count_key, lock_key = _get_login_throttle_keys(request, username)
+    cache.delete_many([count_key, lock_key])
+
+
+def _get_login_lockout_remaining(request, username):
+    _, lock_key = _get_login_throttle_keys(request, username)
+    lock_expires_at = cache.get(lock_key)
+    if not lock_expires_at:
+        return 0
+
+    remaining_seconds = int(lock_expires_at - time.time())
+    if remaining_seconds <= 0:
+        cache.delete(lock_key)
+        return 0
+    return remaining_seconds
+
+
+def _record_failed_login_attempt(request, username):
+    count_key, lock_key = _get_login_throttle_keys(request, username)
+    failure_limit = max(1, int(getattr(settings, 'LOGIN_FAILURE_LIMIT', 5)))
+    lockout_seconds = max(
+        1, int(getattr(settings, 'LOGIN_LOCKOUT_SECONDS', 900)))
+    failure_count = int(cache.get(count_key, 0)) + 1
+
+    if failure_count >= failure_limit:
+        cache.set(lock_key, time.time() + lockout_seconds, lockout_seconds)
+        cache.delete(count_key)
+        return lockout_seconds
+
+    cache.set(count_key, failure_count, lockout_seconds)
+    return 0
+
+
+def _build_login_lockout_message(remaining_seconds):
+    if remaining_seconds < 60:
+        return (
+            'Too many failed login attempts. Please try again in '
+            f'{remaining_seconds} seconds.'
+        )
+
+    remaining_minutes = (remaining_seconds + 59) // 60
+    minute_label = 'minute' if remaining_minutes == 1 else 'minutes'
+    return (
+        'Too many failed login attempts. Please try again in '
+        f'{remaining_minutes} {minute_label}.'
+    )
+
+
 class HaniliesPasswordResetRequestView(PasswordResetView):
     template_name = 'registration/password_reset_form.html'
     email_template_name = 'registration/password_reset_email.txt'
@@ -3771,12 +3848,18 @@ def login_view(request):
         return _redirect_authenticated_user(request.user)
 
     if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
+        username = (request.POST.get('username') or '').strip()
+        password = request.POST.get('password') or ''
+        lockout_remaining = _get_login_lockout_remaining(request, username)
+        if lockout_remaining:
+            return render(request, 'hanilies/login.html', {
+                'error': _build_login_lockout_message(lockout_remaining),
+            })
 
         user = authenticate(request, username=username, password=password)
 
         if user is not None:
+            _clear_login_throttle(request, username)
             login(request, user)
             _log_staff_activity(
                 user,
@@ -3787,7 +3870,13 @@ def login_view(request):
             )
             return _redirect_authenticated_user(user)
         else:
-            return render(request, 'hanilies/login.html', {'error': 'Invalid username or password'})
+            lockout_seconds = _record_failed_login_attempt(request, username)
+            error_message = (
+                _build_login_lockout_message(lockout_seconds)
+                if lockout_seconds
+                else 'Invalid username or password'
+            )
+            return render(request, 'hanilies/login.html', {'error': error_message})
 
     return render(request, 'hanilies/login.html')
 
@@ -3795,13 +3884,13 @@ def login_view(request):
 def register_view(request):
     """User registration page"""
     if request.method == 'POST':
-        username = request.POST.get('username')
-        email = request.POST.get('email')
-        password = request.POST.get('password')
-        confirm_password = request.POST.get('confirm_password')
-        firstname = request.POST.get('firstname')
-        lastname = request.POST.get('lastname')
-        phone = request.POST.get('phone')
+        username = (request.POST.get('username') or '').strip()
+        email = (request.POST.get('email') or '').strip()
+        password = request.POST.get('password') or ''
+        confirm_password = request.POST.get('confirm_password') or ''
+        firstname = (request.POST.get('firstname') or '').strip()
+        lastname = (request.POST.get('lastname') or '').strip()
+        phone = (request.POST.get('phone') or '').strip()
 
         if password != confirm_password:
             return render(request, 'hanilies/register.html', {'error': 'Passwords do not match'})
@@ -3812,8 +3901,16 @@ def register_view(request):
         if User.objects.filter(email=email).exists():
             return render(request, 'hanilies/register.html', {'error': 'Email already registered'})
 
-        if len(password) < 8:
-            return render(request, 'hanilies/register.html', {'error': 'Password must be at least 8 characters'})
+        candidate_user = User(
+            username=username,
+            email=email,
+            first_name=firstname,
+            last_name=lastname,
+        )
+        password_errors = _get_password_validation_errors(
+            password, user=candidate_user)
+        if password_errors:
+            return render(request, 'hanilies/register.html', {'error': ' '.join(password_errors)})
 
         user = User.objects.create_user(
             username=username,
@@ -3988,8 +4085,11 @@ def change_password(request):
             messages.error(request, 'New passwords do not match')
             return redirect(profile_password_url)
 
-        if len(new_password) < 8:
-            messages.error(request, 'Password must be at least 8 characters')
+        password_errors = _get_password_validation_errors(
+            new_password, user=user)
+        if password_errors:
+            for password_error in password_errors:
+                messages.error(request, password_error)
             return redirect(profile_password_url)
 
         user.set_password(new_password)
@@ -6912,13 +7012,27 @@ def admin_user_add(request):
             messages.error(request, 'Email is required.')
         elif password != confirm_password:
             messages.error(request, 'Passwords do not match.')
-        elif len(password) < 8:
-            messages.error(request, 'Password must be at least 8 characters.')
         elif User.objects.filter(username=username).exists():
             messages.error(request, 'Username already exists.')
         elif User.objects.filter(email=email).exists():
             messages.error(request, 'Email already registered.')
         else:
+            candidate_user = User(
+                username=username,
+                email=email,
+                first_name=first_name,
+                last_name=last_name,
+            )
+            password_errors = _get_password_validation_errors(
+                password, user=candidate_user)
+            if password_errors:
+                for password_error in password_errors:
+                    messages.error(request, password_error)
+                return render(request, 'admin/users/add.html', {
+                    'role_choices': ROLE_CHOICES,
+                    'admin_menu': get_admin_menu(request),
+                })
+
             new_user = User.objects.create_user(
                 username=username,
                 email=email,

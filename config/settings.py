@@ -147,10 +147,20 @@ SESSION_COOKIE_SECURE = _config_flag(
     'SESSION_COOKIE_SECURE',
     default=not DEBUG and not TESTING,
 )
+SESSION_COOKIE_HTTPONLY = _config_flag(
+    'SESSION_COOKIE_HTTPONLY',
+    default=True,
+)
+SESSION_COOKIE_SAMESITE = os.environ.get('SESSION_COOKIE_SAMESITE', 'Lax')
 CSRF_COOKIE_SECURE = _config_flag(
     'CSRF_COOKIE_SECURE',
     default=not DEBUG and not TESTING,
 )
+CSRF_COOKIE_HTTPONLY = _config_flag(
+    'CSRF_COOKIE_HTTPONLY',
+    default=True,
+)
+CSRF_COOKIE_SAMESITE = os.environ.get('CSRF_COOKIE_SAMESITE', 'Lax')
 SECURE_HSTS_SECONDS = int(
     os.environ.get('SECURE_HSTS_SECONDS',
                    '3600' if not DEBUG and not TESTING else '0')
@@ -160,6 +170,17 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = _config_flag(
     default=False,
 )
 SECURE_HSTS_PRELOAD = _config_flag('SECURE_HSTS_PRELOAD', default=False)
+SECURE_CONTENT_TYPE_NOSNIFF = _config_flag(
+    'SECURE_CONTENT_TYPE_NOSNIFF',
+    default=True,
+)
+SECURE_REFERRER_POLICY = os.environ.get(
+    'SECURE_REFERRER_POLICY',
+    'same-origin',
+)
+X_FRAME_OPTIONS = os.environ.get('X_FRAME_OPTIONS', 'DENY')
+LOGIN_FAILURE_LIMIT = int(os.environ.get('LOGIN_FAILURE_LIMIT', '5'))
+LOGIN_LOCKOUT_SECONDS = int(os.environ.get('LOGIN_LOCKOUT_SECONDS', '900'))
 
 EMAIL_BACKEND = os.environ.get(
     'EMAIL_BACKEND',

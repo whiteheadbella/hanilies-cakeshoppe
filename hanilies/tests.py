@@ -10,6 +10,7 @@ from unittest.mock import patch
 from PIL import Image, ImageDraw
 from django.contrib.messages import get_messages
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.core import mail
 from django.core.management import call_command
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -2577,6 +2578,25 @@ class SecurityValidationTests(TestCase):
         created_user = User.objects.get(username='new-supervisor')
         self.assertEqual(created_user.profile.role, 'supervisor')
         self.assertTrue(created_user.is_staff)
+
+    def test_admin_user_add_rejects_common_passwords(self):
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.post(reverse('admin_user_add'), {
+            'username': 'weak-supervisor',
+            'email': 'weak-supervisor@example.com',
+            'password': 'password',
+            'confirm_password': 'password',
+            'first_name': 'Weak',
+            'last_name': 'Supervisor',
+            'phone': '09179990000',
+            'address': 'Oroquieta City',
+            'role': 'supervisor',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'This password is too common.')
+        self.assertFalse(User.objects.filter(username='weak-supervisor').exists())
 
     def test_manager_can_access_admin_users(self):
         self.client.login(username='manager-user', password='TestPass123!')
@@ -5670,6 +5690,9 @@ class HomeRecommendationTests(TestCase):
 
 
 class AuthenticationFlowTests(TestCase):
+    def setUp(self):
+        cache.clear()
+
     def _build_user_with_role(self, role, index=1):
         user = User.objects.create_user(
             username=f'{role}-user-{index}',
@@ -5717,6 +5740,21 @@ class AuthenticationFlowTests(TestCase):
                       reverse('profile'), mail.outbox[0].body)
         self.assertIn('http://testserver' +
                       reverse('contact'), mail.outbox[0].body)
+
+    def test_public_register_rejects_common_passwords(self):
+        response = self.client.post(reverse('register'), {
+            'username': 'weak-customer',
+            'email': 'weak@example.com',
+            'password': 'password',
+            'confirm_password': 'password',
+            'firstname': 'Weak',
+            'lastname': 'Customer',
+            'phone': '09171234567',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'This password is too common.')
+        self.assertFalse(User.objects.filter(username='weak-customer').exists())
 
     def test_authenticated_customer_is_redirected_away_from_login_page(self):
         user = User.objects.create_user(
@@ -5782,6 +5820,36 @@ class AuthenticationFlowTests(TestCase):
             ).exists()
         )
 
+    @override_settings(LOGIN_FAILURE_LIMIT=3, LOGIN_LOCKOUT_SECONDS=60)
+    def test_login_view_locks_out_after_repeated_failed_attempts(self):
+        user = User.objects.create_user(
+            username='locked-login-user',
+            email='locked-login@example.com',
+            password='TestPass123!',
+        )
+        UserProfile.objects.create(user=user, role='customer')
+
+        for _ in range(3):
+            response = self.client.post(reverse('login'), {
+                'username': 'locked-login-user',
+                'password': 'WrongPass123!',
+            })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Too many failed login attempts.')
+
+        blocked_response = self.client.post(reverse('login'), {
+            'username': 'locked-login-user',
+            'password': 'TestPass123!',
+        })
+
+        self.assertEqual(blocked_response.status_code, 200)
+        self.assertContains(
+            blocked_response,
+            'Too many failed login attempts.',
+        )
+        self.assertNotIn('_auth_user_id', self.client.session)
+
     def test_logout_view_creates_audit_log_entry(self):
         user = User.objects.create_user(
             username='audit-logout-user',
@@ -5805,6 +5873,27 @@ class AuthenticationFlowTests(TestCase):
                 description='User "audit-logout-user" logged out.',
             ).exists()
         )
+
+    def test_change_password_rejects_common_passwords(self):
+        user = User.objects.create_user(
+            username='change-password-user',
+            email='change-password@example.com',
+            password='TestPass123!',
+        )
+        UserProfile.objects.create(user=user, role='customer')
+        self.client.login(username='change-password-user',
+                          password='TestPass123!')
+
+        response = self.client.post(reverse('change_password'), {
+            'current_password': 'TestPass123!',
+            'new_password': 'password',
+            'confirm_password': 'password',
+        }, follow=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'This password is too common.')
+        user.refresh_from_db()
+        self.assertTrue(user.check_password('TestPass123!'))
 
     def test_password_reset_request_supports_all_roles(self):
         roles = [role for role, _ in UserProfile.ROLE_CHOICES]
