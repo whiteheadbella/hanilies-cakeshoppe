@@ -379,11 +379,12 @@ class CakeOrderViewUnitTests(TestCase):
             'reference_number': generated_reference,
             'proof_image': build_test_image_upload('cake-proof.jpg', reference_number=generated_reference, amount='1350.00'),
             'theme': 'Birthday',
-            'size': '1 Tier',
+            'tier': '1 Tier',
+            'size': '6 Inches',
             'shape': 'Round',
             'flavor': 'Chocolate',
-            'frosting': 'Buttercream',
-            'filling': 'Chocolate Ganache',
+            'frosting': ['Buttercream'],
+            'filling': ['Chocolate Ganache'],
             'color_palette': 'Pink and Gold',
             'message_on_cake': 'Happy Birthday Ella',
             'special_instructions': 'Add gold accents.',
@@ -412,6 +413,9 @@ class CakeOrderViewUnitTests(TestCase):
         self.assertTrue(cake_order.order_number.startswith('CKO-'))
         self.assertEqual(cake_order.deposit_amount, Decimal('1350.00'))
         self.assertEqual(cake_order.balance_due, Decimal('1350.00'))
+        self.assertEqual(cake_order.size, '1 Tier / 6 Inches')
+        self.assertEqual(cake_order.frosting, 'Buttercream')
+        self.assertEqual(cake_order.filling, 'Chocolate Ganache')
         self.assertEqual(
             cake_order.delivery_address,
             '123 Rizal Street, Brgy. Poblacion 1, Oroquieta City, Misamis Occidental (Landmark: Near Plaza Burgos)',
@@ -428,6 +432,84 @@ class CakeOrderViewUnitTests(TestCase):
         self.assertEqual(balance_payment.payment_status, 'pending')
         self.assertEqual(balance_payment.amount, Decimal('1350.00'))
         self.assertEqual(balance_payment.cake_order_id, cake_order.id)
+
+    def test_cake_customize_uses_shown_cake_defaults_when_optional_fields_are_left_blank(self):
+        generated_reference = 'GCASH-CAKE-REF-AS-SHOWN'
+
+        response = self.client.post(reverse('cake_customize'), {
+            'cake_id': str(self.cake.id),
+            'quantity': '1',
+            'payment_method': 'cod',
+            'payment_amount': '600.00',
+            'reference_number': generated_reference,
+            'proof_image': build_test_image_upload('cake-as-shown-proof.jpg', reference_number=generated_reference, amount='600.00'),
+            'theme': 'Birthday',
+            'delivery_date': self._cake_delivery_date(),
+            'delivery_street_address': '123 Rizal Street',
+            'delivery_barangay': 'Poblacion 1',
+            'delivery_city': 'Oroquieta City',
+            'contact_name': 'Cake Tester',
+            'contact_phone': '09123456789',
+            'contact_email': 'cake@example.com',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        cake_order = CakeOrder.objects.get()
+        self.assertEqual(cake_order.total_price, Decimal('1200.00'))
+        self.assertEqual(cake_order.size, '1 Tier / 6 Inches')
+        self.assertEqual(cake_order.shape, 'Round')
+        self.assertEqual(cake_order.flavor, 'Chocolate')
+        self.assertEqual(cake_order.frosting, '')
+        self.assertEqual(cake_order.filling, '')
+
+    def test_cake_customize_supports_multiple_frostings_and_fillings(self):
+        self.cake.customization_options = {
+            'sizes': [{'label': '1 Tier', 'price': '0.00'}],
+            'cake_sizes': [{'label': '8 Inches', 'price': '50.00'}],
+            'shapes': [{'label': 'Round', 'price': '0.00'}],
+            'flavors': [{'label': 'Chocolate', 'price': '0.00'}],
+            'frostings': [
+                {'label': 'Buttercream', 'price': '25.00'},
+                {'label': 'Ganache', 'price': '35.00'},
+            ],
+            'fillings': [
+                {'label': 'Chocolate Ganache', 'price': '40.00'},
+                {'label': 'Strawberry Jam', 'price': '30.00'},
+            ],
+            'decorations': [{'key': 'fresh_flowers', 'label': 'Fresh Flowers', 'price': '300.00'}],
+        }
+        self.cake.save(update_fields=['customization_options'])
+
+        generated_reference = 'GCASH-CAKE-REF-PRICED'
+        response = self.client.post(reverse('cake_customize'), {
+            'cake_id': str(self.cake.id),
+            'quantity': '1',
+            'decorations': ['fresh_flowers'],
+            'payment_method': 'cod',
+            'payment_amount': '835.00',
+            'reference_number': generated_reference,
+            'proof_image': build_test_image_upload('cake-proof-multi.jpg', reference_number=generated_reference, amount='835.00'),
+            'theme': 'Birthday',
+            'tier': '1 Tier',
+            'size': '8 Inches',
+            'shape': 'Round',
+            'flavor': 'Chocolate',
+            'frosting': ['Buttercream', 'Ganache'],
+            'filling': ['Chocolate Ganache', 'Strawberry Jam'],
+            'delivery_date': self._cake_delivery_date(),
+            'delivery_street_address': '123 Rizal Street',
+            'delivery_barangay': 'Poblacion 1',
+            'delivery_city': 'Oroquieta City',
+            'contact_name': 'Cake Tester',
+            'contact_phone': '09123456789',
+            'contact_email': 'cake@example.com',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        cake_order = CakeOrder.objects.get()
+        self.assertEqual(cake_order.total_price, Decimal('1670.00'))
+        self.assertEqual(cake_order.frosting, 'Buttercream, Ganache')
+        self.assertEqual(cake_order.filling, 'Chocolate Ganache, Strawberry Jam')
 
     def test_cake_customize_get_renders_gcash_qr_preview(self):
         response = self.client.get(reverse('cake_customize'), {
@@ -764,11 +846,12 @@ class CakeOrderViewUnitTests(TestCase):
             'reference_number': generated_reference,
             'proof_image': build_test_image_upload('custom-cake-proof.jpg', reference_number=generated_reference, amount='815.00'),
             'theme': 'Birthday',
-            'size': 'Deluxe 10 inches',
+            'tier': 'Deluxe 10 inches',
+            'size': '6 Inches',
             'shape': 'Round',
             'flavor': 'Chocolate',
-            'frosting': 'Buttercream',
-            'filling': 'Chocolate Ganache',
+            'frosting': ['Buttercream'],
+            'filling': ['Chocolate Ganache'],
             'delivery_date': self._cake_delivery_date(),
             'delivery_street_address': '123 Rizal Street',
             'delivery_barangay': 'Poblacion 1',
@@ -781,7 +864,7 @@ class CakeOrderViewUnitTests(TestCase):
         self.assertEqual(response.status_code, 302)
         cake_order = CakeOrder.objects.get()
         self.assertEqual(cake_order.total_price, Decimal('1630.00'))
-        self.assertEqual(cake_order.size, 'Deluxe 10 inches')
+        self.assertEqual(cake_order.size, 'Deluxe 10 inches / 6 Inches')
         self.assertEqual(CakeCustomization.objects.get(
         ).additional_decorations, 'Sugar Pearls')
 
@@ -1556,8 +1639,8 @@ class PackageFlowUnitTests(TestCase):
             'theme': 'Birthday',
             'cake_size': 'signature',
             'flavor': 'Cookies and Cream',
-            'frosting': 'Buttercream',
-            'filling': 'Chocolate Ganache',
+            'frosting': ['Buttercream'],
+            'filling': ['Chocolate Ganache'],
             'shape': 'Round',
             'cake_decorations': ['mini_macaroons'],
             'message_on_cake': 'Celebrate',
@@ -1567,8 +1650,59 @@ class PackageFlowUnitTests(TestCase):
         draft = self.client.session['package_order_draft']
         self.assertEqual(draft['cake_size_label'], 'Signature Upgrade')
         self.assertEqual(draft['cake_flavor'], 'Cookies and Cream')
+        self.assertEqual(draft['cake_frosting'], 'Buttercream')
+        self.assertEqual(draft['cake_filling'], 'Chocolate Ganache')
         self.assertEqual(draft['cake_decoration_labels'], ['Mini Macaroons'])
         self.assertEqual(draft['cake_custom_total'], '475.00')
+
+    def test_package_cake_customize_supports_multiple_frostings_and_fillings(self):
+        self.package.customization_options = {
+            'cake_sizes': [
+                {'value': 'signature', 'label': 'Signature Upgrade', 'price': '250.00'},
+            ],
+            'cake_flavors': [
+                {'label': 'Cookies and Cream', 'price': '75.00'},
+            ],
+            'cake_shapes': [
+                {'label': 'Round', 'price': '0.00'},
+            ],
+            'cake_frostings': [
+                {'label': 'Buttercream', 'price': '25.00'},
+                {'label': 'Ganache', 'price': '35.00'},
+            ],
+            'cake_fillings': [
+                {'label': 'Chocolate Ganache', 'price': '40.00'},
+                {'label': 'Strawberry Jam', 'price': '30.00'},
+            ],
+            'cake_decorations': [
+                {'key': 'mini_macaroons', 'label': 'Mini Macaroons', 'price': '150.00'},
+            ],
+        }
+        self.package.save(update_fields=['customization_options'])
+
+        session = self.client.session
+        session['package_order_draft'] = {
+            'package_id': str(self.package.id),
+            'base_total': '6500.00',
+        }
+        session.save()
+
+        response = self.client.post(reverse('package_cake_customize'), {
+            'theme': 'Birthday',
+            'cake_size': 'signature',
+            'flavor': 'Cookies and Cream',
+            'frosting': ['Buttercream', 'Ganache'],
+            'filling': ['Chocolate Ganache', 'Strawberry Jam'],
+            'shape': 'Round',
+            'cake_decorations': ['mini_macaroons'],
+            'message_on_cake': 'Celebrate',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        draft = self.client.session['package_order_draft']
+        self.assertEqual(draft['cake_frosting'], 'Buttercream, Ganache')
+        self.assertEqual(draft['cake_filling'], 'Chocolate Ganache, Strawberry Jam')
+        self.assertEqual(draft['cake_custom_total'], '605.00')
 
     def test_package_cake_customize_renders_card_based_option_images(self):
         self.package.customization_options = {
@@ -1996,10 +2130,11 @@ class OrderingIntegrationTests(TestCase):
             'reference_number': generated_reference,
             'proof_image': build_test_image_upload('tracking-cake.jpg', reference_number=generated_reference, amount='490.00'),
             'theme': 'Birthday',
-            'size': '1 Tier',
+            'tier': '1 Tier',
+            'size': '6 Inches',
             'shape': 'Round',
             'flavor': 'Mocha',
-            'frosting': 'Buttercream',
+            'frosting': ['Buttercream'],
             'delivery_date': (timezone.now().date() + timedelta(days=7)).isoformat(),
             'delivery_street_address': '123 Rizal Street',
             'delivery_barangay': 'Poblacion 1',
@@ -2050,8 +2185,8 @@ class OrderingIntegrationTests(TestCase):
             'cake_decorations': ['fresh_flowers'],
             'theme': 'Galaxy',
             'flavor': 'Chocolate',
-            'frosting': 'Buttercream',
-            'filling': 'Chocolate Ganache',
+            'frosting': ['Buttercream'],
+            'filling': ['Chocolate Ganache'],
             'shape': 'Round',
             'message_on_cake': 'Happy Birthday Nico',
             'color_palette': 'Blue and Silver',

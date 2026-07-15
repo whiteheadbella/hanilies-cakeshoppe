@@ -170,9 +170,8 @@ class CakeOrder(models.Model):
     size = models.CharField(max_length=50, blank=True)
     shape = models.CharField(max_length=50, blank=True, default='Round')
     flavor = models.CharField(max_length=50, blank=True, default='Chocolate')
-    frosting = models.CharField(
-        max_length=50, blank=True, default='Buttercream')
-    filling = models.CharField(max_length=50, blank=True)
+    frosting = models.TextField(blank=True, default='')
+    filling = models.TextField(blank=True)
     color_palette = models.CharField(max_length=100, blank=True)
     message_on_cake = models.CharField(max_length=200, blank=True)
     special_instructions = models.TextField(blank=True)
@@ -353,8 +352,8 @@ class PackageOrder(models.Model):
     # Package customizations
     selected_addons = models.TextField(blank=True)
     cake_flavor = models.CharField(max_length=50, blank=True)
-    cake_frosting = models.CharField(max_length=50, blank=True)
-    cake_filling = models.CharField(max_length=50, blank=True)
+    cake_frosting = models.TextField(blank=True)
+    cake_filling = models.TextField(blank=True)
     cake_message = models.CharField(max_length=200, blank=True)
     design_reference = models.ImageField(
         upload_to='designs/', blank=True, null=True)

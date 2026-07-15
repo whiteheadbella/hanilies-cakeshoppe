@@ -232,9 +232,15 @@
     }
 
     .attribute-card-input {
-        opacity: 0;
+        accent-color: #d86f8b;
+        height: 20px;
+        left: 14px;
+        margin: 0;
         pointer-events: none;
         position: absolute;
+        top: 14px;
+        width: 20px;
+        z-index: 2;
     }
 
     .attribute-card-body {
@@ -247,7 +253,8 @@
         flex-direction: column;
         gap: 0.35rem;
         min-height: 100%;
-        padding: 0.9rem 0.75rem;
+        padding: 2.25rem 0.75rem 0.95rem;
+        position: relative;
         text-align: center;
         transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
     }
@@ -369,14 +376,35 @@
         align-items: flex-start;
         display: flex;
         gap: 0.85rem;
+        position: relative;
     }
 
     .addon-option-label {
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 16px;
         color: inherit;
         display: grid;
         gap: 0.7rem;
         min-width: 0;
+        padding: 0 0 0 1.6rem;
+        transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
         width: 100%;
+    }
+
+    .addon-option .form-check-input {
+        accent-color: #d86f8b;
+        left: 1rem;
+        margin: 0;
+        pointer-events: none;
+        position: absolute;
+        top: 1rem;
+    }
+
+    .addon-option .form-check-input:checked + .addon-option-label {
+        background: linear-gradient(180deg, rgba(255, 239, 245, 0.96), rgba(255, 248, 251, 1));
+        border-color: #e17c9b;
+        box-shadow: 0 0 0 3px rgba(225, 124, 155, 0.12), 0 16px 30px rgba(137, 94, 110, 0.10);
     }
 
     .addon-option-media {
@@ -458,6 +486,59 @@
     .summary-total {
         color: #c37d53;
         font-size: 1.2rem;
+        font-weight: 700;
+    }
+
+    .summary-selection-panel {
+        background: linear-gradient(180deg, rgba(255, 248, 243, 0.98), rgba(255, 255, 255, 1));
+        border: 1px solid rgba(214, 174, 106, 0.16);
+        border-radius: 18px;
+        margin-top: 1rem;
+        padding: 0.95rem 1rem;
+    }
+
+    .summary-selection-empty {
+        color: #8b7280;
+        font-size: 0.9rem;
+        margin: 0;
+    }
+
+    .summary-selection-group + .summary-selection-group {
+        border-top: 1px dashed rgba(214, 174, 106, 0.2);
+        margin-top: 0.8rem;
+        padding-top: 0.8rem;
+    }
+
+    .summary-selection-title {
+        color: #947b87;
+        display: block;
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        margin-bottom: 0.4rem;
+        text-transform: uppercase;
+    }
+
+    .summary-selection-list {
+        display: grid;
+        gap: 0.45rem;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .summary-selection-item {
+        align-items: center;
+        color: #4e3e48;
+        display: flex;
+        font-size: 0.92rem;
+        gap: 0.75rem;
+        justify-content: space-between;
+    }
+
+    .summary-selection-item-price {
+        color: #c37d53;
+        flex-shrink: 0;
         font-weight: 700;
     }
 
@@ -546,17 +627,17 @@
                                             <div class="attribute-selector-stack">
                                                 {% if size_options %}
                                                 <div class="attribute-selector-section">
-                                                    <div class="attribute-selector-header">
-                                                        <div>
-                                                            <h6 class="fw-bold">Choose Size Upgrade</h6>
-                                                            <p>Choose one cake size.</p>
-                                                        </div>
-                                                        <span class="attribute-indicator is-required">Required</span>
+                                                <div class="attribute-selector-header">
+                                                    <div>
+                                                        <h6 class="fw-bold">Choose Size Upgrade</h6>
+                                                        <p>Choose one cake size only if you want to change the package cake.</p>
                                                     </div>
+                                                    <span class="attribute-indicator is-optional">Optional</span>
+                                                </div>
                                                     <div class="attribute-card-grid">
                                                         {% for option in size_options %}
                                                         <label class="attribute-card">
-                                                            <input class="attribute-card-input package-cake-attribute-input" type="radio" name="cake_size" value="{{ option.value }}" data-price="{{ option.price }}" data-label="{{ option.label }}" {% if draft.cake_size_key == option.value or draft.cake_size_label == option.label or forloop.first and not draft.cake_size_key %}checked{% endif %}>
+                                                            <input class="attribute-card-input package-cake-attribute-input" type="radio" name="cake_size" value="{{ option.value }}" data-price="{{ option.price }}" data-label="{{ option.label }}" {% if draft.cake_size_key == option.value or draft.cake_size_label == option.label %}checked{% endif %}>
                                                             <span class="attribute-card-body">
                                                                 {% if option.image_url %}
                                                                 <span class="attribute-card-media">
@@ -576,17 +657,17 @@
 
                                                 {% if shape_options %}
                                                 <div class="attribute-selector-section">
-                                                    <div class="attribute-selector-header">
-                                                        <div>
-                                                            <h6 class="fw-bold">Choose Shape</h6>
-                                                            <p>Select one cake shape.</p>
-                                                        </div>
-                                                        <span class="attribute-indicator is-required">Required</span>
+                                                <div class="attribute-selector-header">
+                                                    <div>
+                                                        <h6 class="fw-bold">Choose Shape</h6>
+                                                        <p>Select one cake shape only if you want to change the package cake.</p>
                                                     </div>
+                                                    <span class="attribute-indicator is-optional">Optional</span>
+                                                </div>
                                                     <div class="attribute-card-grid">
                                                         {% for option in shape_options %}
                                                         <label class="attribute-card">
-                                                            <input class="attribute-card-input package-cake-attribute-input" type="radio" name="shape" value="{{ option.value }}" data-price="{{ option.price }}" data-label="{{ option.label }}" {% if draft.cake_shape == option.label or draft.cake_shape == option.value or forloop.first and not draft.cake_shape %}checked{% endif %}>
+                                                            <input class="attribute-card-input package-cake-attribute-input" type="radio" name="shape" value="{{ option.value }}" data-price="{{ option.price }}" data-label="{{ option.label }}" {% if draft.cake_shape == option.label or draft.cake_shape == option.value %}checked{% endif %}>
                                                             <span class="attribute-card-body">
                                                                 {% if option.image_url %}
                                                                 <span class="attribute-card-media">
@@ -606,17 +687,17 @@
 
                                                 {% if flavor_options %}
                                                 <div class="attribute-selector-section">
-                                                    <div class="attribute-selector-header">
-                                                        <div>
-                                                            <h6 class="fw-bold">Choose Flavor</h6>
-                                                            <p>Choose one flavor.</p>
-                                                        </div>
-                                                        <span class="attribute-indicator is-required">Required</span>
+                                                <div class="attribute-selector-header">
+                                                    <div>
+                                                        <h6 class="fw-bold">Choose Flavor</h6>
+                                                        <p>Choose one flavor only if you want to change the package cake.</p>
                                                     </div>
+                                                    <span class="attribute-indicator is-optional">Optional</span>
+                                                </div>
                                                     <div class="attribute-card-grid">
                                                         {% for option in flavor_options %}
                                                         <label class="attribute-card">
-                                                            <input class="attribute-card-input package-cake-attribute-input" type="radio" name="flavor" value="{{ option.value }}" data-price="{{ option.price }}" data-label="{{ option.label }}" {% if draft.cake_flavor == option.label or draft.cake_flavor == option.value or forloop.first and not draft.cake_flavor %}checked{% endif %}>
+                                                            <input class="attribute-card-input package-cake-attribute-input" type="radio" name="flavor" value="{{ option.value }}" data-price="{{ option.price }}" data-label="{{ option.label }}" {% if draft.cake_flavor == option.label or draft.cake_flavor == option.value %}checked{% endif %}>
                                                             <span class="attribute-card-body">
                                                                 {% if option.image_url %}
                                                                 <span class="attribute-card-media">
@@ -636,17 +717,17 @@
 
                                                 {% if frosting_options %}
                                                 <div class="attribute-selector-section">
-                                                    <div class="attribute-selector-header">
-                                                        <div>
-                                                            <h6 class="fw-bold">Choose Frosting</h6>
-                                                            <p>Choose one frosting.</p>
-                                                        </div>
-                                                        <span class="attribute-indicator is-required">Required</span>
+                                                <div class="attribute-selector-header">
+                                                    <div>
+                                                        <h6 class="fw-bold">Choose Frosting</h6>
+                                                        <p>Select one or more frosting styles, or leave all unchecked if none are needed.</p>
                                                     </div>
+                                                    <span class="attribute-indicator is-optional">Multiple</span>
+                                                </div>
                                                     <div class="attribute-card-grid">
                                                         {% for option in frosting_options %}
                                                         <label class="attribute-card">
-                                                            <input class="attribute-card-input package-cake-attribute-input" type="radio" name="frosting" value="{{ option.value }}" data-price="{{ option.price }}" data-label="{{ option.label }}" {% if draft.cake_frosting == option.label or draft.cake_frosting == option.value or forloop.first and not draft.cake_frosting %}checked{% endif %}>
+                                                            <input class="attribute-card-input package-cake-attribute-input" type="checkbox" name="frosting" value="{{ option.value }}" data-price="{{ option.price }}" data-label="{{ option.label }}" {% if option.value in selected_package_frosting_values or option.label in selected_package_frosting_values %}checked{% endif %}>
                                                             <span class="attribute-card-body">
                                                                 {% if option.image_url %}
                                                                 <span class="attribute-card-media">
@@ -666,17 +747,17 @@
 
                                                 {% if filling_options %}
                                                 <div class="attribute-selector-section">
-                                                    <div class="attribute-selector-header">
-                                                        <div>
-                                                            <h6 class="fw-bold">Choose Filling</h6>
-                                                            <p>This attribute is optional.</p>
-                                                        </div>
-                                                        <span class="attribute-indicator is-optional">Optional</span>
+                                                <div class="attribute-selector-header">
+                                                    <div>
+                                                        <h6 class="fw-bold">Choose Filling</h6>
+                                                        <p>Select one or more filling options, or leave all unchecked if none are needed.</p>
                                                     </div>
+                                                    <span class="attribute-indicator is-optional">Multiple</span>
+                                                </div>
                                                     <div class="attribute-card-grid">
                                                         {% for option in filling_options %}
                                                         <label class="attribute-card">
-                                                            <input class="attribute-card-input package-cake-attribute-input" type="radio" name="filling" value="{{ option.value }}" data-price="{{ option.price }}" data-label="{{ option.label }}" {% if draft.cake_filling == option.label or draft.cake_filling == option.value %}checked{% endif %}>
+                                                            <input class="attribute-card-input package-cake-attribute-input" type="checkbox" name="filling" value="{{ option.value }}" data-price="{{ option.price }}" data-label="{{ option.label }}" {% if option.value in selected_package_filling_values or option.label in selected_package_filling_values %}checked{% endif %}>
                                                             <span class="attribute-card-body">
                                                                 {% if option.image_url %}
                                                                 <span class="attribute-card-media">
@@ -720,7 +801,7 @@
                                     <div class="addon-grid">
                                         {% for option in decoration_options %}
                                         <label class="form-check addon-option">
-                                            <input class="form-check-input package-cake-decoration" type="checkbox" name="cake_decorations" value="{{ option.key }}" data-price="{{ option.price }}" {% if option.key in draft.cake_decorations %}checked{% endif %}>
+                                            <input class="form-check-input package-cake-decoration" type="checkbox" name="cake_decorations" value="{{ option.key }}" data-price="{{ option.price }}" data-label="{{ option.label }}" {% if option.key in draft.cake_decorations %}checked{% endif %}>
                                             <span class="form-check-label addon-option-label">
                                                 {% if option.image_url %}
                                                 <span class="addon-option-media">
@@ -776,17 +857,34 @@
                                 <span class="summary-block-label">Package Subtotal</span>
                                 <div class="summary-block-value">P{{ draft.base_total }}</div>
                             </div>
-                            <div class="summary-block">
-                                <span class="summary-block-label">Cake Upgrade</span>
-                                <div class="summary-block-value" id="summary-size-upgrade">{{ draft.cake_size_label|default:'Not selected' }}</div>
+                        </div>
+
+                        <div class="summary-selection-panel">
+                            <span class="summary-block-label">Customization Summary</span>
+                            <p class="summary-selection-empty mb-0" id="summary-package-selection-empty">Selected package cake options will appear here.</p>
+                            <div class="summary-selection-group" data-summary-group="size" hidden>
+                                <span class="summary-selection-title">Size</span>
+                                <ul class="summary-selection-list" id="summary-list-size"></ul>
                             </div>
-                            <div class="summary-block">
-                                <span class="summary-block-label">Cake Flavor</span>
-                                <div class="summary-block-value" id="summary-flavor">{{ draft.cake_flavor|default:'Not selected' }}</div>
+                            <div class="summary-selection-group" data-summary-group="shape" hidden>
+                                <span class="summary-selection-title">Shape</span>
+                                <ul class="summary-selection-list" id="summary-list-shape"></ul>
                             </div>
-                            <div class="summary-block">
-                                <span class="summary-block-label">Cake Decorations</span>
-                                <div class="summary-block-value" id="summary-cake-addon">P0.00</div>
+                            <div class="summary-selection-group" data-summary-group="flavor" hidden>
+                                <span class="summary-selection-title">Flavor</span>
+                                <ul class="summary-selection-list" id="summary-list-flavor"></ul>
+                            </div>
+                            <div class="summary-selection-group" data-summary-group="frosting" hidden>
+                                <span class="summary-selection-title">Frosting</span>
+                                <ul class="summary-selection-list" id="summary-list-frosting"></ul>
+                            </div>
+                            <div class="summary-selection-group" data-summary-group="filling" hidden>
+                                <span class="summary-selection-title">Filling</span>
+                                <ul class="summary-selection-list" id="summary-list-filling"></ul>
+                            </div>
+                            <div class="summary-selection-group" data-summary-group="addons" hidden>
+                                <span class="summary-selection-title">Add-ons</span>
+                                <ul class="summary-selection-list" id="summary-list-addons"></ul>
                             </div>
                         </div>
 
@@ -796,11 +894,11 @@
                                 <span>P{{ draft.base_total }}</span>
                             </div>
                             <div class="summary-cost-row">
-                                <span>Cake Customization</span>
+                                <span>Customization Subtotal</span>
                                 <span id="summary-cake-custom-total">P0.00</span>
                             </div>
                             <div class="summary-cost-row">
-                                <span>Running Total</span>
+                                <span>Grand Total</span>
                                 <span class="summary-total" id="summary-running-total">P{{ draft.base_total }}</span>
                             </div>
                         </div>
@@ -817,45 +915,99 @@
     const packageSubtotal = parseFloat('{{ draft.base_total }}');
     const packageCakeAttributeInputs = Array.from(document.querySelectorAll('.package-cake-attribute-input'));
     const packageCakeDecorations = Array.from(document.querySelectorAll('.package-cake-decoration'));
+    const packageOptionalSingleSelectNames = new Set(['cake_size', 'shape', 'flavor']);
 
-    function getSelectedPackageCakeInput(fieldName) {
-        return document.querySelector(`input[name="${fieldName}"]:checked`);
+    function formatPackagePeso(amount) {
+        return `P${amount.toFixed(2)}`;
+    }
+
+    function getSelectedPackageCakeInputs(fieldName) {
+        return Array.from(document.querySelectorAll(`input[name="${fieldName}"]:checked`));
+    }
+
+    function getSelectedPackageCakeItems(fieldName) {
+        return getSelectedPackageCakeInputs(fieldName).map((input) => ({
+            label: input.dataset.label || input.value || 'Not selected',
+            price: parseFloat(input.dataset.price || '0'),
+        }));
     }
 
     function getSelectedPackageCakePrice(fieldName) {
-        return parseFloat(getSelectedPackageCakeInput(fieldName)?.dataset.price || '0');
+        return getSelectedPackageCakeItems(fieldName).reduce((total, item) => total + item.price, 0);
     }
 
-    function getSelectedPackageCakeLabel(fieldName, fallbackText = 'Not selected') {
-        return getSelectedPackageCakeInput(fieldName)?.dataset.label || fallbackText;
+    function renderPackageSummaryGroup(groupKey, items) {
+        const group = document.querySelector(`[data-summary-group="${groupKey}"]`);
+        const list = document.getElementById(`summary-list-${groupKey}`);
+        if (!group || !list) {
+            return;
+        }
+
+        if (!items.length) {
+            group.hidden = true;
+            list.innerHTML = '';
+            return;
+        }
+
+        group.hidden = false;
+        list.innerHTML = items.map((item) => `
+            <li class="summary-selection-item">
+                <span>${item.label}</span>
+                <span class="summary-selection-item-price">${formatPackagePeso(item.price)}</span>
+            </li>
+        `).join('');
     }
 
     function updatePackageCakeSummary() {
-        const attributeNames = ['cake_size', 'shape', 'flavor', 'frosting', 'filling'];
+        const summaryGroups = {
+            size: getSelectedPackageCakeItems('cake_size'),
+            shape: getSelectedPackageCakeItems('shape'),
+            flavor: getSelectedPackageCakeItems('flavor'),
+            frosting: getSelectedPackageCakeItems('frosting'),
+            filling: getSelectedPackageCakeItems('filling'),
+            addons: getSelectedPackageCakeItems('cake_decorations'),
+        };
         let attributeTotal = 0;
-        let decorationTotal = 0;
 
-        attributeNames.forEach((fieldName) => {
+        ['cake_size', 'shape', 'flavor', 'frosting', 'filling'].forEach((fieldName) => {
             attributeTotal += getSelectedPackageCakePrice(fieldName);
         });
 
-        packageCakeDecorations.forEach((checkbox) => {
-            if (checkbox.checked) {
-                decorationTotal += parseFloat(checkbox.dataset.price || '0');
-            }
-        });
-
+        const decorationTotal = getSelectedPackageCakePrice('cake_decorations');
         const cakeTotal = attributeTotal + decorationTotal;
         const runningTotal = packageSubtotal + cakeTotal;
 
-        document.getElementById('summary-size-upgrade').textContent = getSelectedPackageCakeLabel('cake_size', 'Not selected');
-        document.getElementById('summary-flavor').textContent = getSelectedPackageCakeLabel('flavor');
-        document.getElementById('summary-cake-addon').textContent = `P${decorationTotal.toFixed(2)}`;
-        document.getElementById('summary-cake-custom-total').textContent = `P${cakeTotal.toFixed(2)}`;
-        document.getElementById('summary-running-total').textContent = `P${runningTotal.toFixed(2)}`;
+        Object.entries(summaryGroups).forEach(([groupKey, items]) => {
+            renderPackageSummaryGroup(groupKey, items);
+        });
+
+        const hasSelections = Object.values(summaryGroups).some((items) => items.length);
+        document.getElementById('summary-package-selection-empty').hidden = hasSelections;
+        document.getElementById('summary-cake-custom-total').textContent = formatPackagePeso(cakeTotal);
+        document.getElementById('summary-running-total').textContent = formatPackagePeso(runningTotal);
     }
 
     packageCakeAttributeInputs.forEach((input) => input.addEventListener('change', updatePackageCakeSummary));
+    packageCakeAttributeInputs
+        .filter((input) => input.type === 'radio' && packageOptionalSingleSelectNames.has(input.name))
+        .forEach((input) => {
+            const card = input.closest('.attribute-card');
+            if (!card) {
+                return;
+            }
+
+            card.addEventListener('pointerdown', () => {
+                card.dataset.wasChecked = input.checked ? 'true' : 'false';
+            });
+            card.addEventListener('click', (event) => {
+                if (card.dataset.wasChecked === 'true') {
+                    event.preventDefault();
+                    input.checked = false;
+                    updatePackageCakeSummary();
+                }
+                card.dataset.wasChecked = 'false';
+            });
+        });
     packageCakeDecorations.forEach((checkbox) => checkbox.addEventListener('change', updatePackageCakeSummary));
     updatePackageCakeSummary();
 </script>

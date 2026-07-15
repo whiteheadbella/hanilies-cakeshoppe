@@ -1627,6 +1627,81 @@ def _get_selected_option_labels(selected_keys, options):
     return labels, total
 
 
+def _get_selected_options(selected_values, option_items):
+    selected_options = []
+    seen_values = set()
+    total = Decimal('0.00')
+    for selected_value in selected_values:
+        option = _resolve_selected_option(selected_value, option_items)
+        option_value = option.get('value') if option else ''
+        if not option or not option.get('label') or option_value in seen_values:
+            continue
+        seen_values.add(option_value)
+        selected_options.append(option)
+        total += option['price']
+    return selected_options, total
+
+
+def _join_selected_option_labels(selected_options):
+    return ', '.join(option['label'] for option in selected_options)
+
+
+def _build_cake_size_label(tier_option, size_option):
+    labels = []
+    for option in [tier_option, size_option]:
+        if not option:
+            continue
+        label = option['label']
+        if label not in labels:
+            labels.append(label)
+    return ' / '.join(labels)
+
+
+def _split_saved_multi_select_text(raw_value):
+    return [
+        item.strip()
+        for item in (raw_value or '').split(',')
+        if item.strip()
+    ]
+
+
+def _get_default_option(option_items):
+    if not option_items:
+        return None
+
+    return {
+        'label': option_items[0]['label'],
+        'value': option_items[0].get('value', option_items[0]['label']),
+        'price': _parse_decimal(option_items[0]['price']),
+    }
+
+
+def _get_single_select_price_adjustment(selected_option, option_items):
+    if not selected_option:
+        return Decimal('0.00')
+
+    if not option_items:
+        return _parse_decimal(selected_option['price'])
+
+    baseline_price = _parse_decimal(option_items[0]['price'])
+    selected_price = _parse_decimal(selected_option['price'])
+    return max(selected_price - baseline_price, Decimal('0.00'))
+
+
+def _apply_storefront_price_adjustments(option_items, *, use_first_option_as_base=False):
+    if not option_items:
+        return []
+
+    baseline_price = _parse_decimal(option_items[0]['price']) if use_first_option_as_base else Decimal('0.00')
+    adjusted_items = []
+    for item in option_items:
+        adjusted_item = dict(item)
+        adjusted_price = max(_parse_decimal(item['price']) - baseline_price, Decimal('0.00'))
+        adjusted_item['storefront_price'] = format(adjusted_price.quantize(Decimal('0.01')), 'f')
+        adjusted_items.append(adjusted_item)
+    return adjusted_items
+
+
 def _parse_positive_int(value, default=1, minimum=0):
     try:
         parsed = int(value)
@@ -4183,6 +4258,23 @@ def cake_customize(request):
     defaults.setdefault('delivery_date', '')
     cake_order_window = build_cake_booking_window()
     selected_payment_method = 'cod'
+    default_cake_tier_option = _get_default_option(cake_tier_options)
+    default_cake_size_option = _get_default_option(cake_size_options)
+    default_cake_shape_option = _get_default_option(cake_option_groups['shapes'])
+    default_cake_flavor_option = _get_default_option(cake_option_groups['flavors'])
+    cake_form_values = {
+        'quantity': '1',
+        'color_palette': '',
+        'message_on_cake': '',
+        'special_instructions': '',
+    }
+    selected_cake_tier_value = ''
+    selected_cake_size_value = ''
+    selected_cake_shape_value = ''
+    selected_cake_flavor_value = ''
+    selected_cake_frosting_values = []
+    selected_cake_filling_values = []
+    selected_decoration_values = []
 
     cake_flow_key = _get_checkout_flow_key('cake', selected_cake.id)
     cake_checkout_meta = _get_or_create_checkout_meta(
@@ -4199,27 +4291,49 @@ def cake_customize(request):
             'delivery_city': request.POST.get('delivery_city', '').strip(),
             'delivery_landmark': request.POST.get('delivery_landmark', '').strip(),
         })
-        quantity = max(int(request.POST.get('quantity', 1) or 1), 1)
-        selected_decorations = request.POST.getlist('decorations')
+        cake_form_values.update({
+            'quantity': request.POST.get('quantity', '1').strip() or '1',
+            'color_palette': request.POST.get('color_palette', '').strip(),
+            'message_on_cake': request.POST.get('message_on_cake', '').strip(),
+            'special_instructions': request.POST.get('special_instructions', '').strip(),
+        })
+        selected_cake_tier_value = request.POST.get('tier', '').strip()
+        selected_cake_size_value = request.POST.get('size', '').strip()
+        selected_cake_shape_value = request.POST.get('shape', '').strip()
+        selected_cake_flavor_value = request.POST.get('flavor', '').strip()
+        selected_cake_frosting_values = request.POST.getlist('frosting')
+        selected_cake_filling_values = request.POST.getlist('filling')
+        selected_decoration_values = request.POST.getlist('decorations')
+        quantity = max(int(cake_form_values['quantity'] or 1), 1)
+        selected_decorations = selected_decoration_values
         decoration_labels, decoration_total = _get_selected_option_labels(
             selected_decorations, decoration_option_lookup)
+        selected_tier = _resolve_selected_option(
+            selected_cake_tier_value, cake_tier_options) if selected_cake_tier_value else None
+        effective_tier = selected_tier or default_cake_tier_option
         selected_size = _resolve_selected_option(
-            request.POST.get('size'), cake_size_selection_options)
+            selected_cake_size_value, cake_size_options) if selected_cake_size_value and show_cake_size_options else None
+        effective_size = selected_size or default_cake_size_option
         selected_shape = _resolve_selected_option(
-            request.POST.get('shape'), cake_option_groups['shapes'])
+            selected_cake_shape_value, cake_option_groups['shapes']) if selected_cake_shape_value else None
+        effective_shape = selected_shape or default_cake_shape_option
         selected_flavor = _resolve_selected_option(
-            request.POST.get('flavor'), cake_option_groups['flavors'])
-        selected_frosting = _resolve_selected_option(
-            request.POST.get('frosting'), cake_option_groups['frostings'])
-        selected_filling = _resolve_selected_option(
-            request.POST.get('filling'), cake_option_groups['fillings'])
-        single_option_total = sum(
-            option['price']
-            for option in [selected_size, selected_shape, selected_flavor, selected_frosting, selected_filling]
-            if option
-        )
+            selected_cake_flavor_value, cake_option_groups['flavors']) if selected_cake_flavor_value else None
+        effective_flavor = selected_flavor or default_cake_flavor_option
+        selected_frostings, frosting_total = _get_selected_options(
+            selected_cake_frosting_values, cake_option_groups['frostings'])
+        selected_fillings, filling_total = _get_selected_options(
+            selected_cake_filling_values, cake_option_groups['fillings'])
+        customization_total = sum(
+            [
+                _get_single_select_price_adjustment(selected_tier, cake_tier_options),
+                _get_single_select_price_adjustment(selected_size, cake_size_options),
+                _get_single_select_price_adjustment(selected_shape, cake_option_groups['shapes']),
+                _get_single_select_price_adjustment(selected_flavor, cake_option_groups['flavors']),
+            ]
+        ) + frosting_total + filling_total
         total_price = (selected_cake.price * quantity) + \
-            single_option_total + decoration_total
+            customization_total + decoration_total
         payment_method = request.POST.get('payment_method', 'cod')
         deposit_amount, balance_due = _calculate_deposit_breakdown(total_price)
         reference_number = request.POST.get('reference_number', '').strip()
@@ -4269,21 +4383,17 @@ def cake_customize(request):
                     '0.00') if payment_method == 'gcash' else balance_due,
                 theme=(request.POST.get('theme', '').strip()
                        or theme_options[0]),
-                size=selected_size['label'] if selected_size else request.POST.get(
+                size=_build_cake_size_label(effective_tier, effective_size) or request.POST.get(
                     'size', '').strip(),
-                shape=(selected_shape['label'] if selected_shape else request.POST.get(
+                shape=(effective_shape['label'] if effective_shape else request.POST.get(
                     'shape', '').strip()) or 'Round',
-                flavor=(selected_flavor['label'] if selected_flavor else request.POST.get(
+                flavor=(effective_flavor['label'] if effective_flavor else request.POST.get(
                     'flavor', '').strip()) or 'Chocolate',
-                frosting=(selected_frosting['label'] if selected_frosting else request.POST.get(
-                    'frosting', '').strip()) or 'Buttercream',
-                filling=selected_filling['label'] if selected_filling else request.POST.get(
-                    'filling', '').strip(),
-                color_palette=request.POST.get('color_palette', '').strip(),
-                message_on_cake=request.POST.get(
-                    'message_on_cake', '').strip(),
-                special_instructions=request.POST.get(
-                    'special_instructions', '').strip(),
+                frosting=_join_selected_option_labels(selected_frostings),
+                filling=_join_selected_option_labels(selected_fillings),
+                color_palette=cake_form_values['color_palette'],
+                message_on_cake=cake_form_values['message_on_cake'],
+                special_instructions=cake_form_values['special_instructions'],
                 delivery_date=_parse_delivery_datetime(
                     delivery_date_form.cleaned_data['delivery_date'].isoformat()),
                 delivery_address=delivery_address_data['delivery_address'],
@@ -4318,6 +4428,31 @@ def cake_customize(request):
 
     cake_order_label = f'{selected_cake.name} cake order'
     base_deposit_amount, _ = _calculate_deposit_breakdown(selected_cake.price)
+    cake_tier_display_options = _apply_storefront_price_adjustments(
+        cake_tier_options,
+        use_first_option_as_base=True,
+    )
+    cake_size_display_options = _apply_storefront_price_adjustments(
+        cake_size_options,
+        use_first_option_as_base=True,
+    )
+    cake_shape_display_options = _apply_storefront_price_adjustments(
+        cake_option_groups['shapes'],
+        use_first_option_as_base=True,
+    )
+    cake_flavor_display_options = _apply_storefront_price_adjustments(
+        cake_option_groups['flavors'],
+        use_first_option_as_base=True,
+    )
+    cake_frosting_display_options = _apply_storefront_price_adjustments(
+        cake_option_groups['frostings'],
+    )
+    cake_filling_display_options = _apply_storefront_price_adjustments(
+        cake_option_groups['fillings'],
+    )
+    decoration_display_options = _apply_storefront_price_adjustments(
+        cake_option_groups['decorations'],
+    )
     posted_theme = request.POST.get(
         'theme', '').strip() if request.method == 'POST' else ''
     selected_theme = posted_theme if posted_theme in theme_options else (
@@ -4325,20 +4460,32 @@ def cake_customize(request):
     context = {
         'cake': selected_cake,
         'cakes': cake_queryset.order_by('name'),
-        'cake_tier_options': cake_tier_options,
-        'cake_size_options': cake_size_options,
+        'cake_tier_options': cake_tier_display_options,
+        'cake_size_options': cake_size_display_options,
         'show_cake_size_options': show_cake_size_options,
-        'cake_shape_options': cake_option_groups['shapes'],
-        'cake_flavor_options': cake_option_groups['flavors'],
-        'cake_frosting_options': cake_option_groups['frostings'],
-        'cake_filling_options': cake_option_groups['fillings'],
-        'decoration_options': cake_option_groups['decorations'],
+        'cake_shape_options': cake_shape_display_options,
+        'cake_flavor_options': cake_flavor_display_options,
+        'cake_frosting_options': cake_frosting_display_options,
+        'cake_filling_options': cake_filling_display_options,
+        'decoration_options': decoration_display_options,
         'theme_options': theme_options,
         'selected_theme': selected_theme,
         'payment_plan_labels': PAYMENT_PLAN_LABELS,
         'selected_payment_method': selected_payment_method,
         'default_deposit_amount': base_deposit_amount,
         'defaults': defaults,
+        'cake_form_values': cake_form_values,
+        'selected_cake_tier_value': selected_cake_tier_value,
+        'selected_cake_size_value': selected_cake_size_value,
+        'selected_cake_shape_value': selected_cake_shape_value,
+        'selected_cake_flavor_value': selected_cake_flavor_value,
+        'default_cake_tier_label': default_cake_tier_option['label'] if default_cake_tier_option else '',
+        'default_cake_size_label': default_cake_size_option['label'] if default_cake_size_option else '',
+        'default_cake_shape_label': default_cake_shape_option['label'] if default_cake_shape_option else '',
+        'default_cake_flavor_label': default_cake_flavor_option['label'] if default_cake_flavor_option else '',
+        'selected_cake_frosting_values': selected_cake_frosting_values,
+        'selected_cake_filling_values': selected_cake_filling_values,
+        'selected_decoration_values': selected_decoration_values,
         'cake_order_window': cake_order_window,
         'delivery_area_choices': DELIVERY_SERVICE_AREA_CHOICES,
         'gcash_account': get_gcash_profile(),
@@ -4490,21 +4637,25 @@ def package_cake_customize(request):
             request.POST.get('shape'), package_option_groups['cake_shapes'])
         flavor_option = _resolve_selected_option(
             request.POST.get('flavor'), package_option_groups['cake_flavors'])
-        frosting_option = _resolve_selected_option(
-            request.POST.get('frosting'), package_option_groups['cake_frostings'])
-        filling_option = _resolve_selected_option(
-            request.POST.get('filling'), package_option_groups['cake_fillings'])
+        selected_frosting_keys = request.POST.getlist('frosting')
+        selected_filling_keys = request.POST.getlist('filling')
+        frosting_options, frosting_total = _get_selected_options(
+            selected_frosting_keys, package_option_groups['cake_frostings'])
+        filling_options, filling_total = _get_selected_options(
+            selected_filling_keys, package_option_groups['cake_fillings'])
         cake_custom_total = sum(
             option['price']
-            for option in [size_option, shape_option, flavor_option, frosting_option, filling_option]
+            for option in [size_option, shape_option, flavor_option]
             if option
-        ) + decoration_total
+        ) + frosting_total + filling_total + decoration_total
 
         draft.update({
             'cake_theme': request.POST.get('theme', '').strip(),
             'cake_flavor': flavor_option['label'] if flavor_option else request.POST.get('flavor', '').strip(),
-            'cake_frosting': frosting_option['label'] if frosting_option else request.POST.get('frosting', '').strip(),
-            'cake_filling': filling_option['label'] if filling_option else request.POST.get('filling', '').strip(),
+            'cake_frosting': _join_selected_option_labels(frosting_options),
+            'cake_filling': _join_selected_option_labels(filling_options),
+            'cake_frosting_keys': selected_frosting_keys,
+            'cake_filling_keys': selected_filling_keys,
             'cake_size_key': size_option['value'] if size_option else size_key,
             'cake_size_label': size_option['label'] if size_option else size_key,
             'cake_shape': shape_option['label'] if shape_option else request.POST.get('shape', '').strip(),
@@ -4528,6 +4679,8 @@ def package_cake_customize(request):
         'frosting_options': package_option_groups['cake_frostings'],
         'filling_options': package_option_groups['cake_fillings'],
         'decoration_options': package_option_groups['cake_decorations'],
+        'selected_package_frosting_values': draft.get('cake_frosting_keys') or _split_saved_multi_select_text(draft.get('cake_frosting', '')),
+        'selected_package_filling_values': draft.get('cake_filling_keys') or _split_saved_multi_select_text(draft.get('cake_filling', '')),
     }
     return render(request, 'hanilies/package_cake_customize.html', context)
 
