@@ -2,6 +2,7 @@ import base64
 import re
 from decimal import Decimal, InvalidOperation
 from io import BytesIO
+from pathlib import Path
 
 import qrcode
 from django.conf import settings
@@ -126,6 +127,32 @@ def generate_qr_code_data_uri(payload):
     return f'data:image/png;base64,{encoded}'
 
 
+
+def get_static_qr_code_data_uri():
+    qr_image_setting = getattr(
+        settings,
+        'HANILIES_GCASH_QR_IMAGE',
+        'static/images/qr.png',
+    )
+    if not qr_image_setting:
+        return ''
+
+    qr_image_path = Path(qr_image_setting)
+    if not qr_image_path.is_absolute():
+        qr_image_path = Path(settings.BASE_DIR) / qr_image_path
+
+    if not qr_image_path.exists():
+        return ''
+
+    mime_type = {
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.webp': 'image/webp',
+    }.get(qr_image_path.suffix.lower(), 'image/png')
+    encoded = base64.b64encode(qr_image_path.read_bytes()).decode('ascii')
+    return f'data:{mime_type};base64,{encoded}'
+
 def build_gcash_checkout_details(amount, order_label, reference_seed=''):
     normalized_amount = _normalize_amount(amount)
     profile = get_gcash_profile()
@@ -141,5 +168,5 @@ def build_gcash_checkout_details(amount, order_label, reference_seed=''):
         'amount_label': f'P{normalized_amount:.2f}',
         'order_label': (order_label or 'Order payment').strip() or 'Order payment',
         'instruction_payload': payload,
-        'qr_code_data_uri': generate_qr_code_data_uri(payload),
+        'qr_code_data_uri': get_static_qr_code_data_uri() or generate_qr_code_data_uri(payload),
     }

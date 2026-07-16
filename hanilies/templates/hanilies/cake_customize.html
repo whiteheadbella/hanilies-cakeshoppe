@@ -1924,6 +1924,7 @@
 
             const payload = await response.json();
             cakeGcashQrImage.src = payload.qr_code_data_uri;
+            cakeGcashQrZoom.href = payload.qr_code_data_uri;
             cakeGcashQrZoom.dataset.zoomSrc = payload.qr_code_data_uri;
             cakePaymentAmountInput.value = payload.amount;
             cakePaymentAmountDisplay.value = payload.amount_label;

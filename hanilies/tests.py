@@ -32,7 +32,7 @@ from .forms import (
     build_package_booking_window,
 )
 from .models import ActivityLog, Cake, CakeCustomization, CakeOrder, HomeHeroImage, HomeStripImage, Notification, Package, PackageOrder, PackageThumbnail, Payment, RefundRequest, Testimonial, UserProfile
-from .payment_qr import build_gcash_checkout_details
+from .payment_qr import build_gcash_checkout_details, generate_qr_code_data_uri
 from .views import (
     CAKE_CUSTOMIZATION_GROUP_SPECS,
     CAKE_DECORATION_OPTIONS,
@@ -228,17 +228,30 @@ class PaymentQrUnitTests(TestCase):
             email='qr@example.com',
         )
 
-    def test_build_gcash_checkout_details_returns_png_data_uri(self):
+    @override_settings(HANILIES_GCASH_QR_IMAGE='static/images/qr.png')
+    def test_build_gcash_checkout_details_prefers_static_saved_qr_image(self):
         preview = build_gcash_checkout_details(
             '2450.50', 'Chocolate Dream cake order', reference_seed='qr-tester')
+        expected_qr_data_uri = (
+            f"data:image/png;base64,{base64.b64encode(Path('static/images/qr.png').read_bytes()).decode('ascii')}"
+        )
 
         self.assertEqual(preview['amount_label'], 'P2450.50')
-        self.assertTrue(preview['qr_code_data_uri'].startswith(
-            'data:image/png;base64,'))
+        self.assertEqual(preview['qr_code_data_uri'], expected_qr_data_uri)
         self.assertNotIn('payment_reference', preview)
         self.assertTrue(
             preview['instruction_payload'].startswith('000201010212'))
         self.assertNotIn('\n', preview['instruction_payload'])
+
+    @override_settings(HANILIES_GCASH_QR_IMAGE='static/images/missing-qr.png')
+    def test_build_gcash_checkout_details_falls_back_to_generated_qr(self):
+        preview = build_gcash_checkout_details(
+            '2450.50', 'Chocolate Dream cake order', reference_seed='qr-tester')
+
+        self.assertEqual(
+            preview['qr_code_data_uri'],
+            generate_qr_code_data_uri(preview['instruction_payload']),
+        )
 
     def test_payment_qr_preview_returns_json_for_logged_in_user(self):
         self.client.login(username='qr-tester', password='TestPass123!')
@@ -6731,13 +6744,3 @@ class CatalogSeedCommandTests(TestCase):
                          f'PKG-{existing_package.id:04d}')
         self.assertIn(
             'Assigned product codes to 1 cakes and 1 packages.', output.getvalue())
-
-
-
-
-
-
-
-
-
-
