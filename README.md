@@ -1,4 +1,4 @@
-# Hanilies Cakeshoppe
+﻿# Hanilies Cakeshoppe
 
 Hanilies Cakeshoppe is a Django web application for cake ordering and event package booking. It includes customer ordering flows, payment submission, order tracking, profile summaries, notification delivery, and a custom admin panel for managing products, orders, payments, users, and activity logs.
 
@@ -175,11 +175,7 @@ Run the app test suite:
 python manage.py test hanilies.tests -v 2
 ```
 
-View demo bot help:
 
-```bash
-python manage.py demo_bot --help
-```
 
 Collect static files for deployment:
 
@@ -189,19 +185,7 @@ python manage.py collectstatic --no-input
 
 ## Demo bot
 
-The project includes a Selenium-backed demo command for presentation flows.
-
-Start the app in one terminal:
-
-```bash
-python manage.py runserver
-```
-
-Then run the demo bot in another terminal:
-
-```bash
-python manage.py demo_bot full
-```
+Use the built-in Demo Bot launcher in the web interface to run the browser-based customer and administrator presentation flow. The current demo is driven from the live UI instead of a separate management command.
 
 ## Deployment
 
@@ -274,3 +258,7 @@ The following project commands have been verified in this workspace:
 - Static fallback cake images use `/static/images/bg.png`
 - The canonical package-order route is `/order-package/`, with `/package-order/` kept as a compatibility alias
 - Customer notifications are backed by the `Notification` model and can also send email through Django mail settings
+
+
+
+

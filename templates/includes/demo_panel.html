@@ -1,4 +1,4 @@
-<div class="demo-panel-shell">
+﻿<div class="demo-panel-shell">
     <button
         type="button"
         class="btn btn-gold demo-panel-launcher"
@@ -6,7 +6,7 @@
         data-bs-target="#demoControlPanel"
         aria-controls="demoControlPanel"
     >
-        <i class="fas fa-robot me-2"></i>Demo Bot
+        <i class="fas fa-robot me-2"></i>System Demo Bot
     </button>
 
     <div
@@ -21,9 +21,9 @@
         <div class="offcanvas-header border-bottom">
             <div>
                 <span class="badge bg-gold-pink text-white p-2 mb-2">
-                    <i class="fas fa-robot me-1"></i> Presentation Demo Bot
+                    <i class="fas fa-display me-1"></i> Guided Presentation
                 </span>
-                <h5 class="offcanvas-title mb-0" id="demoControlPanelLabel">Full Journey Demo Control</h5>
+                <h5 class="offcanvas-title mb-0" id="demoControlPanelLabel">Hanilies Demo Bot</h5>
             </div>
             <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
         </div>
@@ -33,24 +33,23 @@
 
             <div class="demo-panel-section">
                 <p class="text-muted mb-3">
-                    Start the automated walkthrough from any customer or admin page, stop the current run, or choose a custom presentation script for your defense.
+                    Run a browser-only guided demo that automatically presents the customer ordering journey and the administrator workflow using the live system pages.
                 </p>
 
                 <div class="demo-panel-grid mb-3">
                     <button type="button" class="btn btn-gold demo-trigger" data-scenario="full">
-                        <i class="fas fa-play me-2"></i>Full Journey
+                        <i class="fas fa-play me-2"></i>Full Demo Flow
                     </button>
-                    <button type="button" class="btn btn-outline-gold demo-trigger" data-scenario="login">Login Demo</button>
-                    <button type="button" class="btn btn-outline-gold demo-trigger" data-scenario="cake">Cake Demo</button>
-                    <button type="button" class="btn btn-outline-gold demo-trigger" data-scenario="package">Package Demo</button>
+                    <button type="button" class="btn btn-outline-gold demo-trigger" data-scenario="customer">Customer Flow</button>
+                    <button type="button" class="btn btn-outline-gold demo-trigger" data-scenario="admin">Admin Flow</button>
+                    <button type="button" class="btn btn-outline-dark" id="demo-custom-script-trigger">
+                        <i class="fas fa-list-check me-2"></i>Start Selected Demo
+                    </button>
                 </div>
 
-                <div class="d-grid gap-2 d-sm-flex">
-                    <button type="button" class="btn btn-outline-danger flex-fill" id="demo-stop-trigger" disabled>
+                <div class="d-grid">
+                    <button type="button" class="btn btn-outline-danger" id="demo-stop-trigger" disabled>
                         <i class="fas fa-stop me-2"></i>Stop Demo
-                    </button>
-                    <button type="button" class="btn btn-dark flex-fill" id="voice-demo-toggle">
-                        <i class="fas fa-microphone me-2"></i>Start Listening
                     </button>
                 </div>
             </div>
@@ -58,108 +57,127 @@
             <div class="demo-panel-section">
                 <h6 class="mb-2">Live Status</h6>
                 <div class="demo-status-pill" id="demo-status" data-state="idle" aria-live="polite">
-                    Ready. Start a demo from here, or say “start demo”.
-                </div>
-                <div class="demo-command-grid mt-3">
-                    <span class="demo-command-chip">start demo</span>
-                    <span class="demo-command-chip">login demo</span>
-                    <span class="demo-command-chip">cake demo</span>
-                    <span class="demo-command-chip">package demo</span>
-                    <span class="demo-command-chip">stop demo</span>
+                    Ready. Start the full guided demo or run a selected presentation flow.
                 </div>
             </div>
 
             <div class="demo-panel-section">
-                <h6 class="mb-3">Presentation Options</h6>
-                <div class="row g-3">
-                    <div class="col-sm-6">
-                        <label class="form-label fw-semibold" for="demo-payment-mode">Payment Walkthrough</label>
-                        <select class="form-select" id="demo-payment-mode">
-                            <option value="gcash" selected>GCash Verification</option>
-                            <option value="cod">Cash on Delivery</option>
-                        </select>
-                    </div>
-                    <div class="col-sm-6">
-                        <label class="form-label fw-semibold" for="demo-delay">Bot Speed</label>
-                        <select class="form-select" id="demo-delay">
-                            <option value="0.8">Fast</option>
-                            <option value="1.1" selected>Normal</option>
-                            <option value="1.6">Slow for Panel</option>
-                        </select>
-                    </div>
-                </div>
+                <h6 class="mb-3">Playback Speed</h6>
+                <label class="form-label fw-semibold" for="demo-delay">Demo pacing</label>
+                <select class="form-select" id="demo-delay">
+                    <option value="0.6">Super Fast</option>
+                    <option value="0.9">Fast</option>
+                    <option value="1.15" selected>Normal</option>
+                    <option value="1.45">Slow and clear</option>
+                </select>
+                <div class="small text-muted mt-2">The bot uses the selected speed for typing, scrolling, clicks, and pause timing, including Super Fast mode.</div>
             </div>
 
             <div class="demo-panel-section">
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
                     <div>
-                        <h6 class="mb-1">Custom Script</h6>
-                        <p class="text-muted small mb-0">Choose the pages and features to show. The bot follows this list from top to bottom.</p>
+                        <h6 class="mb-1">Presentation Script</h6>
+                        <p class="text-muted small mb-0">Choose the exact modules to present. Steps run from top to bottom.</p>
                     </div>
-                    <button type="button" class="btn btn-gold" id="demo-custom-script-trigger">
-                        <i class="fas fa-list-check me-2"></i>Run Custom Script
-                    </button>
                 </div>
 
                 <div class="demo-script-list" id="demo-script-list">
                     <label class="demo-script-item">
-                        <input class="form-check-input demo-script-step" type="checkbox" value="home" checked>
-                        <span><strong>Homepage Welcome</strong><small>Landing page and customer entry point.</small></span>
+                        <input class="form-check-input demo-script-step" type="checkbox" value="intro" checked>
+                        <span><strong>Introduction</strong><small>Opens the homepage and shows the guided welcome message.</small></span>
                     </label>
                     <label class="demo-script-item">
-                        <input class="form-check-input demo-script-step" type="checkbox" value="login" checked>
-                        <span><strong>Customer Login</strong><small>Logs in with the prepared panel demo account.</small></span>
+                        <input class="form-check-input demo-script-step" type="checkbox" value="register" checked>
+                        <span><strong>Customer Registration</strong><small>Completes the live customer registration form with sample data.</small></span>
                     </label>
                     <label class="demo-script-item">
-                        <input class="form-check-input demo-script-step" type="checkbox" value="ai_recommendations" checked>
-                        <span><strong>AI Recommendation View</strong><small>Shows recommendation logic before or after the order history changes.</small></span>
+                        <input class="form-check-input demo-script-step" type="checkbox" value="customer_login" checked>
+                        <span><strong>Customer Login</strong><small>Logs in with the newly registered demo customer account.</small></span>
                     </label>
                     <label class="demo-script-item">
-                        <input class="form-check-input demo-script-step" type="checkbox" value="cakes" checked>
-                        <span><strong>Cakes Catalog</strong><small>Shows the live cake listings and catalog page.</small></span>
+                        <input class="form-check-input demo-script-step" type="checkbox" value="homepage" checked>
+                        <span><strong>Homepage Walkthrough</strong><small>Highlights navigation, featured content, and key customer sections.</small></span>
                     </label>
                     <label class="demo-script-item">
-                        <input class="form-check-input demo-script-step" type="checkbox" value="cake_order" checked>
-                        <span><strong>Cake Customization and Order</strong><small>Runs the live cake builder, structured delivery form, payment-proof step, and final review flow.</small></span>
+                        <input class="form-check-input demo-script-step" type="checkbox" value="cake_browse" checked>
+                        <span><strong>Cake Ordering</strong><small>Browses cakes, displays a showcase item, and opens the cake order flow.</small></span>
                     </label>
                     <label class="demo-script-item">
-                        <input class="form-check-input demo-script-step" type="checkbox" value="cake_tracking" checked>
-                        <span><strong>Cake Order Tracking</strong><small>Shows payment status, order details, and progress tracking.</small></span>
+                        <input class="form-check-input demo-script-step" type="checkbox" value="cake_customize" checked>
+                        <span><strong>Customize Your Cake</strong><small>Fills the cake customization, delivery, and first order payment flow.</small></span>
                     </label>
                     <label class="demo-script-item">
-                        <input class="form-check-input demo-script-step" type="checkbox" value="packages" checked>
-                        <span><strong>Packages Catalog</strong><small>Shows live package cards and the package catalog.</small></span>
+                        <input class="form-check-input demo-script-step" type="checkbox" value="package_browse" checked>
+                        <span><strong>Package Ordering</strong><small>Browses packages, displays details, and opens the package order flow.</small></span>
                     </label>
                     <label class="demo-script-item">
-                        <input class="form-check-input demo-script-step" type="checkbox" value="package_order" checked>
-                        <span><strong>Package Order and Payment</strong><small>Runs the 3-step package flow with package items, cake styling, GCash proof upload, and final review.</small></span>
+                        <input class="form-check-input demo-script-step" type="checkbox" value="package_customize" checked>
+                        <span><strong>Customize Your Package Cake</strong><small>Completes package selections and opens the final package checkout page.</small></span>
                     </label>
                     <label class="demo-script-item">
-                        <input class="form-check-input demo-script-step" type="checkbox" value="package_tracking" checked>
-                        <span><strong>Package Order Tracking</strong><small>Shows package tracking status and payment verification.</small></span>
+                        <input class="form-check-input demo-script-step" type="checkbox" value="cart_review" checked>
+                        <span><strong>Shopping Cart Review</strong><small>Shows a demo cart summary of the selected cake and package items.</small></span>
                     </label>
                     <label class="demo-script-item">
-                        <input class="form-check-input demo-script-step" type="checkbox" value="profile" checked>
-                        <span><strong>Customer Profile Editor</strong><small>Shows profile stats, then saves the latest personal-info edit flow.</small></span>
+                        <input class="form-check-input demo-script-step" type="checkbox" value="checkout" checked>
+                        <span><strong>Checkout</strong><small>Fills the real delivery, schedule, and order review details.</small></span>
                     </label>
                     <label class="demo-script-item">
-                        <input class="form-check-input demo-script-step" type="checkbox" value="order_tracking" checked>
-                        <span><strong>Tracking and Cancellation Flow</strong><small>Shows the combined dashboard, opens cancellation, and reveals refund details.</small></span>
+                        <input class="form-check-input demo-script-step" type="checkbox" value="payment" checked>
+                        <span><strong>Simulated Payment</strong><small>Shows the payment options, QR code, proof upload, and pending verification result.</small></span>
                     </label>
                     <label class="demo-script-item">
-                        <input class="form-check-input demo-script-step" type="checkbox" value="about">
-                        <span><strong>About Page</strong><small>Optional company overview page.</small></span>
+                        <input class="form-check-input demo-script-step" type="checkbox" value="customer_orders" checked>
+                        <span><strong>Customer Order Confirmation</strong><small>Opens My Orders and the live tracking details for the submitted demo orders.</small></span>
                     </label>
                     <label class="demo-script-item">
-                        <input class="form-check-input demo-script-step" type="checkbox" value="contact">
-                        <span><strong>Contact Page</strong><small>Optional contact and inquiry page.</small></span>
+                        <input class="form-check-input demo-script-step" type="checkbox" value="admin_login" checked>
+                        <span><strong>Administrator Login</strong><small>Logs out the customer and signs in with the demo administrator account.</small></span>
+                    </label>
+                    <label class="demo-script-item">
+                        <input class="form-check-input demo-script-step" type="checkbox" value="admin_dashboard" checked>
+                        <span><strong>Administrator Dashboard</strong><small>Highlights dashboard statistics and recent operational activity.</small></span>
+                    </label>
+                    <label class="demo-script-item">
+                        <input class="form-check-input demo-script-step" type="checkbox" value="admin_cake_orders" checked>
+                        <span><strong>Cake Order Management</strong><small>Reviews the demo cake order, opens the summary, and updates the status.</small></span>
+                    </label>
+                    <label class="demo-script-item">
+                        <input class="form-check-input demo-script-step" type="checkbox" value="admin_package_orders" checked>
+                        <span><strong>Package Order Management</strong><small>Reviews the package booking and updates the package order status.</small></span>
+                    </label>
+                    <label class="demo-script-item">
+                        <input class="form-check-input demo-script-step" type="checkbox" value="admin_payments" checked>
+                        <span><strong>Payment Verification</strong><small>Opens the payment proof, reviews the reference, and approves the payment.</small></span>
+                    </label>
+                    <label class="demo-script-item">
+                        <input class="form-check-input demo-script-step" type="checkbox" value="admin_cakes" checked>
+                        <span><strong>Cake Management</strong><small>Demonstrates add, edit, and archive actions for cake products.</small></span>
+                    </label>
+                    <label class="demo-script-item">
+                        <input class="form-check-input demo-script-step" type="checkbox" value="admin_packages" checked>
+                        <span><strong>Package Management</strong><small>Demonstrates add, edit, and archive actions for package products.</small></span>
+                    </label>
+                    <label class="demo-script-item">
+                        <input class="form-check-input demo-script-step" type="checkbox" value="admin_users" checked>
+                        <span><strong>User Management</strong><small>Demonstrates add, edit, role assignment, and archive actions for a demo user.</small></span>
+                    </label>
+                    <label class="demo-script-item">
+                        <input class="form-check-input demo-script-step" type="checkbox" value="audit_trail" checked>
+                        <span><strong>Audit Trail</strong><small>Shows filtered activity logs and the export tools.</small></span>
+                    </label>
+                    <label class="demo-script-item">
+                        <input class="form-check-input demo-script-step" type="checkbox" value="admin_logout" checked>
+                        <span><strong>Logout</strong><small>Logs out the administrator and displays the demo completion message.</small></span>
                     </label>
                 </div>
             </div>
 
             <div class="small text-muted">
-                On your laptop, the bot can open a separate browser window. On the deployed Render site, the defense demo runs as a guided walkthrough in this browser tab.
+                The new Demo Bot is browser-only, uses the live pages, and adds demo-only visual overlays without changing the normal customer or administrator experience.
             </div>
         </div>
     </div>
 </div>
+
+

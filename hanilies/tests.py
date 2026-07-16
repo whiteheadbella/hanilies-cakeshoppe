@@ -1,4 +1,5 @@
-from io import BytesIO, StringIO
+﻿from io import BytesIO, StringIO
+import base64
 from datetime import date, time, timedelta
 from decimal import Decimal
 import json
@@ -30,7 +31,6 @@ from .forms import (
     build_cake_booking_window,
     build_package_booking_window,
 )
-from .management.commands.demo_bot import Command as DemoBotCommand
 from .models import ActivityLog, Cake, CakeCustomization, CakeOrder, HomeHeroImage, HomeStripImage, Notification, Package, PackageOrder, PackageThumbnail, Payment, RefundRequest, Testimonial, UserProfile
 from .payment_qr import build_gcash_checkout_details
 from .views import (
@@ -41,6 +41,7 @@ from .views import (
     _get_selected_option_labels,
     _parse_customization_options_payload,
     _parse_delivery_datetime,
+    _validate_checkout_payment_submission,
 )
 
 
@@ -71,6 +72,26 @@ def build_test_image_upload(name='proof.jpg', image_format='JPEG', content_type=
 
 
 class ViewHelperUnitTests(TestCase):
+    def test_validate_checkout_payment_submission_rejects_broken_png_without_crashing(self):
+        broken_png = base64.b64decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9WnHCqgAAAAASUVORK5CYII='
+        )
+        proof_image = SimpleUploadedFile(
+            'broken-proof.png',
+            broken_png,
+            content_type='image/png',
+        )
+
+        normalized_reference, payment_error = _validate_checkout_payment_submission(
+            'HANI-DEMO-001',
+            proof_image,
+            Decimal('1200.00'),
+            submitted_amount='1200.00',
+        )
+
+        self.assertIsNone(normalized_reference)
+        self.assertEqual(payment_error, 'Only JPG, JPEG, and PNG files are allowed.')
+
     def test_parse_delivery_datetime_returns_aware_morning_timestamp(self):
         delivery_datetime = _parse_delivery_datetime('2026-06-15')
 
@@ -1376,7 +1397,7 @@ class PackageFlowUnitTests(TestCase):
 
     def test_package_order_normalizes_legacy_event_duration_text(self):
         self.package.customization_options = {}
-        self.package.features = 'Event duration: 3û4 hours only'
+        self.package.features = 'Event duration: 3Ã»4 hours only'
         self.package.included_items = ''
         self.package.save(
             update_fields=['customization_options',
@@ -1389,7 +1410,7 @@ class PackageFlowUnitTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Event Duration: 3-4 Hours only')
-        self.assertNotContains(response, 'Event duration: 3û4 hours only')
+        self.assertNotContains(response, 'Event duration: 3Ã»4 hours only')
 
     def test_package_payment_post_creates_order_and_clears_session_draft(self):
         session = self.client.session
@@ -6349,23 +6370,27 @@ class RemoteBrowserDemoBotTests(TestCase):
 
         response = self.client.post(
             reverse('start_demo_bot'),
-            data=json.dumps({'scenario': 'full', 'payment_mode': 'cod'}),
+            data=json.dumps({'scenario': 'full'}),
             content_type='application/json',
             REMOTE_ADDR='198.51.100.20',
         )
 
         self.assertEqual(response.status_code, 200)
         payload = response.json()['browser_demo']
+        self.assertEqual(payload['showcase_catalog']['cake_id'], showcase_cake.id)
+        self.assertEqual(payload['showcase_catalog']['cake_name'], showcase_cake.name)
+        self.assertEqual(payload['showcase_catalog']['package_id'], showcase_package.id)
+        self.assertEqual(payload['showcase_catalog']['package_name'], showcase_package.name)
         self.assertEqual(
-            payload['step_urls']['cakes'],
-            f"{reverse('cakes')}?category=custom",
+            payload['step_urls']['cake_browse'],
+            f"{reverse('cakes')}?category={showcase_cake.category}",
         )
         self.assertEqual(
-            payload['step_urls']['cake_order'],
+            payload['step_urls']['cake_customize'],
             f"{reverse('cake_customize')}?cake_id={showcase_cake.id}",
         )
         self.assertEqual(
-            payload['step_urls']['packages'],
+            payload['step_urls']['package_browse'],
             f"{reverse('packages')}?type={showcase_package.package_type}",
         )
         self.assertEqual(
@@ -6376,7 +6401,7 @@ class RemoteBrowserDemoBotTests(TestCase):
     def test_remote_demo_bot_start_prepares_browser_walkthrough(self):
         response = self.client.post(
             reverse('start_demo_bot'),
-            data=json.dumps({'scenario': 'full', 'payment_mode': 'cod'}),
+            data=json.dumps({'scenario': 'full'}),
             content_type='application/json',
             REMOTE_ADDR='198.51.100.20',
         )
@@ -6384,60 +6409,105 @@ class RemoteBrowserDemoBotTests(TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertEqual(payload['mode'], 'browser')
-        self.assertEqual(payload['browser_demo']
-                         ['credentials']['username'], 'paneldemo')
-        self.assertIn('launch_url', payload['browser_demo'])
-        self.assertIn('cake_tracking', payload['browser_demo']['step_urls'])
-
-        demo_user = User.objects.get(username='paneldemo')
-        self.assertTrue(demo_user.cake_orders.exists())
-        self.assertTrue(demo_user.package_orders.exists())
-        demo_cake_order = demo_user.cake_orders.order_by('-id').first()
+        browser_demo = payload['browser_demo']
+        self.assertEqual(browser_demo['launch_url'], reverse('home'))
+        self.assertEqual(browser_demo['admin_credentials']['username'], 'paneladmin')
+        self.assertEqual(browser_demo['sample_customer']['password'], 'DemoRegister123!')
         self.assertEqual(
-            payload['browser_demo']['step_urls']['order_tracking'],
-            f"{reverse('order_tracking')}?type=cake&id={demo_cake_order.id}",
+            browser_demo['script_steps'],
+            [
+                'intro',
+                'register',
+                'customer_login',
+                'homepage',
+                'cake_browse',
+                'cake_customize',
+                'package_browse',
+                'package_customize',
+                'cart_review',
+                'checkout',
+                'payment',
+                'customer_orders',
+                'admin_login',
+                'admin_dashboard',
+                'admin_cake_orders',
+                'admin_package_orders',
+                'admin_payments',
+                'admin_cakes',
+                'admin_packages',
+                'admin_users',
+                'audit_trail',
+                'admin_logout',
+            ],
         )
+        self.assertEqual(browser_demo['step_urls']['intro'], reverse('home'))
+        self.assertEqual(browser_demo['step_urls']['customer_login'], reverse('login'))
+        self.assertEqual(browser_demo['step_urls']['admin_login'], reverse('login'))
+        self.assertEqual(browser_demo['step_urls']['customer_orders'], f"{reverse('profile')}?section=orders")
+        self.assertEqual(browser_demo['step_urls']['profile'], f"{reverse('profile')}?section=profile&tab=personal#profile-edit-card")
+        self.assertEqual(browser_demo['step_urls']['cart_review'], reverse('package_payment'))
+        self.assertEqual(browser_demo['step_urls']['checkout'], reverse('package_payment'))
+        self.assertEqual(browser_demo['step_urls']['payment'], reverse('package_payment'))
+        self.assertEqual(browser_demo['step_urls']['admin_dashboard'], reverse('admin_dashboard'))
+        self.assertEqual(browser_demo['step_urls']['admin_cakes'], reverse('admin_cakes'))
+        self.assertEqual(browser_demo['step_urls']['admin_packages'], reverse('admin_packages'))
+        self.assertEqual(browser_demo['step_urls']['admin_users'], reverse('admin_users'))
+        self.assertEqual(browser_demo['step_urls']['audit_trail'], reverse('admin_activity_logs'))
+        self.assertEqual(browser_demo['step_urls']['admin_logout'], reverse('logout'))
 
-    def test_remote_demo_bot_start_keeps_manual_gcash_flow_without_payment_demo_steps(self):
+        demo_admin = User.objects.get(username='paneladmin')
+        self.assertTrue(demo_admin.is_staff)
+        self.assertEqual(demo_admin.profile.role, 'admin')
+
+    def test_remote_demo_bot_custom_scenario_requires_at_least_one_step(self):
         response = self.client.post(
             reverse('start_demo_bot'),
-            data=json.dumps({'scenario': 'full', 'payment_mode': 'gcash'}),
+            data=json.dumps({'scenario': 'custom', 'script_steps': []}),
             content_type='application/json',
             REMOTE_ADDR='198.51.100.20',
         )
 
-        self.assertEqual(response.status_code, 200)
-        browser_demo = response.json()['browser_demo']
-        self.assertNotIn('cake_payment_demo', browser_demo['script_steps'])
-        self.assertNotIn('package_payment_demo', browser_demo['script_steps'])
-        self.assertNotIn('cake_payment_demo', browser_demo['step_urls'])
-        self.assertNotIn('package_payment_demo', browser_demo['step_urls'])
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json()['error'],
+            'Choose at least one custom script step before starting the demo.',
+        )
 
-    def test_remote_demo_bot_start_uses_live_order_routes_for_latest_checkout_flow(self):
-        response = self.client.post(
+    def test_remote_demo_bot_supports_customer_and_admin_scenarios(self):
+        customer_response = self.client.post(
             reverse('start_demo_bot'),
-            data=json.dumps({'scenario': 'full', 'payment_mode': 'gcash'}),
+            data=json.dumps({'scenario': 'customer'}),
             content_type='application/json',
             REMOTE_ADDR='198.51.100.20',
         )
-
-        self.assertEqual(response.status_code, 200)
-        browser_demo = response.json()['browser_demo']
-        self.assertIn('cake_order', browser_demo['script_steps'])
-        self.assertIn('package_order', browser_demo['script_steps'])
+        self.assertEqual(customer_response.status_code, 200)
         self.assertEqual(
-            browser_demo['step_urls']['cake_order'].split('?')[0],
-            reverse('cake_customize'),
+            customer_response.json()['browser_demo']['script_steps'],
+            ['intro', 'register', 'customer_login', 'homepage', 'cake_browse', 'cake_customize', 'package_browse', 'package_customize', 'cart_review', 'checkout', 'payment', 'customer_orders'],
         )
+
+        stop_response = self.client.post(
+            reverse('stop_demo_bot'),
+            REMOTE_ADDR='198.51.100.20',
+        )
+        self.assertEqual(stop_response.status_code, 200)
+
+        admin_response = self.client.post(
+            reverse('start_demo_bot'),
+            data=json.dumps({'scenario': 'admin'}),
+            content_type='application/json',
+            REMOTE_ADDR='198.51.100.20',
+        )
+        self.assertEqual(admin_response.status_code, 200)
         self.assertEqual(
-            browser_demo['step_urls']['package_order'].split('?')[0],
-            reverse('order_package'),
+            admin_response.json()['browser_demo']['script_steps'],
+            ['admin_login', 'admin_dashboard', 'admin_cake_orders', 'admin_package_orders', 'admin_payments', 'admin_cakes', 'admin_packages', 'admin_users', 'audit_trail', 'admin_logout'],
         )
 
     def test_remote_demo_bot_status_and_stop_work_for_browser_mode(self):
         self.client.post(
             reverse('start_demo_bot'),
-            data=json.dumps({'scenario': 'login', 'payment_mode': 'gcash'}),
+            data=json.dumps({'scenario': 'customer'}),
             content_type='application/json',
             REMOTE_ADDR='198.51.100.20',
         )
@@ -6450,6 +6520,7 @@ class RemoteBrowserDemoBotTests(TestCase):
         status_payload = status_response.json()
         self.assertTrue(status_payload['running'])
         self.assertEqual(status_payload['active_demo']['mode'], 'browser')
+        self.assertEqual(status_payload['active_demo']['scenario'], 'customer')
 
         stop_response = self.client.post(
             reverse('stop_demo_bot'),
@@ -6626,5 +6697,13 @@ class CatalogSeedCommandTests(TestCase):
                          f'PKG-{existing_package.id:04d}')
         self.assertIn(
             'Assigned product codes to 1 cakes and 1 packages.', output.getvalue())
+
+
+
+
+
+
+
+
 
 
