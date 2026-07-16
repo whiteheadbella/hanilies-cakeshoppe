@@ -2891,6 +2891,40 @@ class SecurityValidationTests(TestCase):
         self.assertContains(response, 'Export preview row 0')
         self.assertContains(response, 'Previous')
 
+    def test_admin_activity_logs_export_tab_hides_export_preview_helper_text(self):
+        ActivityLog.objects.create(
+            actor=self.admin_user,
+            actor_role='Admin - All Management',
+            action='User login',
+            target_type='auth',
+            description='Admin signed in.',
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.get(reverse('admin_activity_logs'), {
+            'tab': 'export',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<strong>admin-user</strong>', html=True)
+        self.assertNotContains(response, 'Export preview')
+
+    def test_admin_activity_logs_records_hide_account_activity_helper_text(self):
+        ActivityLog.objects.create(
+            actor=self.admin_user,
+            actor_role='Admin - All Management',
+            action='User login',
+            target_type='auth',
+            description='Admin signed in.',
+        )
+        self.client.login(username='admin-user', password='TestPass123!')
+
+        response = self.client.get(reverse('admin_activity_logs'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<strong>admin-user</strong>', html=True)
+        self.assertNotContains(response, 'Account activity')
+
     def test_admin_activity_logs_supports_multi_action_filter(self):
         ActivityLog.objects.create(
             actor=self.admin_user,

@@ -915,7 +915,9 @@
                         <td>
                             <div class="audit-ui-user-cell">
                                 <strong>{{ log.display_actor }}</strong>
-                                <span>{% if log.actor %}Account activity{% else %}Removed account{% endif %}</span>
+                                {% if not log.actor %}
+                                <span>Removed account</span>
+                                {% endif %}
                             </div>
                         </td>
                         <td>
@@ -1070,7 +1072,6 @@
                         <td>
                             <div class="audit-ui-user-cell">
                                 <strong>{{ row.actor }}</strong>
-                                <span>Export preview</span>
                             </div>
                         </td>
                         <td>
