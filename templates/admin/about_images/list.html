@@ -9,7 +9,7 @@
     <div class="module-header" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
         <div>
             <h2><i class="fas fa-address-card"></i> About Page Image Slots</h2>
-            <p class="text-muted mb-0">Update the story and team images used on the public About page. The public page reuses the existing zoom modal automatically.</p>
+            <p class="text-muted mb-0">Update the public About page images, team names, positions, and crop placement from one screen.</p>
         </div>
     </div>
     <table class="module-table mobile-card-table">
@@ -17,7 +17,8 @@
             <tr>
                 <th>Slot</th>
                 <th>Preview</th>
-                <th>Usage</th>
+                <th>Public Text</th>
+                <th>Image Position</th>
                 <th>Source</th>
                 <th>Updated</th>
                 <th>Actions</th>
@@ -27,12 +28,20 @@
             {% for item in about_images %}
             <tr>
                 <td data-label="Slot"><strong>{{ item.title }}</strong></td>
-                <td data-label="Preview">
+                <td data-label="Preview" class="about-admin-preview-cell">
                     <button type="button" class="image-zoom-trigger about-admin-preview-trigger" data-zoom-src="{{ item.preview_url }}" data-zoom-title="{{ item.title }}">
-                        <img src="{{ item.preview_url }}" alt="{{ item.title }}" class="about-admin-preview-image">
+                        <img src="{{ item.preview_url }}" alt="{{ item.title }}" class="about-admin-preview-image" style="object-position: {{ item.image_position }};">
                     </button>
                 </td>
-                <td data-label="Usage">{{ item.usage }}</td>
+                <td data-label="Public Text">
+                    <div class="about-admin-primary">{{ item.display_name }}</div>
+                    {% if item.display_position %}
+                    <div class="about-admin-secondary">{{ item.display_position }}</div>
+                    {% elif not item.allows_profile_text %}
+                    <div class="about-admin-secondary">Story section heading</div>
+                    {% endif %}
+                </td>
+                <td data-label="Image Position">{{ item.image_position_label }}</td>
                 <td data-label="Source">
                     {% if item.uses_default_image %}
                     <span class="badge" style="background: #fef3c7; color: #b45309;">Using fallback image</span>
@@ -43,7 +52,7 @@
                 <td data-label="Updated">{{ item.record.updated_at|date:"M d, Y g:i A"|default:"Not uploaded yet" }}</td>
                 <td data-label="Actions">
                     <a href="{% url 'admin_about_image_edit' item.record.id %}" class="table-link">
-                        <i class="fas fa-edit"></i> Edit Image
+                        <i class="fas fa-edit"></i> Edit Details
                     </a>
                 </td>
             </tr>
@@ -61,6 +70,17 @@
 
     .table-link:hover {
         text-decoration: underline;
+    }
+
+    .about-admin-primary {
+        color: #111827;
+        font-weight: 700;
+    }
+
+    .about-admin-secondary {
+        color: #4b5563;
+        font-size: 0.84rem;
+        margin-top: 4px;
     }
 
     .about-admin-preview-trigger {
@@ -82,12 +102,32 @@
     }
 
     @media (max-width: 768px) {
+        .module-header {
+            align-items: flex-start !important;
+        }
+
+        .about-admin-preview-cell {
+            text-align: left;
+        }
+
+        .about-admin-preview-cell::before {
+            display: block;
+            margin-bottom: 8px;
+        }
+
         .about-admin-preview-trigger,
         .about-admin-preview-image {
             width: 100%;
             max-width: 180px;
             height: auto;
             aspect-ratio: 1 / 1;
+            margin-left: 0;
+            margin-right: auto;
+        }
+
+        .about-admin-primary,
+        .about-admin-secondary {
+            text-align: left;
         }
 
         .table-link {
@@ -95,6 +135,8 @@
             align-items: center;
             justify-content: center;
             min-height: 44px;
+            width: 100%;
+            max-width: 220px;
         }
     }
 </style>

@@ -1,4 +1,4 @@
-﻿import json
+import json
 import os
 import re
 import signal
@@ -1823,7 +1823,7 @@ def _normalize_package_inclusion_label_text(label):
 
     if re.match(r'^event\s+duration\s*:', normalized_label, re.IGNORECASE):
         return re.sub(
-            r'^event\s+duration\s*:\s*3\s*(?:-|â€“|â€”|Ã»|u|to)\s*4\s+hours\s+only\s*$',
+            r'^event\s+duration\s*:\s*3\s*(?:-|–|—|û|u|to)\s*4\s+hours\s+only\s*$',
             'Event Duration: 3-4 Hours only',
             normalized_label,
             flags=re.IGNORECASE,
@@ -7875,6 +7875,7 @@ def user_role_context(request):
             'user_role_display': role.get_role_display() if role else 'Customer - Customer Portal',
         }
     return {}
+
 
 
 

@@ -110,8 +110,37 @@ class AboutPageImage(models.Model):
         (SLOT_TEAM_ANNA, 'Anna Lim Team Image'),
     ]
 
+    IMAGE_POSITION_CENTER = 'center center'
+    IMAGE_POSITION_TOP = 'center top'
+    IMAGE_POSITION_BOTTOM = 'center bottom'
+    IMAGE_POSITION_LEFT = 'left center'
+    IMAGE_POSITION_RIGHT = 'right center'
+    IMAGE_POSITION_TOP_LEFT = 'left top'
+    IMAGE_POSITION_TOP_RIGHT = 'right top'
+    IMAGE_POSITION_BOTTOM_LEFT = 'left bottom'
+    IMAGE_POSITION_BOTTOM_RIGHT = 'right bottom'
+
+    IMAGE_POSITION_CHOICES = [
+        (IMAGE_POSITION_CENTER, 'Center'),
+        (IMAGE_POSITION_TOP, 'Top'),
+        (IMAGE_POSITION_BOTTOM, 'Bottom'),
+        (IMAGE_POSITION_LEFT, 'Left'),
+        (IMAGE_POSITION_RIGHT, 'Right'),
+        (IMAGE_POSITION_TOP_LEFT, 'Top Left'),
+        (IMAGE_POSITION_TOP_RIGHT, 'Top Right'),
+        (IMAGE_POSITION_BOTTOM_LEFT, 'Bottom Left'),
+        (IMAGE_POSITION_BOTTOM_RIGHT, 'Bottom Right'),
+    ]
+
     slot = models.CharField(max_length=40, choices=SLOT_CHOICES, unique=True)
+    display_name = models.CharField(max_length=120, blank=True)
+    display_position = models.CharField(max_length=120, blank=True)
     image = models.ImageField(upload_to='about/', blank=True, null=True)
+    image_position = models.CharField(
+        max_length=24,
+        choices=IMAGE_POSITION_CHOICES,
+        default=IMAGE_POSITION_CENTER,
+    )
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -119,7 +148,6 @@ class AboutPageImage(models.Model):
 
     def __str__(self):
         return self.get_slot_display()
-
 
 class Cake(models.Model):
     CAKE_CATEGORIES = [
@@ -700,4 +728,6 @@ class ActivityLog(models.Model):
     def __str__(self):
         actor_label = self.actor.username if self.actor else 'Deleted user'
         return f"{self.action} by {actor_label}"
+
+
 

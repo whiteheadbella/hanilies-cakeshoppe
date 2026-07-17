@@ -9,34 +9,63 @@
     <div class="module-header">
         <h2><i class="fas fa-image"></i> {{ slot_title }}</h2>
     </div>
-    <div style="padding: 25px;">
+    <div class="about-edit-shell">
         <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
 
-            <div class="row">
+            <div class="row g-4">
                 <div class="col-md-7">
                     <div class="form-group">
                         <label>Current Public Image</label>
                         <div class="current-image-container">
-                            <img src="{{ preview_url }}" alt="{{ slot_title }}" class="current-image">
+                            <img src="{{ preview_url }}" alt="{{ slot_title }}" class="current-image" style="object-position: {{ image_position_value }};">
                         </div>
-                        <small class="text-muted d-block mt-2">If no custom image has been uploaded yet, this preview may show the default fallback image.</small>
+                        <small class="text-muted d-block mt-2">If no custom image has been uploaded yet, this preview may show the default fallback image. Use Image Position below if the subject appears too low or off-center.</small>
                     </div>
                 </div>
                 <div class="col-md-5">
                     <div class="form-group">
-                        <label>Replace Image <span class="text-danger">*</span></label>
-                        <input type="file" name="image" class="form-control" accept="image/*" required>
-                        <small class="text-muted">Upload a new image for this About page slot. The public page will use it immediately and keep zoom enabled.</small>
+                        <label>Replace Image</label>
+                        <input type="file" name="image" class="form-control" accept="image/*">
+                        <small class="text-muted">Upload a new image for this About page slot. Leaving this empty keeps the current image.</small>
+                    </div>
+
+                    <div class="form-group mt-3">
+                        <label>Image Position</label>
+                        <select name="image_position" class="form-control">
+                            {% for value, label in image_position_choices %}
+                            <option value="{{ value }}" {% if value == image_position_value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Choose how the image should be cropped on the public About page.</small>
                     </div>
                 </div>
             </div>
 
             <hr>
 
-            <div class="form-group">
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>{% if is_team_slot %}Display Name{% else %}Section Title{% endif %}</label>
+                        <input type="text" name="display_name" class="form-control" value="{{ display_name_value }}" maxlength="120" required>
+                        <small class="text-muted">This text appears on the public About page.</small>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>{% if is_team_slot %}Position / Role{% else %}Subtitle / Extra Text{% endif %}</label>
+                        <input type="text" name="display_position" class="form-control" value="{{ display_position_value }}" maxlength="120" {% if not is_team_slot %}placeholder="Optional"{% endif %}>
+                        <small class="text-muted">{% if is_team_slot %}Example: Founder &amp; Head Baker{% else %}Optional text for this slot. Leave blank if not needed.{% endif %}</small>
+                    </div>
+                </div>
+            </div>
+
+            <hr>
+
+            <div class="form-group about-edit-actions">
                 <button type="submit" class="btn-primary">
-                    <i class="fas fa-save"></i> Update About Image
+                    <i class="fas fa-save"></i> Save About Details
                 </button>
                 <a href="{% url 'admin_about_images' %}" class="btn-secondary" style="background: #6c757d; color: white; padding: 10px 25px; border-radius: 50px; text-decoration: none; margin-left: 10px;">
                     <i class="fas fa-times"></i> Cancel
@@ -50,15 +79,22 @@
     .text-danger {
         color: #dc2626;
     }
+
     .text-muted {
         color: #6b7280;
     }
+
+    .about-edit-shell {
+        padding: 25px;
+    }
+
     .current-image-container {
         padding: 12px;
         background: #f8f9fa;
         border-radius: 18px;
         text-align: center;
     }
+
     .current-image {
         width: 100%;
         max-height: 360px;
@@ -66,20 +102,45 @@
         border-radius: 18px;
         box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
     }
+
     .d-block {
         display: block;
     }
+
     .mt-2 {
         margin-top: 8px;
     }
 
     @media (max-width: 768px) {
+        .about-edit-shell {
+            padding: 16px;
+        }
+
         .module-header h2 {
             font-size: 1.1rem;
         }
 
+        .current-image-container {
+            padding: 10px;
+        }
+
         .current-image {
             max-height: 240px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        .form-group small {
+            line-height: 1.45;
+        }
+
+        .about-edit-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
 
         .form-group .btn-primary,
@@ -89,7 +150,7 @@
             justify-content: center;
             width: 100%;
             margin-left: 0 !important;
-            margin-top: 10px;
+            margin-top: 0;
         }
     }
 </style>
