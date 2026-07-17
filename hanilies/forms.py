@@ -141,3 +141,43 @@ class HaniliesSetPasswordForm(SetPasswordForm):
             'placeholder': 'Confirm your new password',
             'autocomplete': 'new-password',
         })
+
+
+
+class ContactInquiryForm(forms.Form):
+    name = forms.CharField(
+        max_length=120,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter your full name',
+            'autocomplete': 'name',
+        }),
+    )
+    contact_detail = forms.CharField(
+        max_length=150,
+        label='Email or Contact Number',
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter your email or mobile number',
+            'autocomplete': 'email',
+        }),
+    )
+    message = forms.CharField(
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'placeholder': 'Tell us how we can help you.',
+            'rows': 6,
+        }),
+    )
+
+    def clean_contact_detail(self):
+        value = (self.cleaned_data.get('contact_detail') or '').strip()
+        if len(value) < 6:
+            raise ValidationError('Please enter a valid email address or contact number.')
+        return value
+
+    def clean_message(self):
+        value = (self.cleaned_data.get('message') or '').strip()
+        if len(value) < 10:
+            raise ValidationError('Please enter a longer message so we can help you properly.')
+        return value

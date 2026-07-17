@@ -1,0 +1,281 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Contact Inquiries{% endblock %}
+{% block page_title %}Customer Inquiries{% endblock %}
+{% block page_icon %}envelope-open-text{% endblock %}
+
+{% block content %}
+<div class="module-card">
+    <div class="module-header" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <div>
+            <h2><i class="fas fa-envelope-open-text"></i> {% if is_archived_view %}Archived Inquiries{% else %}Public Contact Submissions{% endif %} <span class="badge" style="background: #fce7f3; color: #be185d; margin-left: 10px;">{{ inquiries_page.paginator.count }}</span></h2>
+            <p style="margin: 8px 0 0; color: #6b7280; font-size: 0.95rem;">Messages submitted from the public Contact Us page appear here for staff follow-up.</p>
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <span class="inquiry-pill">
+                <i class="fas fa-bell"></i> Unread: {{ unread_inquiry_count }}
+            </span>
+            <a href="{% if is_archived_view %}{% url 'admin_contact_inquiries' %}{% else %}{% url 'admin_contact_inquiries' %}?archived=1{% endif %}" class="inquiry-header-btn" style="background: {% if is_archived_view %}#0f766e{% else %}#6b7280{% endif %};">
+                <i class="fas fa-box-archive"></i> {% if is_archived_view %}Back to Active{% else %}View Archived{% endif %}
+            </a>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="module-table mobile-card-table" data-pagination-mode="server">
+            <thead>
+                <tr>
+                    <th>Customer</th>
+                    <th>Contact Detail</th>
+                    <th>Message</th>
+                    <th>Status</th>
+                    <th>Submitted</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inquiry in inquiries_page %}
+                <tr{% if not inquiry.is_read and not inquiry.is_archived %} class="is-highlighted"{% endif %}>
+                    <td data-label="Customer">
+                        <strong>{{ inquiry.name }}</strong>
+                        {% if inquiry.user %}
+                        <div class="table-subtext">@{{ inquiry.user.username }}</div>
+                        {% else %}
+                        <div class="table-subtext">Public visitor</div>
+                        {% endif %}
+                    </td>
+                    <td data-label="Contact Detail">
+                        <span>{{ inquiry.contact_detail }}</span>
+                    </td>
+                    <td data-label="Message" style="min-width: 280px;">
+                        {{ inquiry.message|truncatechars:160 }}
+                    </td>
+                    <td data-label="Status">
+                        {% if inquiry.is_archived %}
+                        <span class="badge" style="background: #e5e7eb; color: #374151;">Archived</span>
+                        {% elif inquiry.is_read %}
+                        <span class="badge" style="background: #dbeafe; color: #1d4ed8;">Read</span>
+                        {% else %}
+                        <span class="badge" style="background: #dcfce7; color: #166534;">New</span>
+                        {% endif %}
+                    </td>
+                    <td data-label="Submitted">
+                        <strong>{{ inquiry.created_at|timesince }} ago</strong>
+                        <div class="table-subtext">{{ inquiry.created_at|date:"M d, Y g:i A" }}</div>
+                    </td>
+                    <td data-label="Actions">
+                        <div class="inquiry-action-group">
+                            <div class="inquiry-primary-actions">
+                                <a href="{% url 'admin_contact_inquiry_view' inquiry.id %}?next={{ request.get_full_path|urlencode }}" class="inquiry-primary-btn inquiry-primary-btn-view">
+                                    <i class="fas fa-eye"></i> View
+                                </a>
+                                {% if inquiry.reply_href %}
+                                <a href="{{ inquiry.reply_href }}" class="inquiry-primary-btn inquiry-primary-btn-reply">
+                                    <i class="fas fa-reply"></i> {{ inquiry.reply_label }}
+                                </a>
+                                {% endif %}
+                            </div>
+                            <details class="inquiry-more-menu">
+                                <summary class="inquiry-more-trigger">More actions</summary>
+                                <div class="inquiry-more-panel">
+                                    {% if not inquiry.is_read and not inquiry.is_archived %}
+                                    <form method="post" action="{% url 'admin_contact_inquiry_update' inquiry.id %}?next={{ request.get_full_path|urlencode }}" class="admin-table-inline-form">
+                                        {% csrf_token %}
+                                        <button type="submit" name="action" value="mark_read" class="inquiry-secondary-btn">
+                                            <i class="fas fa-envelope-open"></i> Mark as Read
+                                        </button>
+                                    </form>
+                                    {% endif %}
+
+                                    <form method="post" action="{% url 'admin_contact_inquiry_update' inquiry.id %}?next={{ request.get_full_path|urlencode }}" class="admin-table-inline-form">
+                                        {% csrf_token %}
+                                        <button type="submit" name="action" value="{% if inquiry.is_archived %}restore{% else %}archive{% endif %}" class="inquiry-secondary-btn {% if inquiry.is_archived %}inquiry-secondary-btn-restore{% else %}inquiry-secondary-btn-archive{% endif %}">
+                                            <i class="fas {% if inquiry.is_archived %}fa-rotate-left{% else %}fa-box-archive{% endif %}"></i> {% if inquiry.is_archived %}Restore{% else %}Archive{% endif %}
+                                        </button>
+                                    </form>
+
+                                    <form method="post" action="{% url 'admin_contact_inquiry_delete' inquiry.id %}?next={{ request.get_full_path|urlencode }}" class="admin-table-inline-form">
+                                        {% csrf_token %}
+                                        <button type="submit" onclick="return confirm('Delete inquiry #{{ inquiry.id }} permanently?');" class="inquiry-secondary-btn inquiry-secondary-btn-danger">
+                                            <i class="fas fa-trash"></i> Delete
+                                        </button>
+                                    </form>
+                                </div>
+                            </details>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center">
+                        <div style="padding: 40px;">
+                            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                            <p>No customer inquiries yet.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if inquiries_page.paginator.count %}
+    <div class="table-pagination">
+        <div class="table-pagination-info">{{ inquiries_pagination.summary }}</div>
+        {% if inquiries_pagination.has_multiple_pages %}
+        <div class="table-pagination-actions">
+            {% if inquiries_pagination.prev_url %}
+            <a href="{{ inquiries_pagination.prev_url }}" class="table-pagination-button">Previous</a>
+            {% else %}
+            <span class="table-pagination-button is-disabled">Previous</span>
+            {% endif %}
+            {% if inquiries_pagination.next_url %}
+            <a href="{{ inquiries_pagination.next_url }}" class="table-pagination-button">Next</a>
+            {% else %}
+            <span class="table-pagination-button is-disabled">Next</span>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    .table-subtext {
+        margin-top: 4px;
+        font-size: 0.82rem;
+        color: #6b7280;
+        line-height: 1.45;
+    }
+
+    .inquiry-pill,
+    .inquiry-header-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        text-decoration: none;
+        color: white;
+        font-size: 0.88rem;
+        font-weight: 600;
+    }
+
+    .inquiry-pill {
+        background: #ec4899;
+    }
+
+    .inquiry-action-group {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .inquiry-primary-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .inquiry-primary-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        border: none;
+        border-radius: 999px;
+        padding: 9px 14px;
+        color: white;
+        text-decoration: none;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .inquiry-primary-btn-view {
+        background: #2563eb;
+    }
+
+    .inquiry-primary-btn-reply {
+        background: #0f766e;
+    }
+
+    .inquiry-more-menu {
+        position: relative;
+    }
+
+    .inquiry-more-trigger {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        list-style: none;
+        cursor: pointer;
+        padding: 9px 14px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #f472b6, #f59e0b);
+        color: #ffffff;
+        font-size: 0.85rem;
+        font-weight: 600;
+        box-shadow: 0 10px 20px rgba(244, 114, 182, 0.22);
+    }
+
+    .inquiry-more-trigger::-webkit-details-marker {
+        display: none;
+    }
+
+    .inquiry-more-panel {
+        margin-top: 8px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 12px;
+        min-width: 220px;
+        background: #fff;
+        border: 1px solid #f3d8df;
+        border-radius: 14px;
+        box-shadow: 0 12px 24px rgba(148, 54, 78, 0.12);
+    }
+
+    .inquiry-secondary-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        border: none;
+        border-radius: 999px;
+        padding: 9px 14px;
+        background: #eff6ff;
+        color: #1d4ed8;
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .inquiry-secondary-btn-archive {
+        background: #fff7ed;
+        color: #c2410c;
+    }
+
+    .inquiry-secondary-btn-restore {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .inquiry-secondary-btn-danger {
+        background: #fee2e2;
+        color: #b91c1c;
+    }
+
+    @media (max-width: 768px) {
+        .inquiry-primary-actions,
+        .inquiry-primary-btn,
+        .inquiry-header-btn,
+        .inquiry-more-panel,
+        .inquiry-secondary-btn {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}

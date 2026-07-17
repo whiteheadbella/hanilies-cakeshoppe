@@ -4,81 +4,172 @@
 {% block page_title %}Package Orders{% endblock %}
 {% block page_icon %}calendar-check{% endblock %}
 
+{% block extra_css %}
+<style>
+    .orders-page-title {
+        color: #111827;
+        font-size: 1.05rem;
+        font-weight: 800;
+        letter-spacing: -0.01em;
+    }
+
+    .order-primary {
+        color: #111827;
+        font-weight: 800;
+    }
+
+    .order-secondary {
+        color: #4b5563;
+        font-size: 0.85rem;
+        font-weight: 500;
+        line-height: 1.45;
+    }
+
+    .order-link {
+        color: #1d4ed8;
+        font-size: 0.85rem;
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+    .order-link:hover {
+        color: #1e3a8a;
+        text-decoration: underline;
+    }
+
+    .order-money {
+        color: #111827;
+        font-size: 0.95rem;
+        font-weight: 800;
+    }
+
+    .order-relative-time {
+        color: #111827;
+        font-weight: 700;
+    }
+
+    .order-empty-note {
+        color: #6b7280;
+        font-weight: 600;
+    }
+
+    .admin-package-status-form .form-control {
+        color: #111827;
+        font-weight: 600;
+    }
+
+    .admin-package-status-form .form-control option {
+        color: #111827;
+    }
+
+    .module-table td .status-badge,
+    .module-table td .btn-preview {
+        font-weight: 700;
+    }
+
+    .module-table td[data-label="Actions"] .btn-preview {
+        color: #1d4ed8;
+        font-size: 0.84rem;
+        text-decoration: none;
+    }
+
+    .module-table td[data-label="Actions"] .btn-preview:hover {
+        color: #1e3a8a;
+        text-decoration: underline;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="module-card">
     <div class="module-header" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
-        <h2><i class="fas fa-list"></i> {% if is_archived_view %}Archived Package Orders{% else %}All Package Orders{% endif %}</h2>
+        <h2 class="orders-page-title"><i class="fas fa-list"></i> {% if is_archived_view %}Archived Package Orders{% else %}All Package Orders{% endif %}</h2>
         <a href="{% if is_archived_view %}{% url 'admin_package_orders' %}{% else %}{% url 'admin_package_orders' %}?archived=1{% endif %}" class="btn-primary" style="text-decoration: none; background: {% if is_archived_view %}linear-gradient(135deg, #0f766e, #14b8a6){% else %}linear-gradient(135deg, #6b7280, #9ca3af){% endif %};">
             <i class="fas fa-box-archive"></i> {% if is_archived_view %}Back to Active{% else %}View Archived{% endif %}
         </a>
     </div>
-    <table class="module-table" data-pagination-mode="server">
-        <thead>
-            <tr><th>Order ID</th><th>Customer</th><th>Package</th><th>Event Type</th><th>Event Date</th><th>Total</th><th>Status</th><th>Latest Payment</th><th>Last Activity</th><th>Actions</th></tr>
-        </thead>
-        <tbody>
-            {% for order in orders %}
-            <tr>
-                <td>#{{ order.id }}</td>
-                <td>{{ order.user.username }}</td>
-                <td>{{ order.package.name|default:"Custom Package" }}</td>
-                <td>{{ order.get_event_type_display }}</td>
-                <td>{{ order.event_date|date:"Y-m-d" }}</td>
-                <td>₱{{ order.total_price }}</td>
-                <td><span class="status-badge status-{{ order.order_status }}">{{ order.get_order_status_display }}</span></td>
-                <td>
-                    {% if order.latest_payment_status %}
-                    <div><span class="status-badge status-{{ order.latest_payment_status }}">{{ order.latest_payment_status_label }}</span></div>
-                    {% if order.latest_payment_summary_label %}<small>{{ order.latest_payment_summary_label }}</small>{% endif %}
-                    {% else %}
-                    <span class="text-muted small">No payment yet</span>
-                    {% endif %}
-                </td>
-                <td>{{ order.last_activity_at|date:"Y-m-d H:i" }}</td>
-                <td>
-                    <a href="{% url 'admin_package_order_view' order.id %}?next={{ request.get_full_path|urlencode }}" class="btn-preview" style="margin-right: 8px;">
-                        <i class="fas fa-eye"></i> Preview Summary
-                    </a>
-                    <form method="post"
-                          action="{% url 'admin_package_order_update' order.id %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}"
-                          data-update-url="{% url 'admin_package_order_update' order.id %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}"
-                          data-delete-url="{% url 'admin_package_order_delete' order.id %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}"
-                          data-order-label="package order #{{ order.id }}"
-                          onsubmit="return submitPackageOrderAction(this);"
-                          style="display: inline; margin: 0;">
-                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                            {% csrf_token %}
-                            <input type="hidden" name="status" value="{{ order.order_status }}">
-                            {% if order.allowed_status_updates or order.can_archive %}
-                            <select name="action"
-                                    class="form-control"
-                                    data-current-value="{{ order.order_status }}"
-                                    style="width: auto; display: inline-block; padding: 4px 8px; font-size: 0.8rem;">
-                                <option value="{{ order.order_status }}" selected>{{ order.get_order_status_display }} (Current)</option>
-                                {% for status_value, status_label in order.allowed_status_updates %}
-                                {% if status_value != order.order_status %}
-                                <option value="{{ status_value }}">{{ status_label }}</option>
-                                {% endif %}
-                                {% endfor %}
-                                {% if order.can_archive %}
-                                <option value="delete">{{ order.archive_action_label }}</option>
-                                {% endif %}
-                            </select>
-                            <button type="submit" style="border: none; border-radius: 20px; padding: 4px 10px; background: linear-gradient(135deg, #FF69B4, #D4AF37); color: white; font-size: 0.8rem; font-weight: 600; cursor: pointer;">
-                                Apply
-                            </button>
-                            {% else %}
-                            <span class="text-muted small">No status actions available</span>
-                            {% endif %}
+    <div class="table-responsive">
+        <table class="module-table mobile-card-table" data-pagination-mode="server">
+            <thead>
+                <tr><th>Order ID</th><th>Customer</th><th>Package</th><th>Event Type</th><th>Event Date</th><th>Total</th><th>Status</th><th>Latest Payment</th><th>Last Activity</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr>
+                    <td data-label="Order ID"><span class="order-primary">#{{ order.id }}</span></td>
+                    <td data-label="Customer">
+                        <div class="order-primary">{{ order.user.get_full_name|default:order.user.username }}</div>
+                        <div class="order-secondary">@{{ order.user.username }}</div>
+                    </td>
+                    <td data-label="Package">
+                        <div class="order-primary">{{ order.package.name|default:"Custom Package" }}</div>
+                    </td>
+                    <td data-label="Event Type"><span class="order-secondary">{{ order.get_event_type_display }}</span></td>
+                    <td data-label="Event Date">
+                        <span class="order-primary">{{ order.event_date|date:"M j, Y" }}</span>
+                    </td>
+                    <td data-label="Total"><span class="order-money">&#8369;{{ order.total_price }}</span></td>
+                    <td data-label="Status"><span class="status-badge status-{{ order.order_status }}">{{ order.get_order_status_display }}</span></td>
+                    <td data-label="Latest Payment">
+                        {% if order.latest_payment_status %}
+                        <div><span class="status-badge status-{{ order.latest_payment_status }}">{{ order.latest_payment_status_label }}</span></div>
+                        {% if order.latest_payment_summary_label %}<div class="order-secondary">{{ order.latest_payment_summary_label }}</div>{% endif %}
+                        {% if order.latest_payment_id %}<div class="order-secondary"><a class="order-link" href="{% url 'admin_payments' %}?highlight={{ order.latest_payment_id }}#payment-{{ order.latest_payment_id }}">Open in Payments</a></div>{% endif %}
+                        {% else %}
+                        <span class="order-secondary">No payment yet</span>
+                        {% endif %}
+                    </td>
+                    <td data-label="Last Activity">
+                        <span class="order-relative-time" title="{{ order.last_activity_at|date:'M j, Y g:i A' }}">{{ order.last_activity_at|timesince }} ago</span>
+                        <div class="order-secondary">{{ order.last_activity_at|date:"M j, Y" }}</div>
+                    </td>
+                    <td data-label="Actions">
+                        <div class="admin-table-action-stack">
+                            <a href="{% url 'admin_package_order_view' order.id %}?next={{ request.get_full_path|urlencode }}" class="btn-preview">
+                                <i class="fas fa-eye"></i> Preview Summary
+                            </a>
+                            <form method="post"
+                                  action="{% url 'admin_package_order_update' order.id %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}"
+                                  data-update-url="{% url 'admin_package_order_update' order.id %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}"
+                                  data-delete-url="{% url 'admin_package_order_delete' order.id %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}"
+                                  data-order-label="package order #{{ order.id }}"
+                                  onsubmit="return submitPackageOrderAction(this);"
+                                  class="admin-table-inline-form admin-package-status-form">
+                                <div class="admin-table-select-row">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="status" value="{{ order.order_status }}">
+                                    {% if order.allowed_status_updates or order.can_archive %}
+                                    <select name="action"
+                                            class="form-control"
+                                            data-current-value="{{ order.order_status }}"
+                                            style="width: auto; display: inline-block; padding: 4px 8px; font-size: 0.8rem;">
+                                        <option value="{{ order.order_status }}" selected>{{ order.get_order_status_display }} (Current)</option>
+                                        {% for status_value, status_label in order.allowed_status_updates %}
+                                        {% if status_value != order.order_status %}
+                                        <option value="{{ status_value }}">{{ status_label }}</option>
+                                        {% endif %}
+                                        {% endfor %}
+                                        {% if order.can_archive %}
+                                        <option value="delete">{{ order.archive_action_label }}</option>
+                                        {% endif %}
+                                    </select>
+                                    <button type="submit" style="border: none; border-radius: 20px; padding: 4px 10px; background: linear-gradient(135deg, #FF69B4, #D4AF37); color: white; font-size: 0.8rem; font-weight: 700; cursor: pointer;">
+                                        Apply
+                                    </button>
+                                    {% else %}
+                                    <span class="order-secondary">No status actions available</span>
+                                    {% endif %}
+                                </div>
+                            </form>
                         </div>
-                    </form>
-                </td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="10" class="text-center">No package orders yet</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="10" class="text-center order-empty-note">No package orders yet</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
     {% if orders.paginator.count %}
     <div class="table-pagination">
         <div class="table-pagination-info">{{ orders_pagination.summary }}</div>

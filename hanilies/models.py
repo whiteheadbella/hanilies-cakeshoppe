@@ -2,6 +2,7 @@ from django.db import models
 from django.db.models import Q
 from django.contrib.auth.models import User
 from django.utils import timezone
+from urllib.parse import quote
 
 
 def _build_generated_product_code(prefix, record_id):
@@ -92,6 +93,32 @@ class HomeStripImage(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class AboutPageImage(models.Model):
+    SLOT_STORY = 'story'
+    SLOT_TEAM_TERESA = 'team_teresa'
+    SLOT_TEAM_MARIA = 'team_maria'
+    SLOT_TEAM_JOHN = 'team_john'
+    SLOT_TEAM_ANNA = 'team_anna'
+
+    SLOT_CHOICES = [
+        (SLOT_STORY, 'Our Story Image'),
+        (SLOT_TEAM_TERESA, 'Teresa Rabillas Team Image'),
+        (SLOT_TEAM_MARIA, 'Maria Santos Team Image'),
+        (SLOT_TEAM_JOHN, 'John Reyes Team Image'),
+        (SLOT_TEAM_ANNA, 'Anna Lim Team Image'),
+    ]
+
+    slot = models.CharField(max_length=40, choices=SLOT_CHOICES, unique=True)
+    image = models.ImageField(upload_to='about/', blank=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['slot']
+
+    def __str__(self):
+        return self.get_slot_display()
 
 
 class Cake(models.Model):
@@ -483,6 +510,58 @@ class Testimonial(models.Model):
         return range(max(1, min(int(self.rating or 0), 5)))
 
 
+class ContactInquiry(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='contact_inquiries',
+    )
+    name = models.CharField(max_length=120)
+    contact_detail = models.CharField(max_length=150)
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    read_at = models.DateTimeField(null=True, blank=True)
+    is_archived = models.BooleanField(default=False)
+    archived_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Inquiry #{self.id} - {self.name}"
+
+    @property
+    def status_label(self):
+        if self.is_archived:
+            return 'Archived'
+        if self.is_read:
+            return 'Read'
+        return 'New'
+
+    @property
+    def reply_href(self):
+        contact_value = (self.contact_detail or '').strip()
+        if not contact_value:
+            return ''
+        if '@' in contact_value:
+            subject = quote('Reply from Hanilies Cakeshoppe')
+            body = quote(f'Hello {self.name},\n\n')
+            return f'mailto:{contact_value}?subject={subject}&body={body}'
+        digits = ''.join(character for character in contact_value if character.isdigit() or character == '+')
+        return f'tel:{digits}' if digits else ''
+
+    @property
+    def reply_label(self):
+        contact_value = (self.contact_detail or '').strip()
+        if '@' in contact_value:
+            return 'Reply'
+        return 'Call'
+
+
 class Payment(models.Model):
     PAYMENT_METHODS = [
         ('cod', 'Cash on Delivery'),
@@ -621,3 +700,4 @@ class ActivityLog(models.Model):
     def __str__(self):
         actor_label = self.actor.username if self.actor else 'Deleted user'
         return f"{self.action} by {actor_label}"
+

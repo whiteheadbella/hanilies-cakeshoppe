@@ -105,41 +105,57 @@
             margin-top: auto;
             padding: 20px;
             border-top: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        .view-site-btn, .logout-btn {
+        }
+        .logout-btn {
             display: flex;
             align-items: center;
             gap: 12px;
-            padding: 10px 15px;
+            padding: 12px 16px;
             border-radius: 10px;
             margin-bottom: 10px;
             text-decoration: none;
             transition: all 0.3s ease;
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.34), rgba(127, 29, 29, 0.52));
+            color: #ffffff;
+            min-height: 48px;
+            border: 1px solid rgba(254, 202, 202, 0.28);
+            font-weight: 800;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
         }
-        
-        .view-site-btn {
-            background: rgba(255,255,255,0.1);
-            color: rgba(255,255,255,0.8);
-        }
-        
         .logout-btn {
-            background: rgba(220, 38, 38, 0.2);
-            color: rgba(255,255,255,0.8);
-        }
-        
-        .view-site-btn:hover, .logout-btn:hover {
-            transform: translateX(5px);
-        }
-        
-        .view-site-btn:hover {
-            background: linear-gradient(135deg, #D4AF37, #FF69B4);
-            color: white;
-        }
-        
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.34), rgba(127, 29, 29, 0.52));
+            color: #ffffff;
+            min-height: 48px;
+            padding: 12px 16px;
+            border: 1px solid rgba(254, 202, 202, 0.28);
+            font-weight: 800;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+        }
         .logout-btn:hover {
-            background: #dc2626;
-            color: white;
+            transform: translateX(5px);
+            background: linear-gradient(135deg, #ef4444, #b91c1c);
+            color: #ffffff;
+            box-shadow: 0 10px 22px rgba(220, 38, 38, 0.32);
+        }
+        .logout-btn:hover {
+            background: linear-gradient(135deg, #ef4444, #b91c1c);
+            color: #ffffff;
+            box-shadow: 0 10px 22px rgba(220, 38, 38, 0.32);
+        }
+
+        .logout-btn i {
+            font-size: 1rem;
+            color: #fecaca;
+        }
+
+        .logout-btn span {
+            font-size: 0.92rem;
+            font-weight: 800;
+            letter-spacing: 0.01em;
+        }
+
+        .logout-btn:hover i {
+            color: #ffffff;
         }
         
         .admin-header {
@@ -370,11 +386,16 @@
             gap: 12px;
             flex-wrap: wrap;
             margin-top: 16px;
+            padding: 12px 16px 0;
         }
 
         .table-pagination-info {
+            display: inline-flex;
+            align-items: center;
+            min-height: 36px;
             color: #6b7280;
             font-size: 0.85rem;
+            line-height: 1.4;
         }
 
         .table-pagination-actions {
@@ -574,7 +595,253 @@
         .mt-auto {
             margin-top: auto;
         }
-    </style>
+    /* Pass polish additions */
+.sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(17, 24, 39, 0.45);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+    z-index: 998;
+}
+
+.sidebar-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+body.sidebar-open {
+    overflow: hidden;
+}
+
+.admin-header-title-group,
+.admin-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.admin-header-title-group {
+    min-width: 0;
+}
+
+.mobile-nav-toggle {
+    display: none;
+    width: 44px;
+    height: 44px;
+    border: 1px solid #fbcfe8;
+    border-radius: 999px;
+    background: white;
+    color: #be185d;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.mobile-nav-toggle:hover {
+    background: #fff1f6;
+}
+
+.admin-account-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid #fbcfe8;
+    border-radius: 999px;
+    padding: 8px 14px;
+    color: #be185d;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    background: white;
+}
+
+.admin-site-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid #fbcfe8;
+    border-radius: 999px;
+    padding: 9px 16px;
+    color: white;
+    text-decoration: none;
+    font-size: 0.95rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    text-shadow: 0 1px 2px rgba(76, 5, 25, 0.22);
+    background: linear-gradient(135deg, #FF69B4, #D4AF37);
+    box-shadow: 0 10px 24px rgba(255, 105, 180, 0.18);
+}
+
+.admin-site-link:hover {
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 14px 28px rgba(255, 105, 180, 0.24);
+}
+.admin-account-link:hover {
+    background: #fff1f6;
+    color: #9d174d;
+}
+
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.admin-table-action-stack,
+.admin-table-select-row,
+.admin-table-secondary-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.admin-table-inline-form {
+    display: inline;
+    margin: 0;
+}
+
+.module-table tr.is-highlighted td {
+    background: linear-gradient(135deg, #fff1f6, #fef3c7);
+}
+
+@media (max-width: 992px) {
+    .admin-header {
+        padding: 14px 18px;
+    }
+
+    .mobile-nav-toggle {
+        display: inline-flex;
+    }
+
+    .admin-account-link {
+        display: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .admin-header {
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .admin-header-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .page-title {
+        font-size: 1.15rem;
+        line-height: 1.25;
+    }
+
+    .user-info {
+        display: none;
+    }
+    .sidebar-footer {
+        padding: 16px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .logout-btn {
+        width: 100%;
+        min-height: 52px;
+        justify-content: center;
+        gap: 10px;
+        padding: 14px 18px;
+        border-radius: 14px;
+    }
+
+    .logout-btn span {
+        font-size: 0.95rem;
+    }
+
+    .table-pagination {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .table-pagination-actions {
+        width: 100%;
+    }
+
+    .table-pagination-button {
+        justify-content: center;
+        flex: 1;
+    }
+
+    .admin-table-action-stack,
+    .admin-table-select-row,
+    .admin-table-secondary-actions,
+    .admin-order-status-form {
+        width: 100%;
+    }
+
+    .mobile-card-table {
+        border-collapse: separate;
+        border-spacing: 0 12px;
+    }
+
+    .mobile-card-table thead {
+        display: none;
+    }
+
+    .mobile-card-table,
+    .mobile-card-table tbody,
+    .mobile-card-table tr,
+    .mobile-card-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .mobile-card-table tr {
+        border: 1px solid #f3d6e5;
+        border-radius: 18px;
+        overflow: hidden;
+        box-shadow: 0 10px 24px rgba(148, 163, 184, 0.12);
+        background: white;
+        margin-bottom: 12px;
+    }
+
+    .mobile-card-table td {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 14px;
+        padding: 10px 14px;
+        white-space: normal;
+        text-align: right;
+        border-bottom: 1px solid #fce7f3;
+    }
+
+    .mobile-card-table td::before {
+        content: attr(data-label);
+        color: #9d174d;
+        font-weight: 600;
+        text-align: left;
+    }
+
+    .mobile-card-table td[data-label="Actions"] {
+        display: block;
+        text-align: left;
+    }
+
+    .mobile-card-table td[data-label="Actions"]::before {
+        display: block;
+        margin-bottom: 8px;
+    }
+
+    .mobile-card-table tr:hover td {
+        background: transparent;
+    }
+
+    .mobile-card-table td:last-child {
+        border-bottom: none;
+    }
+}
+</style>
+
     
     {% block extra_css %}{% endblock %}
 </head>
@@ -629,32 +896,41 @@
                 {% endif %}
             </div>
             
-            <div class="sidebar-footer">
-                <a href="{% url 'home' %}" class="view-site-btn" target="_blank">
-                    <i class="fas fa-external-link-alt"></i>
-                    <span>View Site</span>
-                </a>
-                <a href="{% url 'logout' %}" class="logout-btn" onclick="return confirm('Are you sure you want to logout?')">
-                    <i class="fas fa-sign-out-alt"></i>
+            <div class="sidebar-footer"><a href="{% url 'logout' %}" class="logout-btn" onclick="return confirm('Are you sure you want to logout?')">
+                    <i class="fas fa-right-from-bracket"></i>
                     <span>Logout</span>
                 </a>
             </div>
         </aside>
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
         
         <!-- Main Content -->
         <main class="main-content">
             <header class="admin-header">
-                <h1 class="page-title">
-                    <i class="fas fa-{% block page_icon %}tachometer-alt{% endblock %}"></i>
-                    {% block page_title %}Dashboard{% endblock %}
-                </h1>
-                <div class="admin-user">
-                    <div class="user-info">
-                        <div class="user-name">{{ request.user.get_full_name|default:request.user.username }}</div>
-                        <div class="user-role">{{ role_display|default:"Administrator" }}</div>
-                    </div>
-                    <div class="user-avatar">
-                        {{ request.user.username|first|upper }}
+                <div class="admin-header-title-group">
+                    <button type="button" class="mobile-nav-toggle" id="mobileAdminNavToggle" aria-label="Open admin navigation" aria-expanded="false">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h1 class="page-title">
+                        <i class="fas fa-{% block page_icon %}tachometer-alt{% endblock %}"></i>
+                        {% block page_title %}Dashboard{% endblock %}
+                    </h1>
+                </div>
+                <div class="admin-header-actions">
+                    <a href="{% url 'home' %}" class="admin-site-link" target="_blank" rel="noopener noreferrer">
+                        <i class="fas fa-external-link-alt"></i> View Site
+                    </a>
+                    <a href="{% url 'profile' %}?section=profile&tab=password#profile-edit-card" class="admin-account-link">
+                        <i class="fas fa-user-cog"></i> Account Settings
+                    </a>
+                    <div class="admin-user">
+                        <div class="user-info">
+                            <div class="user-name">{{ request.user.get_full_name|default:request.user.username }}</div>
+                            <div class="user-role">{{ role_display|default:"Administrator" }}</div>
+                        </div>
+                        <div class="user-avatar">
+                            {{ request.user.username|first|upper }}
+                        </div>
                     </div>
                 </div>
             </header>
@@ -951,7 +1227,64 @@
         document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('.module-table').forEach(enhanceAdminTable);
         });
+
+        // Mobile admin sidebar toggle
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebar = document.querySelector('.admin-sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const toggle = document.getElementById('mobileAdminNavToggle');
+
+            if (!sidebar || !overlay || !toggle) {
+                return;
+            }
+
+            function setSidebarState(isOpen) {
+                sidebar.classList.toggle('open', isOpen);
+                overlay.classList.toggle('open', isOpen);
+                document.body.classList.toggle('sidebar-open', isOpen);
+                toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            }
+
+            toggle.addEventListener('click', function() {
+                setSidebarState(!sidebar.classList.contains('open'));
+            });
+
+            overlay.addEventListener('click', function() {
+                setSidebarState(false);
+            });
+
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape') {
+                    setSidebarState(false);
+                }
+            });
+
+            document.querySelectorAll('.admin-sidebar .nav-link, .admin-sidebar .logout-btn').forEach(function(link) {
+                link.addEventListener('click', function() {
+                    if (window.innerWidth <= 992) {
+                        setSidebarState(false);
+                    }
+                });
+            });
+
+            window.addEventListener('resize', function() {
+                if (window.innerWidth > 992) {
+                    setSidebarState(false);
+                }
+            });
+        });
     </script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+

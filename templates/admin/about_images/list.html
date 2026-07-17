@@ -1,0 +1,101 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}About Images{% endblock %}
+{% block page_title %}About Page Images{% endblock %}
+{% block page_icon %}address-card{% endblock %}
+
+{% block content %}
+<div class="module-card">
+    <div class="module-header" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <div>
+            <h2><i class="fas fa-address-card"></i> About Page Image Slots</h2>
+            <p class="text-muted mb-0">Update the story and team images used on the public About page. The public page reuses the existing zoom modal automatically.</p>
+        </div>
+    </div>
+    <table class="module-table mobile-card-table">
+        <thead>
+            <tr>
+                <th>Slot</th>
+                <th>Preview</th>
+                <th>Usage</th>
+                <th>Source</th>
+                <th>Updated</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in about_images %}
+            <tr>
+                <td data-label="Slot"><strong>{{ item.title }}</strong></td>
+                <td data-label="Preview">
+                    <button type="button" class="image-zoom-trigger about-admin-preview-trigger" data-zoom-src="{{ item.preview_url }}" data-zoom-title="{{ item.title }}">
+                        <img src="{{ item.preview_url }}" alt="{{ item.title }}" class="about-admin-preview-image">
+                    </button>
+                </td>
+                <td data-label="Usage">{{ item.usage }}</td>
+                <td data-label="Source">
+                    {% if item.uses_default_image %}
+                    <span class="badge" style="background: #fef3c7; color: #b45309;">Using fallback image</span>
+                    {% else %}
+                    <span class="badge" style="background: #dcfce7; color: #166534;">Custom image uploaded</span>
+                    {% endif %}
+                </td>
+                <td data-label="Updated">{{ item.record.updated_at|date:"M d, Y g:i A"|default:"Not uploaded yet" }}</td>
+                <td data-label="Actions">
+                    <a href="{% url 'admin_about_image_edit' item.record.id %}" class="table-link">
+                        <i class="fas fa-edit"></i> Edit Image
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<style>
+    .table-link {
+        color: #be185d;
+        text-decoration: none;
+        font-weight: 600;
+    }
+
+    .table-link:hover {
+        text-decoration: underline;
+    }
+
+    .about-admin-preview-trigger {
+        border: none;
+        background: transparent;
+        padding: 0;
+        border-radius: 18px;
+        overflow: hidden;
+        cursor: zoom-in;
+    }
+
+    .about-admin-preview-image {
+        width: 88px;
+        height: 88px;
+        object-fit: cover;
+        border-radius: 18px;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+        display: block;
+    }
+
+    @media (max-width: 768px) {
+        .about-admin-preview-trigger,
+        .about-admin-preview-image {
+            width: 100%;
+            max-width: 180px;
+            height: auto;
+            aspect-ratio: 1 / 1;
+        }
+
+        .table-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 44px;
+        }
+    }
+</style>
+{% endblock %}

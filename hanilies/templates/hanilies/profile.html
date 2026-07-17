@@ -164,7 +164,7 @@
                                     </div>
                                 </div>
                                 <hr>
-                                <div class="d-flex justify-content-end gap-2">
+                                <div class="profile-action-row">
                                     <a href="{% url 'order_tracking' %}" class="btn btn-outline-gold">View Orders</a>
                                     <a href="{% url 'home' %}" class="btn btn-outline-gold">Cancel</a>
                                     <button type="submit" class="btn btn-gold">Save Changes</button>
@@ -205,7 +205,7 @@
                                     </div>
                                 </div>
                                 <hr>
-                                <div class="d-flex justify-content-end gap-2">
+                                <div class="profile-action-row">
                                     <button type="button" class="btn btn-outline-gold" onclick="resetPasswordForm()">Cancel</button>
                                     <button type="submit" class="btn btn-gold">Update Password</button>
                                 </div>
@@ -235,17 +235,8 @@
                                         </label>
                                     </div>
                                 </div>
-                                <div class="mb-3">
-                                    <!-- <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" name="sms_notifications" id="smsNotifications" checked>
-                                        <label class="form-check-label" for="smsNotifications">
-                                            <strong>SMS Notifications</strong><br>
-                                            <small class="text-muted">Receive order status updates via text message</small>
-                                        </label>
-                                    </div> -->
-                                </div>
                                 <hr>
-                                <div class="d-flex justify-content-end gap-2">
+                                <div class="profile-action-row">
                                     <button type="button" class="btn btn-outline-gold" onclick="resetPreferences()">Reset</button>
                                     <button type="submit" class="btn btn-gold">Save Preferences</button>
                                 </div>
@@ -399,16 +390,11 @@
     function resetPreferences() {
         const accountNotifications = document.querySelector('#preferences input[name="account_notifications"]');
         const promoEmails = document.querySelector('#preferences input[name="promo_emails"]');
-        const smsNotifications = document.querySelector('#preferences input[name="sms_notifications"]');
-
         if (accountNotifications) {
             accountNotifications.checked = true;
         }
         if (promoEmails) {
             promoEmails.checked = false;
-        }
-        if (smsNotifications) {
-            smsNotifications.checked = true;
         }
     }
 </script>
@@ -445,7 +431,34 @@
         transform: translateY(-2px);
         box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.08);
     }
+    .profile-action-row {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+    @media (max-width: 576px) {
+        .profile-action-row {
+            display: grid;
+            grid-template-columns: 1fr;
+            align-items: stretch;
+            width: 100%;
+        }
+        .profile-action-row .btn {
+            width: 100%;
+            min-height: 50px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            white-space: normal;
+        }
+    }
 </style>
 {% endblock %}
+
+
+
 
 

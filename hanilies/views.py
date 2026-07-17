@@ -40,6 +40,7 @@ from .forms import (
     CAKE_ORDER_MAX_LEAD_DAYS,
     CAKE_ORDER_MIN_LEAD_DAYS,
     CakeBookingDateForm,
+    ContactInquiryForm,
     HaniliesPasswordResetForm,
     HaniliesSetPasswordForm,
     PACKAGE_ORDER_MIN_LEAD_DAYS,
@@ -47,7 +48,7 @@ from .forms import (
     build_cake_booking_window,
     build_package_booking_window,
 )
-from .models import HomeHeroImage, HomeStripImage, UserProfile, Notification, Cake, CakeOrder, CakeCustomization, Package, PackageOrder, PackageThumbnail, Payment, RefundRequest, ActivityLog, Testimonial
+from .models import HomeHeroImage, HomeStripImage, UserProfile, Notification, AboutPageImage, Cake, CakeOrder, CakeCustomization, Package, PackageOrder, PackageThumbnail, Payment, RefundRequest, ActivityLog, Testimonial, ContactInquiry
 from .payment_qr import build_gcash_checkout_details, get_gcash_profile
 
 
@@ -213,6 +214,57 @@ LEGACY_CAKE_SIZE_TIER_LABELS = {
     item['label'].strip().lower()
     for item in DEFAULT_CAKE_CUSTOMIZATION_OPTIONS['sizes']
 }
+
+ABOUT_PAGE_IMAGE_DEFAULTS = {
+    AboutPageImage.SLOT_STORY: {
+        'title': 'Our Story',
+        'image_url': '/static/images/cake1.jpg',
+    },
+    AboutPageImage.SLOT_TEAM_TERESA: {
+        'title': 'Teresa Rabillas',
+        'image_url': '/static/images/cake1.jpg',
+    },
+    AboutPageImage.SLOT_TEAM_MARIA: {
+        'title': 'Maria Santos',
+        'image_url': '/static/images/cake2.jpg',
+    },
+    AboutPageImage.SLOT_TEAM_JOHN: {
+        'title': 'John Reyes',
+        'image_url': '/static/images/cake3.jpg',
+    },
+    AboutPageImage.SLOT_TEAM_ANNA: {
+        'title': 'Anna Lim',
+        'image_url': '/static/images/cake1.jpg',
+    },
+}
+
+ABOUT_PAGE_IMAGE_SLOT_DETAILS = [
+    {
+        'slot': AboutPageImage.SLOT_STORY,
+        'title': 'Our Story',
+        'usage': 'Large image beside the Our Story text block.',
+    },
+    {
+        'slot': AboutPageImage.SLOT_TEAM_TERESA,
+        'title': 'Teresa Rabillas',
+        'usage': 'Team card image for the founder.',
+    },
+    {
+        'slot': AboutPageImage.SLOT_TEAM_MARIA,
+        'title': 'Maria Santos',
+        'usage': 'Team card image for the head baker.',
+    },
+    {
+        'slot': AboutPageImage.SLOT_TEAM_JOHN,
+        'title': 'John Reyes',
+        'usage': 'Team card image for the sales manager.',
+    },
+    {
+        'slot': AboutPageImage.SLOT_TEAM_ANNA,
+        'title': 'Anna Lim',
+        'usage': 'Team card image for the customer service lead.',
+    },
+]
 
 DEFAULT_PACKAGE_CUSTOMIZATION_OPTIONS = {
     'addons': [
@@ -444,6 +496,8 @@ ADMIN_MENU_ITEMS = [
         'icon': 'images', 'roles': HOME_HERO_ROLE_VALUES},
     {'name': 'Homepage Strip', 'url': 'admin_home_strip_images',
         'icon': 'panorama', 'roles': HOME_HERO_ROLE_VALUES},
+    {'name': 'About Images', 'url': 'admin_about_images',
+        'icon': 'address-card', 'roles': HOME_HERO_ROLE_VALUES},
     {'name': 'Cakes', 'url': 'admin_cakes', 'icon': 'birthday-cake',
         'roles': CAKE_PRODUCT_ROLE_VALUES},
     {'name': 'Cake Orders', 'url': 'admin_cake_orders', 'icon': 'shopping-cart',
@@ -458,6 +512,8 @@ ADMIN_MENU_ITEMS = [
         'roles': FULL_ACCESS_ROLE_VALUES},
     {'name': 'Refunds', 'url': 'admin_refunds', 'icon': 'rotate-left',
         'roles': PAYMENT_REVIEW_ROLE_VALUES},
+    {'name': 'Inquiries', 'url': 'admin_contact_inquiries', 'icon': 'envelope-open-text',
+        'roles': FULL_ACCESS_ROLE_VALUES},
     {'name': 'Users', 'url': 'admin_users', 'icon': 'users',
         'roles': USER_MANAGEMENT_ROLE_VALUES},
     {'name': 'Audit Trail', 'url': 'admin_activity_logs',
@@ -1026,6 +1082,8 @@ def _annotate_admin_order_activity(queryset, payment_relation_field):
         output_field=DateTimeField(),
     )
     return queryset.annotate(
+        latest_payment_id=Subquery(
+            latest_payment_queryset.values('id')[:1]),
         latest_payment_status=Subquery(
             latest_payment_queryset.values('payment_status')[:1]),
         latest_payment_method=Subquery(
@@ -1092,6 +1150,29 @@ def _get_public_package_queryset():
 
 def _get_public_cake_queryset():
     return Cake.objects.filter(is_active=True, is_archived=False)
+
+
+def _ensure_about_page_image_records():
+    for slot_detail in ABOUT_PAGE_IMAGE_SLOT_DETAILS:
+        AboutPageImage.objects.get_or_create(slot=slot_detail['slot'])
+
+
+def _build_about_page_image_context():
+    _ensure_about_page_image_records()
+    stored_images = {item.slot: item for item in AboutPageImage.objects.all()}
+    context = {}
+    for slot_detail in ABOUT_PAGE_IMAGE_SLOT_DETAILS:
+        slot = slot_detail['slot']
+        record = stored_images.get(slot)
+        default_payload = ABOUT_PAGE_IMAGE_DEFAULTS[slot]
+        image_url = record.image.url if record and record.image else default_payload['image_url']
+        context[slot] = {
+            'slot': slot,
+            'title': default_payload['title'],
+            'image_url': image_url,
+            'record': record,
+        }
+    return context
 
 
 def _is_archived_admin_view(request):
@@ -3585,22 +3666,69 @@ def home(request):
 
 def about(request):
     """About page"""
-    return render(request, 'hanilies/about.html')
+    about_images = _build_about_page_image_context()
+    team_members = [
+        {
+            'name': 'Teresa Rabillas',
+            'role': 'Founder & Head Baker',
+            'image': about_images[AboutPageImage.SLOT_TEAM_TERESA],
+        },
+        {
+            'name': 'Maria Santos',
+            'role': 'Head Baker',
+            'image': about_images[AboutPageImage.SLOT_TEAM_MARIA],
+        },
+        {
+            'name': 'John Reyes',
+            'role': 'Sales Manager',
+            'image': about_images[AboutPageImage.SLOT_TEAM_JOHN],
+        },
+        {
+            'name': 'Anna Lim',
+            'role': 'Customer Service',
+            'image': about_images[AboutPageImage.SLOT_TEAM_ANNA],
+        },
+    ]
+    return render(request, 'hanilies/about.html', {
+        'about_story_image': about_images[AboutPageImage.SLOT_STORY],
+        'about_team_members': team_members,
+    })
 
 
 def contact(request):
-    """Contact page"""
+    """Public contact page with inquiry form."""
+    initial = {}
+    if request.user.is_authenticated:
+        full_name = request.user.get_full_name().strip()
+        initial['name'] = full_name or request.user.username
+        contact_detail = request.user.email
+        profile = getattr(request.user, 'profile', None)
+        if profile and profile.phone:
+            contact_detail = profile.phone or contact_detail
+        if contact_detail:
+            initial['contact_detail'] = contact_detail
+
     if request.method == 'POST':
-        name = request.POST.get('name')
-        email = request.POST.get('email')
-        subject = request.POST.get('subject')
-        message = request.POST.get('message')
+        form = ContactInquiryForm(request.POST)
+        if form.is_valid():
+            ContactInquiry.objects.create(
+                user=request.user if request.user.is_authenticated else None,
+                name=form.cleaned_data['name'],
+                contact_detail=form.cleaned_data['contact_detail'],
+                message=form.cleaned_data['message'],
+            )
+            messages.success(
+                request,
+                'Thank you for your message. Hanilies Cakeshoppe will review it and get back to you soon.',
+            )
+            return redirect(f"{reverse('contact')}?sent=1#contact-form")
+    else:
+        form = ContactInquiryForm(initial=initial)
 
-        messages.success(
-            request, 'Thank you for your message! We will get back to you soon.')
-        return redirect('contact')
-
-    return render(request, 'hanilies/contact.html')
+    return render(request, 'hanilies/contact.html', {
+        'form': form,
+        'contact_success': request.GET.get('sent') == '1',
+    })
 
 
 def cakes(request):
@@ -4890,6 +5018,203 @@ def is_admin_user(user):
 # ============================================
 # ADMIN DASHBOARD
 # ============================================
+
+@login_required
+def admin_contact_inquiries(request):
+    """Review public customer contact inquiries."""
+    access_denied = _require_admin_roles(request, FULL_ACCESS_ROLE_VALUES)
+    if access_denied:
+        return access_denied
+
+    is_archived_view = _is_archived_admin_view(request)
+    inquiries = ContactInquiry.objects.filter(
+        is_archived=is_archived_view,
+    ).order_by('is_read', '-created_at')
+    inquiries_page, inquiries_pagination = _paginate_admin_queryset(
+        request, inquiries, 'page'
+    )
+
+    return render(request, 'admin/contact_inquiries/list.html', {
+        'inquiries_page': inquiries_page,
+        'inquiries_pagination': inquiries_pagination,
+        'is_archived_view': is_archived_view,
+        'unread_inquiry_count': ContactInquiry.objects.filter(is_archived=False, is_read=False).count(),
+        'admin_menu': get_admin_menu(request),
+    })
+
+
+@login_required
+def admin_contact_inquiry_view(request, inquiry_id):
+    """View a single public customer inquiry."""
+    access_denied = _require_admin_roles(request, FULL_ACCESS_ROLE_VALUES)
+    if access_denied:
+        return access_denied
+
+    inquiry = get_object_or_404(ContactInquiry, id=inquiry_id)
+    if not inquiry.is_read:
+        inquiry.is_read = True
+        inquiry.read_at = timezone.now()
+        inquiry.save(update_fields=['is_read', 'read_at', 'updated_at'])
+
+    return render(request, 'admin/contact_inquiries/detail.html', {
+        'inquiry': inquiry,
+        'reply_href': inquiry.reply_href,
+        'return_url': _get_safe_admin_return_url(request, 'admin_contact_inquiries'),
+        'admin_menu': get_admin_menu(request),
+    })
+
+
+@login_required
+@require_POST
+def admin_contact_inquiry_update(request, inquiry_id):
+    """Update inquiry read or archive state."""
+    access_denied = _require_admin_roles(request, FULL_ACCESS_ROLE_VALUES)
+    if access_denied:
+        return access_denied
+
+    inquiry = get_object_or_404(ContactInquiry, id=inquiry_id)
+    action = (request.POST.get('action') or '').strip().lower()
+    return_url = _get_safe_admin_return_url(request, 'admin_contact_inquiries')
+
+    if action == 'mark_read':
+        if inquiry.is_read:
+            messages.info(request, f'Inquiry #{inquiry.id} is already marked as read.')
+            return redirect(return_url)
+        inquiry.is_read = True
+        inquiry.read_at = timezone.now()
+        inquiry.save(update_fields=['is_read', 'read_at', 'updated_at'])
+        _log_staff_activity(
+            request.user,
+            'contact_inquiry_read',
+            f'Marked inquiry #{inquiry.id} as read.',
+            'contact_inquiry',
+            inquiry.id,
+        )
+        messages.success(request, f'Inquiry #{inquiry.id} marked as read.')
+        return redirect(return_url)
+
+    if action == 'archive':
+        if inquiry.is_archived:
+            messages.info(request, f'Inquiry #{inquiry.id} is already archived.')
+            return redirect(return_url)
+        _archive_model_instance(inquiry)
+        _log_staff_activity(
+            request.user,
+            'contact_inquiry_archived',
+            f'Archived inquiry #{inquiry.id}.',
+            'contact_inquiry',
+            inquiry.id,
+        )
+        messages.success(request, f'Inquiry #{inquiry.id} archived successfully!')
+        return redirect(return_url)
+
+    if action == 'restore':
+        if not inquiry.is_archived:
+            messages.info(request, f'Inquiry #{inquiry.id} is already active.')
+            return redirect(return_url)
+        _restore_model_instance(inquiry)
+        _log_staff_activity(
+            request.user,
+            'contact_inquiry_restored',
+            f'Restored inquiry #{inquiry.id}.',
+            'contact_inquiry',
+            inquiry.id,
+        )
+        messages.success(request, f'Inquiry #{inquiry.id} restored successfully!')
+        return redirect(return_url)
+
+    messages.error(request, 'Unknown inquiry action.')
+    return redirect(return_url)
+
+
+@login_required
+@require_POST
+def admin_contact_inquiry_delete(request, inquiry_id):
+    """Permanently delete a public customer inquiry."""
+    access_denied = _require_admin_roles(request, FULL_ACCESS_ROLE_VALUES)
+    if access_denied:
+        return access_denied
+
+    inquiry = get_object_or_404(ContactInquiry, id=inquiry_id)
+    inquiry_id_value = inquiry.id
+    inquiry_name = inquiry.name
+    inquiry.delete()
+    _log_staff_activity(
+        request.user,
+        'contact_inquiry_deleted',
+        f'Deleted inquiry #{inquiry_id_value} from {inquiry_name}.',
+        'contact_inquiry',
+        inquiry_id_value,
+    )
+    messages.success(request, f'Inquiry #{inquiry_id_value} deleted successfully!')
+    return redirect(_get_safe_admin_return_url(request, 'admin_contact_inquiries'))
+
+
+@login_required
+def admin_about_images(request):
+    """List and manage About page images."""
+    access_denied = _require_admin_roles(request, HOME_HERO_ROLE_VALUES)
+    if access_denied:
+        return access_denied
+
+    _ensure_about_page_image_records()
+    images_by_slot = {item.slot: item for item in AboutPageImage.objects.all()}
+    about_images = []
+    for slot_detail in ABOUT_PAGE_IMAGE_SLOT_DETAILS:
+        image_record = images_by_slot.get(slot_detail['slot'])
+        default_payload = ABOUT_PAGE_IMAGE_DEFAULTS[slot_detail['slot']]
+        about_images.append({
+            'record': image_record,
+            'slot': slot_detail['slot'],
+            'title': slot_detail['title'],
+            'usage': slot_detail['usage'],
+            'preview_url': image_record.image.url if image_record and image_record.image else default_payload['image_url'],
+            'uses_default_image': not bool(image_record and image_record.image),
+        })
+
+    return render(request, 'admin/about_images/list.html', {
+        'about_images': about_images,
+        'admin_menu': get_admin_menu(request),
+    })
+
+
+@login_required
+def admin_about_image_edit(request, image_id):
+    """Edit an About page image slot."""
+    access_denied = _require_admin_roles(request, HOME_HERO_ROLE_VALUES)
+    if access_denied:
+        return access_denied
+
+    about_image = get_object_or_404(AboutPageImage, id=image_id)
+    slot_title = dict(AboutPageImage.SLOT_CHOICES).get(about_image.slot, 'About Image')
+
+    if request.method == 'POST':
+        if 'image' in request.FILES:
+            if about_image.image:
+                about_image.image.delete(save=False)
+            about_image.image = request.FILES['image']
+            about_image.save(update_fields=['image', 'updated_at'])
+            _log_staff_activity(
+                request.user,
+                'about_image_updated',
+                f'Updated About page image slot "{slot_title}".',
+                'about_page_image',
+                about_image.id,
+            )
+            messages.success(request, f'About page image "{slot_title}" updated successfully!')
+            return redirect('admin_about_images')
+
+        messages.error(request, 'Please upload an image to replace the current About page photo.')
+
+    default_payload = ABOUT_PAGE_IMAGE_DEFAULTS.get(about_image.slot, {})
+    preview_url = about_image.image.url if about_image.image else default_payload.get('image_url', '')
+    return render(request, 'admin/about_images/edit.html', {
+        'about_image': about_image,
+        'slot_title': slot_title,
+        'preview_url': preview_url,
+        'admin_menu': get_admin_menu(request),
+    })
+
 
 @login_required
 def admin_dashboard(request):
@@ -7292,10 +7617,23 @@ def admin_users(request):
         return access_denied
 
     is_archived_view = _is_archived_admin_view(request)
-    users = User.objects.filter(
-        is_active=not is_archived_view).order_by('-date_joined')
+    users = list(User.objects.filter(
+        is_active=not is_archived_view).order_by('-date_joined'))
+    staff_users = []
+    customer_users = []
+
+    for user in users:
+        role_value = _get_user_role_value(user)
+        user.admin_list_role_value = role_value
+        if role_value == 'customer' and not user.is_staff and not user.is_superuser:
+            customer_users.append(user)
+        else:
+            staff_users.append(user)
+
     return render(request, 'admin/users/list.html', {
         'users': users,
+        'staff_users': staff_users,
+        'customer_users': customer_users,
         'is_archived_view': is_archived_view,
         'admin_menu': get_admin_menu(request)
     })

@@ -1,0 +1,180 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Inquiry Details{% endblock %}
+{% block page_title %}Inquiry Details{% endblock %}
+{% block page_icon %}envelope-open-text{% endblock %}
+
+{% block content %}
+<div class="module-card">
+    <div class="module-header" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <div>
+            <h2><i class="fas fa-envelope-open-text"></i> Inquiry #{{ inquiry.id }}</h2>
+            <p style="margin: 8px 0 0; color: #6b7280; font-size: 0.95rem;">Review the full customer message and choose the next action.</p>
+        </div>
+        <a href="{{ return_url }}" class="detail-back-link">
+            <i class="fas fa-arrow-left"></i> Back to Inquiries
+        </a>
+    </div>
+
+    <div class="inquiry-detail-grid">
+        <div class="inquiry-detail-card">
+            <span class="detail-label">Customer</span>
+            <div class="detail-value">{{ inquiry.name }}</div>
+            <div class="detail-subtext">{% if inquiry.user %}@{{ inquiry.user.username }}{% else %}Public visitor{% endif %}</div>
+        </div>
+        <div class="inquiry-detail-card">
+            <span class="detail-label">Contact Detail</span>
+            <div class="detail-value">{{ inquiry.contact_detail }}</div>
+            <div class="detail-subtext">Use the reply action below to respond quickly.</div>
+        </div>
+        <div class="inquiry-detail-card">
+            <span class="detail-label">Status</span>
+            <div class="detail-value">{{ inquiry.status_label }}</div>
+            <div class="detail-subtext">Submitted {{ inquiry.created_at|timesince }} ago</div>
+        </div>
+        <div class="inquiry-detail-card">
+            <span class="detail-label">Read At</span>
+            <div class="detail-value">{{ inquiry.read_at|date:"M d, Y g:i A"|default:"Not yet marked as read" }}</div>
+            <div class="detail-subtext">Archived: {{ inquiry.is_archived|yesno:"Yes,No" }}</div>
+        </div>
+    </div>
+
+    <div class="inquiry-message-card">
+        <span class="detail-label">Full Message</span>
+        <div class="inquiry-message-body">{{ inquiry.message|linebreaksbr }}</div>
+    </div>
+
+    <div class="inquiry-detail-actions">
+        {% if reply_href %}
+        <a href="{{ reply_href }}" class="detail-action-btn detail-action-btn-reply">
+            <i class="fas fa-reply"></i> {{ inquiry.reply_label }}
+        </a>
+        {% endif %}
+
+        {% if not inquiry.is_read and not inquiry.is_archived %}
+        <form method="post" action="{% url 'admin_contact_inquiry_update' inquiry.id %}?next={{ request.get_full_path|urlencode }}">
+            {% csrf_token %}
+            <button type="submit" name="action" value="mark_read" class="detail-action-btn detail-action-btn-read">
+                <i class="fas fa-envelope-open"></i> Mark as Read
+            </button>
+        </form>
+        {% endif %}
+
+        <form method="post" action="{% url 'admin_contact_inquiry_update' inquiry.id %}?next={{ request.get_full_path|urlencode }}">
+            {% csrf_token %}
+            <button type="submit" name="action" value="{% if inquiry.is_archived %}restore{% else %}archive{% endif %}" class="detail-action-btn {% if inquiry.is_archived %}detail-action-btn-restore{% else %}detail-action-btn-archive{% endif %}">
+                <i class="fas {% if inquiry.is_archived %}fa-rotate-left{% else %}fa-box-archive{% endif %}"></i> {% if inquiry.is_archived %}Restore{% else %}Archive{% endif %}
+            </button>
+        </form>
+
+        <form method="post" action="{% url 'admin_contact_inquiry_delete' inquiry.id %}?next={{ return_url|urlencode }}">
+            {% csrf_token %}
+            <button type="submit" onclick="return confirm('Delete inquiry #{{ inquiry.id }} permanently?');" class="detail-action-btn detail-action-btn-delete">
+                <i class="fas fa-trash"></i> Delete
+            </button>
+        </form>
+    </div>
+</div>
+
+<style>
+    .detail-back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 14px;
+        border-radius: 999px;
+        text-decoration: none;
+        background: #eff6ff;
+        color: #1d4ed8;
+        font-weight: 600;
+    }
+
+    .inquiry-detail-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+
+    .inquiry-detail-card,
+    .inquiry-message-card {
+        background: #fffafc;
+        border: 1px solid #f3d8df;
+        border-radius: 20px;
+        padding: 20px;
+    }
+
+    .detail-label {
+        display: inline-block;
+        margin-bottom: 10px;
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #be185d;
+    }
+
+    .detail-value {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #1f2937;
+    }
+
+    .detail-subtext {
+        margin-top: 6px;
+        font-size: 0.85rem;
+        color: #6b7280;
+    }
+
+    .inquiry-message-body {
+        color: #374151;
+        line-height: 1.7;
+        white-space: normal;
+    }
+
+    .inquiry-detail-actions {
+        margin-top: 20px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .inquiry-detail-actions form {
+        margin: 0;
+    }
+
+    .detail-action-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        border: none;
+        border-radius: 999px;
+        padding: 10px 16px;
+        color: white;
+        font-size: 0.9rem;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .detail-action-btn-reply {
+        background: #0f766e;
+    }
+
+    .detail-action-btn-read {
+        background: #2563eb;
+    }
+
+    .detail-action-btn-archive {
+        background: #c2410c;
+    }
+
+    .detail-action-btn-restore {
+        background: #15803d;
+    }
+
+    .detail-action-btn-delete {
+        background: #b91c1c;
+    }
+</style>
+{% endblock %}

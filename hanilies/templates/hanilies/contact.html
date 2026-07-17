@@ -4,104 +4,155 @@
 {% block title %}Contact Us{% endblock %}
 
 {% block content %}
-<div class="container py-5">
-    <!-- Page Header -->
+<div class="container py-5 contact-page-shell">
     <div class="row mb-5">
         <div class="col-12 text-center">
             <h1 class="display-4 fw-bold mb-3">
                 <span class="text-gold-pink">Get in Touch</span>
             </h1>
-            <p class="lead text-muted">We'd love to hear from you. Reach out to us through any of the following channels.</p>
+            <p class="lead text-muted">Reach out through our contact channels or send your inquiry directly from the website.</p>
         </div>
     </div>
 
-    <div class="row g-4">
-        <!-- Contact Information Cards -->
-        <div class="col-md-4">
-            <div class="card h-100 border-0 shadow-sm text-center p-4">
-                <div class="card-body">
-                    <div class="icon-circle mb-3">
-                        <i class="fas fa-map-marker-alt fa-2x text-gold-pink"></i>
+    {% if messages %}
+    <div class="row justify-content-center mb-4">
+        <div class="col-lg-10">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags|default:'info' }} border-0 shadow-sm rounded-4 px-4 py-3">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row g-4 align-items-start">
+        <div class="col-lg-5">
+            <div class="row g-4">
+                <div class="col-md-6 col-lg-12">
+                    <div class="card h-100 border-0 shadow-sm text-center p-4">
+                        <div class="card-body">
+                            <div class="icon-circle mb-3">
+                                <i class="fas fa-map-marker-alt fa-2x text-gold-pink"></i>
+                            </div>
+                            <h5 class="fw-bold mb-3">Visit Us</h5>
+                            <p class="text-muted mb-0">
+                                FRM4+623, Independence St<br>
+                                Oroquieta City<br>
+                                Misamis Occidental, 7207
+                            </p>
+                        </div>
                     </div>
-                    <h5 class="fw-bold mb-3">Visit Us</h5>
-                    <p class="text-muted mb-0">
-                        FRM4+623, Independence St<br>
-                        Oroquieta City<br>
-                        Misamis Occidental, 7207
-                    </p>
+                </div>
+
+                <div class="col-md-6 col-lg-12">
+                    <div class="card h-100 border-0 shadow-sm text-center p-4">
+                        <div class="card-body">
+                            <div class="icon-circle mb-3">
+                                <i class="fas fa-phone fa-2x text-gold-pink"></i>
+                            </div>
+                            <h5 class="fw-bold mb-3">Call Us</h5>
+                            <p class="text-muted mb-1">Mobile: <strong>0927 529 4221</strong></p>
+                            <p class="text-muted mb-0">Landline: <strong>(02) 1234-5678</strong></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-gold-pink text-white py-3 text-center">
+                            <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Business Hours</h5>
+                        </div>
+                        <div class="card-body p-4">
+                            <div class="hours-list">
+                                <div class="hour-item d-flex justify-content-between py-2 border-bottom">
+                                    <span class="fw-semibold">Monday - Friday</span>
+                                    <span class="text-muted">8:00 AM - 8:00 PM</span>
+                                </div>
+                                <div class="hour-item d-flex justify-content-between py-2 border-bottom">
+                                    <span class="fw-semibold">Saturday</span>
+                                    <span class="text-muted">9:00 AM - 6:00 PM</span>
+                                </div>
+                                <div class="hour-item d-flex justify-content-between py-2 border-bottom">
+                                    <span class="fw-semibold">Sunday</span>
+                                    <span class="text-muted">9:00 AM - 5:00 PM</span>
+                                </div>
+                                <div class="hour-item d-flex justify-content-between py-2">
+                                    <span class="fw-semibold text-gold-pink">Holidays</span>
+                                    <span class="text-muted">10:00 AM - 4:00 PM</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-        
-        <div class="col-md-4">
-            <div class="card h-100 border-0 shadow-sm text-center p-4">
-                <div class="card-body">
-                    <div class="icon-circle mb-3">
-                        <i class="fas fa-phone fa-2x text-gold-pink"></i>
-                    </div>
-                    <h5 class="fw-bold mb-3">Call Us</h5>
-                    <p class="text-muted mb-1">📞 Mobile: <strong>0927 529 4221</strong></p>
-                    <p class="text-muted mb-0">📞 Landline: <strong>(02) 1234-5678</strong></p>
+
+        <div class="col-lg-7">
+            <div class="card border-0 shadow contact-form-card" id="contact-form">
+                <div class="card-header border-0 bg-white px-4 px-md-5 pt-4 pt-md-5 pb-0">
+                    <span class="contact-form-eyebrow">Public Customer Inquiries</span>
+                    <h2 class="h3 fw-bold mt-2 mb-2">Send us a message directly</h2>
+                    <p class="text-muted mb-0">Use this form if you want Hanilies Cakeshoppe to reply to your concern without leaving the website.</p>
                 </div>
-            </div>
-        </div>
-        
-        <div class="col-md-4">
-            <div class="card h-100 border-0 shadow-sm text-center p-4">
-                <div class="card-body">
-                    <div class="icon-circle mb-3">
-                        <i class="fas fa-envelope fa-2x text-gold-pink"></i>
+                <div class="card-body px-4 px-md-5 py-4 py-md-5">
+                    {% if contact_success %}
+                    <div class="alert contact-success-alert border-0 rounded-4 px-4 py-3 mb-4">
+                        <div class="fw-semibold mb-1">Your inquiry was sent.</div>
+                        <div class="small mb-0">Hanilies Cakeshoppe received your message and can now reply using the contact detail you provided.</div>
                     </div>
-                    <h5 class="fw-bold mb-3">Email Us</h5>
-                    <p class="text-muted mb-0">
-                        <a href="mailto:cakeshoppehanilies@gmail.com" class="text-decoration-none">
-                            cakeshoppehanilies@gmail.com
-                        </a>
-                    </p>
+                    {% endif %}
+
+                    {% if form.errors %}
+                    <div class="alert alert-danger border-0 rounded-4 px-4 py-3 mb-4">
+                        Please review the highlighted fields below before sending your inquiry.
+                    </div>
+                    {% endif %}
+
+                    <form method="post" novalidate class="contact-form-grid">
+                        {% csrf_token %}
+                        <div class="mb-4">
+                            <label for="{{ form.name.id_for_label }}" class="form-label fw-semibold">Name</label>
+                            {{ form.name }}
+                            {% if form.name.errors %}
+                            <div class="text-danger small mt-2">{{ form.name.errors|join:', ' }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="{{ form.contact_detail.id_for_label }}" class="form-label fw-semibold">{{ form.contact_detail.label }}</label>
+                            {{ form.contact_detail }}
+                            {% if form.contact_detail.errors %}
+                            <div class="text-danger small mt-2">{{ form.contact_detail.errors|join:', ' }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="{{ form.message.id_for_label }}" class="form-label fw-semibold">Message</label>
+                            {{ form.message }}
+                            {% if form.message.errors %}
+                            <div class="text-danger small mt-2">{{ form.message.errors|join:', ' }}</div>
+                            {% endif %}
+                        </div>
+
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger border-0 rounded-4">
+                            {{ form.non_field_errors|join:', ' }}
+                        </div>
+                        {% endif %}
+
+                        <div class="d-flex flex-column flex-sm-row gap-3 align-items-sm-center justify-content-between mt-2">
+                            <p class="small text-muted mb-0">We usually respond using the email address or contact number you provide here.</p>
+                            <button type="submit" class="btn btn-primary contact-submit-btn">
+                                <i class="fas fa-paper-plane me-2"></i>Send Inquiry
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="row g-4 mt-2">
-        <!-- Business Hours - Full Width -->
-        <div class="col-md-6 mx-auto">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-gold-pink text-white py-3 text-center">
-                    <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Business Hours</h5>
-                </div>
-                <div class="card-body p-4">
-                    <div class="hours-list">
-                        <div class="hour-item d-flex justify-content-between py-2 border-bottom">
-                            <span class="fw-semibold">Monday - Friday</span>
-                            <span class="text-muted">8:00 AM - 8:00 PM</span>
-                        </div>
-                        <div class="hour-item d-flex justify-content-between py-2 border-bottom">
-                            <span class="fw-semibold">Saturday</span>
-                            <span class="text-muted">9:00 AM - 6:00 PM</span>
-                        </div>
-                        <div class="hour-item d-flex justify-content-between py-2 border-bottom">
-                            <span class="fw-semibold">Sunday</span>
-                            <span class="text-muted">9:00 AM - 5:00 PM</span>
-                        </div>
-                        <div class="hour-item d-flex justify-content-between py-2">
-                            <span class="fw-semibold text-gold-pink">Holidays</span>
-                            <span class="text-muted">10:00 AM - 4:00 PM</span>
-                        </div>
-                    </div>
-                    
-                    <div class="mt-4 p-3 bg-light rounded text-center">
-                        <small class="text-muted">
-                            <i class="fas fa-info-circle me-1"></i>
-                            For urgent inquiries outside business hours, please email us and we'll respond within 24 hours.
-                        </small>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Map Section -->
     <div class="row mt-4">
         <div class="col-12">
             <div class="card border-0 shadow-sm overflow-hidden">
@@ -109,8 +160,8 @@
                     <h5 class="mb-0"><i class="fas fa-map me-2"></i>Our Location</h5>
                 </div>
                 <div class="card-body p-0">
-                    <iframe 
-                        src="https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=FRM4%2B623+Independence+St+Oroquieta+City+7207+Misamis+Occidental&zoom=18" 
+                    <iframe
+                        src="https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=FRM4%2B623+Independence+St+Oroquieta+City+7207+Misamis+Occidental&zoom=18"
                         width="100%"
                         height="400"
                         style="border:0;"
@@ -124,6 +175,10 @@
 </div>
 
 <style>
+    .contact-page-shell {
+        margin-top: 2rem;
+    }
+
     .icon-circle {
         width: 70px;
         height: 70px;
@@ -135,55 +190,104 @@
         margin: 0 auto;
         transition: all 0.3s ease;
     }
-    
+
+    .contact-form-card {
+        border-radius: 28px;
+        overflow: hidden;
+    }
+
+    .contact-form-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: #fff1f6;
+        color: #be185d;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+    }
+
+    .contact-success-alert {
+        background: linear-gradient(135deg, #dcfce7, #ecfdf5);
+        color: #166534;
+        box-shadow: 0 12px 24px rgba(22, 101, 52, 0.08);
+    }
+
+    .contact-submit-btn {
+        border: none;
+        border-radius: 999px;
+        padding: 12px 24px;
+        background: linear-gradient(135deg, #ff69b4, #d4af37) !important;
+        box-shadow: 0 14px 30px rgba(244, 114, 182, 0.24);
+        white-space: nowrap;
+    }
+
+    .contact-submit-btn:hover {
+        transform: translateY(-1px);
+    }
+
+    .contact-form-card .form-control {
+        border-radius: 16px;
+        padding: 14px 16px;
+        border-color: #f3d8df;
+        box-shadow: none;
+    }
+
+    .contact-form-card .form-control:focus {
+        border-color: #ff69b4;
+        box-shadow: 0 0 0 4px rgba(255, 105, 180, 0.12);
+    }
+
     .card:hover .icon-circle {
         transform: scale(1.1);
         background: linear-gradient(135deg, rgba(255,105,180,0.2), rgba(212,175,55,0.2));
     }
-    
+
     .hour-item {
         transition: all 0.3s ease;
     }
-    
+
     .hour-item:hover {
         background: linear-gradient(135deg, rgba(255,105,180,0.05), rgba(212,175,55,0.05));
         padding-left: 10px;
         padding-right: 10px;
         border-radius: 8px;
     }
-    
+
     .card {
         transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
-    
+
     .card:hover {
         transform: translateY(-5px);
         box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important;
     }
-    
+
     .bg-gold-pink {
         background: linear-gradient(135deg, #FF69B4, #D4AF37);
     }
-    
+
     .text-gold-pink {
         background: linear-gradient(135deg, #FF69B4, #D4AF37);
         -webkit-background-clip: text;
         background-clip: text;
         -webkit-text-fill-color: transparent;
     }
-    
+
     @media (max-width: 768px) {
         .container {
             padding-left: 20px;
             padding-right: 20px;
         }
-        
+
         .display-4 {
             font-size: 2rem;
         }
-        
-        .col-md-6.mx-auto {
-            width: 100%;
+
+        .contact-page-shell {
+            margin-top: 1rem;
         }
     }
 </style>

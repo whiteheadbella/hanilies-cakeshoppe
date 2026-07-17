@@ -6,8 +6,11 @@
 
 {% block content %}
 <div class="module-card">
-    <div class="module-header" style="display: flex; justify-content: space-between; align-items: center; gap: 16px;">
-        <h2><i class="fas fa-list"></i> {% if is_archived_view %}Archived Users{% else %}All Users{% endif %}</h2>
+    <div class="module-header" style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;">
+        <div>
+            <h2><i class="fas fa-users"></i> {% if is_archived_view %}Archived Accounts{% else %}User Access Overview{% endif %}</h2>
+            <p class="text-muted mb-0">Customers and staff use the same backend table, but are separated here to make access levels easier to review.</p>
+        </div>
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
             <a href="{% if is_archived_view %}{% url 'admin_users' %}{% else %}{% url 'admin_users' %}?archived=1{% endif %}" class="btn-primary" style="text-decoration: none; display: inline-flex; align-items: center; gap: 8px; background: {% if is_archived_view %}linear-gradient(135deg, #0f766e, #14b8a6){% else %}linear-gradient(135deg, #6b7280, #9ca3af){% endif %};">
                 <i class="fas fa-box-archive"></i>{% if is_archived_view %}Back to Active{% else %}View Archived{% endif %}
@@ -17,41 +20,98 @@
             </a>
         </div>
     </div>
-    <table class="module-table">
-        <thead>
-            <tr><th>ID</th><th>Username</th><th>Name</th><th>Email</th><th>Role</th><th>Joined</th><th>Actions</th></tr>
-        </thead>
-        <tbody>
-            {% for user in users %}
-            <tr>
-                <td>{{ user.id }}</td>
-                <td>{{ user.username }}</td>
-                <td>{{ user.get_full_name|default:"-" }}</td>
-                <td>{{ user.email }}</td>
-                <td>
-                    {% if user.profile %}
-                    <span class="status-badge role-{{ user.profile.role }}">{{ user.profile.get_role_display }}</span>
-                    {% else %}
-                    <span class="status-badge role-customer">Customer</span>
-                    {% endif %}
-                </td>
-                <td>{{ user.date_joined|date:"Y-m-d" }}</td>
-                <td>
-                    <a href="{% url 'admin_user_edit' user.id %}" style="color: #FF69B4; margin-right: 10px;">Edit</a>
-                    <a href="{% url 'admin_user_role' user.id %}" style="color: #D4AF37; margin-right: 10px;">Change Role</a>
-                    {% if user != request.user %}
-                    <form method="post" action="{% url 'admin_user_delete' user.id %}" style="display: inline;">
-                        {% csrf_token %}
-                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                        <button type="submit" onclick="return confirm('{% if is_archived_view %}Restore{% else %}Archive{% endif %} user {{ user.username|escapejs }}?');" style="background: none; border: none; padding: 0; color: {% if is_archived_view %}#2563eb{% else %}#d94b4b{% endif %}; cursor: pointer; text-decoration: underline; font: inherit;">{% if is_archived_view %}Restore{% else %}Archive{% endif %}</button>
-                    </form>
-                    {% endif %}
-                </td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="7" class="text-center">No users found</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+</div>
+
+<div class="module-card">
+    <div class="module-header">
+        <h2><i class="fas fa-user-shield"></i> Staff And Admin Users <span class="badge" style="background: #fce7f3; color: #be185d; margin-left: 10px;">{{ staff_users|length }}</span></h2>
+    </div>
+    <div class="table-responsive">
+        <table class="module-table mobile-card-table">
+            <thead>
+                <tr><th>Username</th><th>Name</th><th>Email</th><th>Role</th><th>Joined</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+                {% for user in staff_users %}
+                <tr>
+                    <td data-label="Username">
+                        <strong>{{ user.username }}</strong>
+                        {% if user.is_superuser %}<div class="text-muted small">Superuser account</div>{% endif %}
+                    </td>
+                    <td data-label="Name">{{ user.get_full_name|default:"-" }}</td>
+                    <td data-label="Email">{{ user.email|default:"-" }}</td>
+                    <td data-label="Role">
+                        {% if user.profile %}
+                        <span class="status-badge role-{{ user.profile.role }}">{{ user.profile.get_role_display }}</span>
+                        {% else %}
+                        <span class="status-badge role-admin">Administrator</span>
+                        {% endif %}
+                    </td>
+                    <td data-label="Joined">
+                        <span title="{{ user.date_joined|date:'M j, Y g:i A' }}">{{ user.date_joined|timesince }} ago</span>
+                        <div class="text-muted small">{{ user.date_joined|date:"M j, Y" }}</div>
+                    </td>
+                    <td data-label="Actions">
+                        <div class="admin-table-action-stack">
+                            <a href="{% url 'admin_user_edit' user.id %}" style="color: #FF69B4;">Edit</a>
+                            <a href="{% url 'admin_user_role' user.id %}" style="color: #D4AF37;">Change Role</a>
+                            {% if user != request.user %}
+                            <form method="post" action="{% url 'admin_user_delete' user.id %}" class="admin-table-inline-form">
+                                {% csrf_token %}
+                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                <button type="submit" onclick="return confirm('{% if is_archived_view %}Restore{% else %}Archive{% endif %} user {{ user.username|escapejs }}?');" style="background: none; border: none; padding: 0; color: {% if is_archived_view %}#2563eb{% else %}#d94b4b{% endif %}; cursor: pointer; text-decoration: underline; font: inherit;">{% if is_archived_view %}Restore{% else %}Archive{% endif %}</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center">No staff or admin accounts found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="module-card">
+    <div class="module-header">
+        <h2><i class="fas fa-user"></i> Public Customers <span class="badge" style="background: #e0f2fe; color: #0369a1; margin-left: 10px;">{{ customer_users|length }}</span></h2>
+    </div>
+    <div class="table-responsive">
+        <table class="module-table mobile-card-table">
+            <thead>
+                <tr><th>Username</th><th>Name</th><th>Email</th><th>Role</th><th>Joined</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+                {% for user in customer_users %}
+                <tr>
+                    <td data-label="Username"><strong>{{ user.username }}</strong></td>
+                    <td data-label="Name">{{ user.get_full_name|default:"-" }}</td>
+                    <td data-label="Email">{{ user.email|default:"-" }}</td>
+                    <td data-label="Role"><span class="status-badge role-customer">Customer</span></td>
+                    <td data-label="Joined">
+                        <span title="{{ user.date_joined|date:'M j, Y g:i A' }}">{{ user.date_joined|timesince }} ago</span>
+                        <div class="text-muted small">{{ user.date_joined|date:"M j, Y" }}</div>
+                    </td>
+                    <td data-label="Actions">
+                        <div class="admin-table-action-stack">
+                            <a href="{% url 'admin_user_edit' user.id %}" style="color: #FF69B4;">Edit</a>
+                            <a href="{% url 'admin_user_role' user.id %}" style="color: #D4AF37;">Assign Staff Role</a>
+                            {% if user != request.user %}
+                            <form method="post" action="{% url 'admin_user_delete' user.id %}" class="admin-table-inline-form">
+                                {% csrf_token %}
+                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                <button type="submit" onclick="return confirm('{% if is_archived_view %}Restore{% else %}Archive{% endif %} user {{ user.username|escapejs }}?');" style="background: none; border: none; padding: 0; color: {% if is_archived_view %}#2563eb{% else %}#d94b4b{% endif %}; cursor: pointer; text-decoration: underline; font: inherit;">{% if is_archived_view %}Restore{% else %}Archive{% endif %}</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center">No customer accounts found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 {% endblock %}

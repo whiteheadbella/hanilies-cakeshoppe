@@ -5,10 +5,12 @@
 {% block page_icon %}credit-card{% endblock %}
 
 {% block content %}
-<!-- Payments For Review -->
 <div class="module-card">
     <div class="module-header" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
-        <h2><i class="fas fa-clock"></i> Payments For Review <span class="badge" style="background: #fef3c7; color: #d97706; margin-left: 10px;">{{ pending_payments_page.paginator.count }}</span></h2>
+        <div>
+            <h2><i class="fas fa-clock"></i> Payments For Review <span class="badge" style="background: #fef3c7; color: #d97706; margin-left: 10px;">{{ pending_payments_page.paginator.count }}</span></h2>
+            <p style="margin: 8px 0 0; color: #6b7280; font-size: 0.95rem;">Pending proofs are grouped here with the customer, order, and next action visible at first glance.</p>
+        </div>
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
             {% if can_export_sales %}
             <a href="{% url 'admin_payments_export' 'xlsx' %}" class="btn-preview">
@@ -23,79 +25,119 @@
             </a>
         </div>
     </div>
+
     <div class="table-responsive">
-        <table class="module-table" data-pagination-mode="server">
+        <table class="module-table mobile-card-table" data-pagination-mode="server">
             <thead>
                 <tr>
-                    <th>ID</th>
+                    <th>Customer</th>
                     <th>Amount</th>
                     <th>Purpose</th>
                     <th>Method</th>
                     <th>Status</th>
-                    <th>GCash Reference Number</th>
-                    <th>Order Type</th>
-                    <th>Date</th>
+                    <th>Order</th>
+                    <th>Submitted</th>
                     <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for payment in pending_payments_page %}
-                <tr>
-                    <td>#{{ payment.id }}</td>
-                    <td><strong>₱{{ payment.amount }}</strong></td>
-                    <td>{{ payment.get_payment_purpose_display }}</td>
-                    <td>
-                        {% if payment.payment_method == 'gcash' %}
-                            <span style="color: #00B4D8;">📱 GCash</span>
-                        {% else %}
-                            <span style="color: #10b981;">💰 COD</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if payment.payment_status == 'verifying' %}
-                            <span class="badge" style="background: #dbeafe; color: #1d4ed8;">Under Verification</span>
-                        {% else %}
-                            <span class="badge" style="background: #fef3c7; color: #d97706;">Pending</span>
-                        {% endif %}
-                    </td>
-                    <td>{% if payment.payment_method == 'gcash' %}{{ payment.reference_number|default:"-" }}{% else %}Not required{% endif %}</td>
-                    <td>
+                <tr id="payment-{{ payment.id }}"{% if request.GET.highlight == payment.id|stringformat:"s" %} class="is-highlighted"{% endif %}>
+                    <td data-label="Customer">
                         {% if payment.cake_order %}
-                            Cake Order #{{ payment.cake_order.id }}
-                        {% else %}
-                            Package Order #{{ payment.package_order.id }}
+                        {% with customer=payment.cake_order.user %}
+                        <strong>{{ customer.get_full_name|default:customer.username }}</strong>
+                        <div class="table-subtext">@{{ customer.username }}</div>
+                        {% if customer.email %}
+                        <div class="table-subtext">{{ customer.email }}</div>
                         {% endif %}
-                    </td>
-                    <td>{{ payment.created_at|date:"Y-m-d H:i" }}</td>
-                    <td>
-                        {% if payment.cake_order %}
-                            <a href="{% url 'admin_cake_order_view' payment.cake_order.id %}?next={{ request.get_full_path|urlencode }}" class="btn-preview">
-                                <i class="fas fa-eye"></i> Preview Customer Order
-                            </a>
+                        {% endwith %}
                         {% elif payment.package_order %}
-                            <a href="{% url 'admin_package_order_view' payment.package_order.id %}?next={{ request.get_full_path|urlencode }}" class="btn-preview">
-                                <i class="fas fa-eye"></i> Preview Customer Order
-                            </a>
+                        {% with customer=payment.package_order.user %}
+                        <strong>{{ customer.get_full_name|default:customer.username }}</strong>
+                        <div class="table-subtext">@{{ customer.username }}</div>
+                        {% if customer.email %}
+                        <div class="table-subtext">{{ customer.email }}</div>
                         {% endif %}
-                        <form method="post" action="{% url 'admin_payment_verify' payment.id %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" style="display: inline;">
-                            {% csrf_token %}
-                            <button type="submit" name="action" value="approve" class="btn-approve">
-                                <i class="fas fa-check"></i> Approve {{ payment.get_payment_purpose_display }}
-                            </button>
-                            <button type="submit" name="action" value="reject" class="btn-reject">
-                                <i class="fas fa-times"></i> Reject
-                            </button>
-                        </form>
-                        {% if payment.proof_image %}
-                            <button onclick="viewProof('{{ payment.proof_image.url }}')" class="btn-view">
-                                <i class="fas fa-image"></i> View Proof
-                            </button>
+                        {% endwith %}
+                        {% else %}
+                        <span class="table-subtext">No linked customer</span>
                         {% endif %}
+                    </td>
+                    <td data-label="Amount">
+                        <strong>&#8369;{{ payment.amount }}</strong>
+                    </td>
+                    <td data-label="Purpose">
+                        <span>{{ payment.get_payment_purpose_display }}</span>
+                    </td>
+                    <td data-label="Method">
+                        {% if payment.payment_method == 'gcash' %}
+                        <strong style="color: #0891b2;">GCash</strong>
+                        <div class="table-subtext">{{ payment.reference_number|default:"No reference" }}</div>
+                        {% else %}
+                        <strong style="color: #059669;">Cash on Delivery</strong>
+                        {% endif %}
+                    </td>
+                    <td data-label="Status">
+                        {% if payment.payment_status == 'verifying' %}
+                        <span class="badge" style="background: #dbeafe; color: #1d4ed8;">Under Verification</span>
+                        {% else %}
+                        <span class="badge" style="background: #fef3c7; color: #d97706;">Pending Review</span>
+                        {% endif %}
+                    </td>
+                    <td data-label="Order">
+                        {% if payment.cake_order %}
+                        <a href="{% url 'admin_cake_order_view' payment.cake_order.id %}?next={{ request.get_full_path|urlencode }}" class="table-link">
+                            Cake Order #{{ payment.cake_order.id }}
+                        </a>
+                        {% else %}
+                        <a href="{% url 'admin_package_order_view' payment.package_order.id %}?next={{ request.get_full_path|urlencode }}" class="table-link">
+                            Package Order #{{ payment.package_order.id }}
+                        </a>
+                        {% endif %}
+                    </td>
+                    <td data-label="Submitted">
+                        <strong>{{ payment.created_at|timesince }} ago</strong>
+                        <div class="table-subtext">{{ payment.created_at|date:"M d, Y g:i A" }}</div>
+                    </td>
+                    <td data-label="Actions">
+                        <div class="payment-action-group">
+                            <div class="payment-primary-actions">
+                                <form method="post" action="{% url 'admin_payment_verify' payment.id %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" class="admin-table-inline-form">
+                                    {% csrf_token %}
+                                    <button type="submit" name="action" value="approve" class="btn-approve">
+                                        <i class="fas fa-check"></i> Approve
+                                    </button>
+                                    <button type="submit" name="action" value="reject" class="btn-reject">
+                                        <i class="fas fa-times"></i> Reject
+                                    </button>
+                                </form>
+                            </div>
+                            <details class="payment-more-menu">
+                                <summary class="payment-more-trigger">More actions</summary>
+                                <div class="payment-more-panel">
+                                    {% if payment.cake_order %}
+                                    <a href="{% url 'admin_cake_order_view' payment.cake_order.id %}?next={{ request.get_full_path|urlencode }}" class="payment-secondary-btn">
+                                        <i class="fas fa-eye"></i> Preview Order
+                                    </a>
+                                    {% elif payment.package_order %}
+                                    <a href="{% url 'admin_package_order_view' payment.package_order.id %}?next={{ request.get_full_path|urlencode }}" class="payment-secondary-btn">
+                                        <i class="fas fa-eye"></i> Preview Order
+                                    </a>
+                                    {% endif %}
+                                    {% if payment.proof_image %}
+                                    <button type="button" onclick="viewProof('{{ payment.proof_image.url }}')" class="payment-secondary-btn">
+                                        <i class="fas fa-image"></i> View Proof
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </details>
+                        </div>
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="9" class="text-center">
+                    <td colspan="8" class="text-center">
                         <div style="padding: 40px;">
                             <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
                             <p>No payments awaiting review.</p>
@@ -129,36 +171,56 @@
 
 <div class="module-card">
     <div class="module-header">
-        <h2><i class="fas fa-money-bill-wave"></i> Outstanding COD Balances <span class="badge" style="background: #e0f2fe; color: #0369a1; margin-left: 10px;">{{ balance_payments_page.paginator.count }}</span></h2>
+        <div>
+            <h2><i class="fas fa-money-bill-wave"></i> Outstanding COD Balances <span class="badge" style="background: #e0f2fe; color: #0369a1; margin-left: 10px;">{{ balance_payments_page.paginator.count }}</span></h2>
+            <p style="margin: 8px 0 0; color: #6b7280; font-size: 0.95rem;">Collection-ready balances stay separate so admins can close them quickly.</p>
+        </div>
     </div>
     <div class="table-responsive">
-        <table class="module-table" data-pagination-mode="server">
+        <table class="module-table mobile-card-table" data-pagination-mode="server">
             <thead>
                 <tr>
-                    <th>ID</th>
+                    <th>Customer</th>
                     <th>Amount</th>
-                    <th>Order Type</th>
+                    <th>Order</th>
                     <th>Status</th>
-                    <th>Created</th>
+                    <th>Submitted</th>
                     <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for payment in balance_payments_page %}
-                <tr>
-                    <td>#{{ payment.id }}</td>
-                    <td><strong>₱{{ payment.amount }}</strong></td>
-                    <td>
+                <tr id="payment-{{ payment.id }}"{% if request.GET.highlight == payment.id|stringformat:"s" %} class="is-highlighted"{% endif %}>
+                    <td data-label="Customer">
                         {% if payment.cake_order %}
-                            Cake Order #{{ payment.cake_order.id }}
+                        {% with customer=payment.cake_order.user %}
+                        <strong>{{ customer.get_full_name|default:customer.username }}</strong>
+                        <div class="table-subtext">@{{ customer.username }}</div>
+                        {% endwith %}
+                        {% elif payment.package_order %}
+                        {% with customer=payment.package_order.user %}
+                        <strong>{{ customer.get_full_name|default:customer.username }}</strong>
+                        <div class="table-subtext">@{{ customer.username }}</div>
+                        {% endwith %}
                         {% else %}
-                            Package Order #{{ payment.package_order.id }}
+                        <span class="table-subtext">No linked customer</span>
                         {% endif %}
                     </td>
-                    <td><span class="badge" style="background: #fef3c7; color: #d97706;">Pending Collection</span></td>
-                    <td>{{ payment.created_at|date:"Y-m-d H:i" }}</td>
-                    <td>
-                        <form method="post" action="{% url 'admin_payment_verify' payment.id %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" style="display: inline;">
+                    <td data-label="Amount"><strong>&#8369;{{ payment.amount }}</strong></td>
+                    <td data-label="Order">
+                        {% if payment.cake_order %}
+                        <a href="{% url 'admin_cake_order_view' payment.cake_order.id %}?next={{ request.get_full_path|urlencode }}" class="table-link">Cake Order #{{ payment.cake_order.id }}</a>
+                        {% else %}
+                        <a href="{% url 'admin_package_order_view' payment.package_order.id %}?next={{ request.get_full_path|urlencode }}" class="table-link">Package Order #{{ payment.package_order.id }}</a>
+                        {% endif %}
+                    </td>
+                    <td data-label="Status"><span class="badge" style="background: #fef3c7; color: #d97706;">Pending Collection</span></td>
+                    <td data-label="Submitted">
+                        <strong>{{ payment.created_at|timesince }} ago</strong>
+                        <div class="table-subtext">{{ payment.created_at|date:"M d, Y g:i A" }}</div>
+                    </td>
+                    <td data-label="Actions">
+                        <form method="post" action="{% url 'admin_payment_verify' payment.id %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" class="admin-table-inline-form">
                             {% csrf_token %}
                             <button type="submit" name="action" value="collect_balance" class="btn-approve">
                                 <i class="fas fa-cash-register"></i> Mark as Collected
@@ -195,63 +257,95 @@
     {% endif %}
 </div>
 
-<!-- Verified Payments -->
 <div class="module-card">
     <div class="module-header">
-        <h2><i class="fas fa-check-circle"></i> Verified Payments <span class="badge" style="background: #d1fae5; color: #10b981; margin-left: 10px;">{{ verified_payments_page.paginator.count }}</span></h2>
+        <div>
+            <h2><i class="fas fa-check-circle"></i> Verified Payments <span class="badge" style="background: #d1fae5; color: #10b981; margin-left: 10px;">{{ verified_payments_page.paginator.count }}</span></h2>
+            <p style="margin: 8px 0 0; color: #6b7280; font-size: 0.95rem;">Completed payments keep customer and payment context visible for quick verification checks.</p>
+        </div>
     </div>
     <div class="table-responsive">
-        <table class="module-table" data-pagination-mode="server">
+        <table class="module-table mobile-card-table" data-pagination-mode="server">
             <thead>
                 <tr>
-                    <th>ID</th>
+                    <th>Customer</th>
                     <th>Amount</th>
                     <th>Purpose</th>
                     <th>Method</th>
-                    <th>GCash Reference Number</th>
-                    <th>Order Type</th>
-                    <th>Paid Date</th>
+                    <th>Order</th>
+                    <th>Paid</th>
                     <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for payment in verified_payments_page %}
-                <tr>
-                    <td>#{{ payment.id }}</td>
-                    <td>₱{{ payment.amount }}</td>
-                    <td>{{ payment.get_payment_purpose_display }}</td>
-                    <td>
-                        {% if payment.payment_method == 'gcash' %}
-                            <span style="color: #00B4D8;">📱 GCash</span>
-                        {% else %}
-                            <span style="color: #10b981;">💰 COD</span>
-                        {% endif %}
-                    </td>
-                    <td>{% if payment.payment_method == 'gcash' %}{{ payment.reference_number|default:"-" }}{% else %}Not required{% endif %}</td>
-                    <td>
+                <tr id="payment-{{ payment.id }}"{% if request.GET.highlight == payment.id|stringformat:"s" %} class="is-highlighted"{% endif %}>
+                    <td data-label="Customer">
                         {% if payment.cake_order %}
-                            Cake Order #{{ payment.cake_order.id }}
+                        {% with customer=payment.cake_order.user %}
+                        <strong>{{ customer.get_full_name|default:customer.username }}</strong>
+                        <div class="table-subtext">@{{ customer.username }}</div>
+                        {% endwith %}
+                        {% elif payment.package_order %}
+                        {% with customer=payment.package_order.user %}
+                        <strong>{{ customer.get_full_name|default:customer.username }}</strong>
+                        <div class="table-subtext">@{{ customer.username }}</div>
+                        {% endwith %}
                         {% else %}
-                            Package Order #{{ payment.package_order.id }}
+                        <span class="table-subtext">No linked customer</span>
                         {% endif %}
                     </td>
-                    <td>{{ payment.paid_at|date:"Y-m-d H:i"|default:payment.created_at|date:"Y-m-d H:i" }}</td>
-                    <td>
-                        {% if can_export_sales %}
-                        <form method="post" action="{% url 'admin_payment_delete' payment.id %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" style="display: inline;">
-                            {% csrf_token %}
-                            <button type="submit" onclick="return confirm('{% if is_archived_view %}Restore{% else %}Archive{% endif %} payment #{{ payment.id }}?');" class="btn-delete" style="{% if is_archived_view %}background: #dbeafe; color: #1d4ed8;{% endif %}">
-                                <i class="fas {% if is_archived_view %}fa-rotate-left{% else %}fa-box-archive{% endif %}"></i> {% if is_archived_view %}Restore{% else %}Archive{% endif %}
-                            </button>
-                        </form>
+                    <td data-label="Amount"><strong>&#8369;{{ payment.amount }}</strong></td>
+                    <td data-label="Purpose">{{ payment.get_payment_purpose_display }}</td>
+                    <td data-label="Method">
+                        {% if payment.payment_method == 'gcash' %}
+                        <strong style="color: #0891b2;">GCash</strong>
+                        <div class="table-subtext">{{ payment.reference_number|default:"No reference" }}</div>
                         {% else %}
-                        <span class="text-muted small">Full-access staff only</span>
+                        <strong style="color: #059669;">Cash on Delivery</strong>
                         {% endif %}
+                    </td>
+                    <td data-label="Order">
+                        {% if payment.cake_order %}
+                        <a href="{% url 'admin_cake_order_view' payment.cake_order.id %}?next={{ request.get_full_path|urlencode }}" class="table-link">Cake Order #{{ payment.cake_order.id }}</a>
+                        {% else %}
+                        <a href="{% url 'admin_package_order_view' payment.package_order.id %}?next={{ request.get_full_path|urlencode }}" class="table-link">Package Order #{{ payment.package_order.id }}</a>
+                        {% endif %}
+                    </td>
+                    <td data-label="Paid">
+                        {% with paid_date=payment.paid_at|default:payment.created_at %}
+                        <strong>{{ paid_date|timesince }} ago</strong>
+                        <div class="table-subtext">{{ paid_date|date:"M d, Y g:i A" }}</div>
+                        {% endwith %}
+                    </td>
+                    <td data-label="Actions">
+                        <div class="payment-action-group">
+                            <details class="payment-more-menu">
+                                <summary class="payment-more-trigger">More actions</summary>
+                                <div class="payment-more-panel">
+                                    {% if payment.proof_image %}
+                                    <button type="button" onclick="viewProof('{{ payment.proof_image.url }}')" class="payment-secondary-btn">
+                                        <i class="fas fa-image"></i> View Proof
+                                    </button>
+                                    {% endif %}
+                                    {% if can_export_sales %}
+                                    <form method="post" action="{% url 'admin_payment_delete' payment.id %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" class="admin-table-inline-form">
+                                        {% csrf_token %}
+                                        <button type="submit" onclick="return confirm('{% if is_archived_view %}Restore{% else %}Archive{% endif %} payment #{{ payment.id }}?');" class="payment-secondary-btn payment-secondary-btn-danger">
+                                            <i class="fas {% if is_archived_view %}fa-rotate-left{% else %}fa-box-archive{% endif %}"></i> {% if is_archived_view %}Restore{% else %}Archive{% endif %}
+                                        </button>
+                                    </form>
+                                    {% else %}
+                                    <span class="table-subtext">Full-access staff only</span>
+                                    {% endif %}
+                                </div>
+                            </details>
+                        </div>
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="8" class="text-center">No verified payments yet</td>
+                    <td colspan="7" class="text-center">No verified payments yet</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -278,63 +372,93 @@
     {% endif %}
 </div>
 
-<!-- Rejected Payments -->
 <div class="module-card">
     <div class="module-header">
-        <h2><i class="fas fa-times-circle"></i> Rejected Payments <span class="badge" style="background: #fee2e2; color: #dc2626; margin-left: 10px;">{{ rejected_payments_page.paginator.count }}</span></h2>
+        <div>
+            <h2><i class="fas fa-times-circle"></i> Rejected Payments <span class="badge" style="background: #fee2e2; color: #dc2626; margin-left: 10px;">{{ rejected_payments_page.paginator.count }}</span></h2>
+            <p style="margin: 8px 0 0; color: #6b7280; font-size: 0.95rem;">Rejected payments still show the customer and order clearly, so follow-up is easier.</p>
+        </div>
     </div>
     <div class="table-responsive">
-        <table class="module-table" data-pagination-mode="server">
+        <table class="module-table mobile-card-table" data-pagination-mode="server">
             <thead>
                 <tr>
-                    <th>ID</th>
+                    <th>Customer</th>
                     <th>Amount</th>
                     <th>Purpose</th>
                     <th>Method</th>
-                    <th>GCash Reference Number</th>
-                    <th>Order Type</th>
-                    <th>Date</th>
+                    <th>Order</th>
+                    <th>Updated</th>
                     <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for payment in rejected_payments_page %}
-                <tr>
-                    <td>#{{ payment.id }}</td>
-                    <td>₱{{ payment.amount }}</td>
-                    <td>{{ payment.get_payment_purpose_display }}</td>
-                    <td>
-                        {% if payment.payment_method == 'gcash' %}
-                            <span style="color: #00B4D8;">📱 GCash</span>
-                        {% else %}
-                            <span style="color: #10b981;">💰 COD</span>
-                        {% endif %}
-                    </td>
-                    <td>{% if payment.payment_method == 'gcash' %}{{ payment.reference_number|default:"-" }}{% else %}Not required{% endif %}</td>
-                    <td>
+                <tr id="payment-{{ payment.id }}"{% if request.GET.highlight == payment.id|stringformat:"s" %} class="is-highlighted"{% endif %}>
+                    <td data-label="Customer">
                         {% if payment.cake_order %}
-                            Cake Order #{{ payment.cake_order.id }}
+                        {% with customer=payment.cake_order.user %}
+                        <strong>{{ customer.get_full_name|default:customer.username }}</strong>
+                        <div class="table-subtext">@{{ customer.username }}</div>
+                        {% endwith %}
+                        {% elif payment.package_order %}
+                        {% with customer=payment.package_order.user %}
+                        <strong>{{ customer.get_full_name|default:customer.username }}</strong>
+                        <div class="table-subtext">@{{ customer.username }}</div>
+                        {% endwith %}
                         {% else %}
-                            Package Order #{{ payment.package_order.id }}
+                        <span class="table-subtext">No linked customer</span>
                         {% endif %}
                     </td>
-                    <td>{{ payment.created_at|date:"Y-m-d H:i" }}</td>
-                    <td>
-                        {% if can_export_sales %}
-                        <form method="post" action="{% url 'admin_payment_delete' payment.id %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" style="display: inline;">
-                            {% csrf_token %}
-                            <button type="submit" onclick="return confirm('{% if is_archived_view %}Restore{% else %}Archive{% endif %} payment #{{ payment.id }}?');" class="btn-delete" style="{% if is_archived_view %}background: #dbeafe; color: #1d4ed8;{% endif %}">
-                                <i class="fas {% if is_archived_view %}fa-rotate-left{% else %}fa-box-archive{% endif %}"></i> {% if is_archived_view %}Restore{% else %}Archive{% endif %}
-                            </button>
-                        </form>
+                    <td data-label="Amount"><strong>&#8369;{{ payment.amount }}</strong></td>
+                    <td data-label="Purpose">{{ payment.get_payment_purpose_display }}</td>
+                    <td data-label="Method">
+                        {% if payment.payment_method == 'gcash' %}
+                        <strong style="color: #0891b2;">GCash</strong>
+                        <div class="table-subtext">{{ payment.reference_number|default:"No reference" }}</div>
                         {% else %}
-                        <span class="text-muted small">Full-access staff only</span>
+                        <strong style="color: #059669;">Cash on Delivery</strong>
                         {% endif %}
+                    </td>
+                    <td data-label="Order">
+                        {% if payment.cake_order %}
+                        <a href="{% url 'admin_cake_order_view' payment.cake_order.id %}?next={{ request.get_full_path|urlencode }}" class="table-link">Cake Order #{{ payment.cake_order.id }}</a>
+                        {% else %}
+                        <a href="{% url 'admin_package_order_view' payment.package_order.id %}?next={{ request.get_full_path|urlencode }}" class="table-link">Package Order #{{ payment.package_order.id }}</a>
+                        {% endif %}
+                    </td>
+                    <td data-label="Updated">
+                        <strong>{{ payment.created_at|timesince }} ago</strong>
+                        <div class="table-subtext">{{ payment.created_at|date:"M d, Y g:i A" }}</div>
+                    </td>
+                    <td data-label="Actions">
+                        <div class="payment-action-group">
+                            <details class="payment-more-menu">
+                                <summary class="payment-more-trigger">More actions</summary>
+                                <div class="payment-more-panel">
+                                    {% if payment.proof_image %}
+                                    <button type="button" onclick="viewProof('{{ payment.proof_image.url }}')" class="payment-secondary-btn">
+                                        <i class="fas fa-image"></i> View Proof
+                                    </button>
+                                    {% endif %}
+                                    {% if can_export_sales %}
+                                    <form method="post" action="{% url 'admin_payment_delete' payment.id %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" class="admin-table-inline-form">
+                                        {% csrf_token %}
+                                        <button type="submit" onclick="return confirm('{% if is_archived_view %}Restore{% else %}Archive{% endif %} payment #{{ payment.id }}?');" class="payment-secondary-btn payment-secondary-btn-danger">
+                                            <i class="fas {% if is_archived_view %}fa-rotate-left{% else %}fa-box-archive{% endif %}"></i> {% if is_archived_view %}Restore{% else %}Archive{% endif %}
+                                        </button>
+                                    </form>
+                                    {% else %}
+                                    <span class="table-subtext">Full-access staff only</span>
+                                    {% endif %}
+                                </div>
+                            </details>
+                        </div>
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="8" class="text-center">No rejected payments</td>
+                    <td colspan="7" class="text-center">No rejected payments</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -361,98 +485,195 @@
     {% endif %}
 </div>
 
-<!-- Modal for viewing proof image -->
 <div id="proofModal" class="modal" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8);">
-    <div style="position: relative; margin: auto; top: 50%; transform: translateY(-50%); width: 80%; max-width: 600px;">
+    <div style="position: relative; margin: auto; top: 50%; transform: translateY(-50%); width: min(90vw, 680px);">
         <span onclick="closeModal()" style="position: absolute; right: 10px; top: -30px; color: white; font-size: 30px; cursor: pointer;">&times;</span>
         <img id="proofImage" src="" style="width: 100%; border-radius: 10px;">
     </div>
 </div>
 
 <style>
-    .table-responsive {
-        overflow-x: auto;
-    }
     .text-center {
         text-align: center;
     }
+
+    .table-link {
+        color: #d94b4b;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .table-link:hover {
+        text-decoration: underline;
+    }
+
+    .table-subtext {
+        margin-top: 4px;
+        font-size: 0.82rem;
+        color: #6b7280;
+        line-height: 1.45;
+    }
+
+    .payment-action-group {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .payment-primary-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .payment-more-menu {
+        position: relative;
+    }
+
+    .payment-more-trigger {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        list-style: none;
+        cursor: pointer;
+        padding: 9px 14px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #f472b6, #f59e0b);
+        color: #ffffff;
+        font-size: 0.85rem;
+        font-weight: 600;
+        box-shadow: 0 10px 20px rgba(244, 114, 182, 0.22);
+    }
+
+    .payment-more-menu[open] .payment-more-trigger {
+        background: linear-gradient(135deg, #db2777, #d97706);
+    }
+
+    .payment-more-trigger::-webkit-details-marker {
+        display: none;
+    }
+
+    .payment-more-panel {
+        margin-top: 8px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 12px;
+        min-width: 190px;
+        background: #fff;
+        border: 1px solid #f3d8df;
+        border-radius: 14px;
+        box-shadow: 0 12px 24px rgba(148, 54, 78, 0.12);
+    }
+
+    .payment-secondary-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        border: none;
+        border-radius: 999px;
+        padding: 9px 14px;
+        background: #eff6ff;
+        color: #1d4ed8;
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .payment-secondary-btn-danger {
+        background: #fee2e2;
+        color: #b91c1c;
+    }
+
+    .btn-preview {
+        background: linear-gradient(135deg, #0f766e, #14b8a6);
+        border: none;
+        padding: 8px 14px;
+        border-radius: 20px;
+        color: white;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.9rem;
+        line-height: 1.2;
+    }
+
+    .btn-preview:hover,
+    .btn-preview:focus,
+    .btn-preview:visited,
+    .btn-preview:active {
+        color: white;
+        text-decoration: none;
+    }
+
+    .btn-preview:hover {
+        opacity: 0.92;
+    }
+
+    .btn-approve,
+    .btn-reject {
+        border: none;
+        padding: 9px 14px;
+        border-radius: 999px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
     .btn-approve {
         background: #10b981;
         color: white;
-        border: none;
-        padding: 5px 12px;
-        border-radius: 20px;
-        cursor: pointer;
-        margin-right: 5px;
     }
+
     .btn-reject {
         background: #dc2626;
         color: white;
-        border: none;
-        padding: 5px 12px;
-        border-radius: 20px;
-        cursor: pointer;
-        margin-right: 5px;
     }
-    .btn-view {
-        background: #3b82f6;
-        color: white;
-        border: none;
-        padding: 5px 12px;
-        border-radius: 20px;
-        cursor: pointer;
-    }
-    .btn-preview {
-        background: #0f766e;
-        color: white;
-        border: none;
-        padding: 5px 12px;
-        border-radius: 20px;
-        cursor: pointer;
-        margin-right: 5px;
-        text-decoration: none;
-        display: inline-block;
-    }
-    .btn-delete {
-        background: #dc2626;
-        color: white;
-        border: none;
-        padding: 5px 12px;
-        border-radius: 20px;
-        cursor: pointer;
-    }
-    .btn-approve:hover, .btn-reject:hover, .btn-view:hover, .btn-preview:hover, .btn-delete:hover {
-        opacity: 0.8;
-        transform: translateY(-1px);
-    }
-    .badge {
-        display: inline-block;
-        padding: 4px 10px;
-        border-radius: 20px;
-        font-size: 0.75rem;
-        font-weight: 600;
-    }
-    .module-card {
-        margin-bottom: 30px;
+
+    @media (max-width: 768px) {
+        .payment-primary-actions,
+        .payment-action-group,
+        .payment-more-panel,
+        .payment-secondary-btn,
+        .btn-approve,
+        .btn-reject {
+            width: 100%;
+        }
+
+        .payment-primary-actions .admin-table-inline-form {
+            width: 100%;
+            display: grid;
+            gap: 8px;
+        }
     }
 </style>
 
 <script>
-    function viewProof(imageUrl) {
-        document.getElementById('proofImage').src = imageUrl;
-        document.getElementById('proofModal').style.display = 'block';
+function viewProof(imageUrl) {
+    document.getElementById('proofImage').src = imageUrl;
+    document.getElementById('proofModal').style.display = 'block';
+}
+
+function closeModal() {
+    document.getElementById('proofModal').style.display = 'none';
+}
+
+window.onclick = function(event) {
+    const modal = document.getElementById('proofModal');
+    if (event.target === modal) {
+        closeModal();
     }
-    
-    function closeModal() {
-        document.getElementById('proofModal').style.display = 'none';
-    }
-    
-    // Close modal when clicking outside
-    window.onclick = function(event) {
-        var modal = document.getElementById('proofModal');
-        if (event.target == modal) {
-            modal.style.display = 'none';
-        }
-    }
+};
 </script>
 {% endblock %}
+
+
+
+

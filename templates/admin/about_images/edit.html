@@ -1,0 +1,96 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Edit About Image{% endblock %}
+{% block page_title %}Edit About Image{% endblock %}
+{% block page_icon %}image{% endblock %}
+
+{% block content %}
+<div class="module-card">
+    <div class="module-header">
+        <h2><i class="fas fa-image"></i> {{ slot_title }}</h2>
+    </div>
+    <div style="padding: 25px;">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <div class="row">
+                <div class="col-md-7">
+                    <div class="form-group">
+                        <label>Current Public Image</label>
+                        <div class="current-image-container">
+                            <img src="{{ preview_url }}" alt="{{ slot_title }}" class="current-image">
+                        </div>
+                        <small class="text-muted d-block mt-2">If no custom image has been uploaded yet, this preview may show the default fallback image.</small>
+                    </div>
+                </div>
+                <div class="col-md-5">
+                    <div class="form-group">
+                        <label>Replace Image <span class="text-danger">*</span></label>
+                        <input type="file" name="image" class="form-control" accept="image/*" required>
+                        <small class="text-muted">Upload a new image for this About page slot. The public page will use it immediately and keep zoom enabled.</small>
+                    </div>
+                </div>
+            </div>
+
+            <hr>
+
+            <div class="form-group">
+                <button type="submit" class="btn-primary">
+                    <i class="fas fa-save"></i> Update About Image
+                </button>
+                <a href="{% url 'admin_about_images' %}" class="btn-secondary" style="background: #6c757d; color: white; padding: 10px 25px; border-radius: 50px; text-decoration: none; margin-left: 10px;">
+                    <i class="fas fa-times"></i> Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .text-danger {
+        color: #dc2626;
+    }
+    .text-muted {
+        color: #6b7280;
+    }
+    .current-image-container {
+        padding: 12px;
+        background: #f8f9fa;
+        border-radius: 18px;
+        text-align: center;
+    }
+    .current-image {
+        width: 100%;
+        max-height: 360px;
+        object-fit: cover;
+        border-radius: 18px;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+    }
+    .d-block {
+        display: block;
+    }
+    .mt-2 {
+        margin-top: 8px;
+    }
+
+    @media (max-width: 768px) {
+        .module-header h2 {
+            font-size: 1.1rem;
+        }
+
+        .current-image {
+            max-height: 240px;
+        }
+
+        .form-group .btn-primary,
+        .form-group .btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            margin-left: 0 !important;
+            margin-top: 10px;
+        }
+    }
+</style>
+{% endblock %}

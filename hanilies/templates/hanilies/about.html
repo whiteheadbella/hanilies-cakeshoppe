@@ -4,8 +4,7 @@
 {% block title %}About Us{% endblock %}
 
 {% block content %}
-<div class="container py-4">
-    <!-- Hero Section -->
+<div class="container py-4 about-page-shell">
     <div class="row mb-5">
         <div class="col-12 text-center">
             <h1 class="display-4 fw-bold mb-3">About Hanilies Cakeshoppe</h1>
@@ -13,9 +12,12 @@
         </div>
     </div>
 
-    <div class="row align-items-center mb-5">
+    <div class="row align-items-center mb-5 g-4">
         <div class="col-md-6">
-            <img src="{% static 'images/cake1.jpg' %}" class="img-fluid rounded-3 shadow-lg" alt="Our Story">
+            <button type="button" class="image-zoom-trigger about-story-trigger" data-zoom-src="{{ about_story_image.image_url }}" data-zoom-title="{{ about_story_image.title }}">
+                <img src="{{ about_story_image.image_url }}" class="img-fluid rounded-3 shadow-lg" alt="{{ about_story_image.title }}">
+                <span class="about-image-badge"><i class="fas fa-search-plus"></i> View image</span>
+            </button>
         </div>
         <div class="col-md-6">
             <h2 class="mb-4">Our Story</h2>
@@ -46,7 +48,6 @@
         </div>
     </div>
 
-    <!-- Values -->
     <div class="row mb-5">
         <div class="col-12 text-center mb-4">
             <h2>Our Core Values</h2>
@@ -81,48 +82,160 @@
         </div>
     </div>
 
-    <!-- Team -->
     <div class="row">
         <div class="col-12 text-center mb-4">
             <h2>Meet Our Team</h2>
             <p class="lead text-muted">The people behind your sweet memories</p>
         </div>
-        <div class="col-md-3">
-            <div class="card text-center">
-                <img src="{% static 'images/cake1.jpg' %}" class="card-img-top rounded-circle p-3" alt="Team Member">
+        {% for member in about_team_members %}
+        <div class="col-sm-6 col-lg-3 mb-4">
+            <div class="card text-center h-100 about-team-card">
+                <button type="button"
+                        class="image-zoom-trigger about-team-trigger"
+                        data-zoom-src="{{ member.image.image_url }}"
+                        data-zoom-title="{{ member.name }}"
+                        data-zoom-gallery="about-team-gallery">
+                    <img src="{{ member.image.image_url }}" class="card-img-top rounded-circle p-3" alt="{{ member.name }}">
+                    <span class="about-image-badge about-image-badge-small"><i class="fas fa-search-plus"></i> Zoom</span>
+                </button>
                 <div class="card-body">
-                    <h5>Teresa Rabillas</h5>
-                    <p class="text-gold-pink">Founder & Head Baker</p>
+                    <h5>{{ member.name }}</h5>
+                    <p class="text-gold-pink">{{ member.role }}</p>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card text-center">
-                <img src="{% static 'images/cake2.jpg' %}" class="card-img-top rounded-circle p-3" alt="Team Member">
-                <div class="card-body">
-                    <h5>Maria Santos</h5>
-                    <p class="text-gold-pink">Head Baker</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card text-center">
-                <img src="{% static 'images/cake3.jpg' %}" class="card-img-top rounded-circle p-3" alt="Team Member">
-                <div class="card-body">
-                    <h5>John Reyes</h5>
-                    <p class="text-gold-pink">Sales Manager</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card text-center">
-                <img src="{% static 'images/cake1.jpg' %}" class="card-img-top rounded-circle p-3" alt="Team Member">
-                <div class="card-body">
-                    <h5>Anna Lim</h5>
-                    <p class="text-gold-pink">Customer Service</p>
-                </div>
-            </div>
-        </div>
+        {% endfor %}
     </div>
 </div>
+
+<style>
+    .about-page-shell .card {
+        border: 1px solid rgba(255, 105, 180, 0.2);
+        box-shadow: 0 12px 28px rgba(31, 41, 55, 0.06);
+    }
+
+    .about-story-trigger,
+    .about-team-trigger {
+        position: relative;
+        display: block;
+        width: 100%;
+        padding: 0;
+        border: none;
+        background: transparent;
+        text-align: inherit;
+        border-radius: 1.25rem;
+        overflow: hidden;
+    }
+
+    .about-story-trigger img {
+        width: 100%;
+        display: block;
+    }
+
+    .about-team-card .card-img-top {
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        object-fit: cover;
+    }
+
+    .about-image-badge {
+        position: absolute;
+        right: 16px;
+        bottom: 16px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        background: rgba(17, 24, 39, 0.76);
+        color: white;
+        font-size: 0.82rem;
+        font-weight: 600;
+        opacity: 0;
+        transform: translateY(6px);
+        transition: opacity 0.2s ease, transform 0.2s ease;
+        pointer-events: none;
+    }
+
+    .about-image-badge-small {
+        right: 50%;
+        bottom: 18px;
+        transform: translate(50%, 6px);
+    }
+
+    .about-story-trigger:hover .about-image-badge,
+    .about-story-trigger:focus-visible .about-image-badge,
+    .about-team-trigger:hover .about-image-badge,
+    .about-team-trigger:focus-visible .about-image-badge {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    .about-team-trigger:hover .about-image-badge-small,
+    .about-team-trigger:focus-visible .about-image-badge-small {
+        transform: translate(50%, 0);
+    }
+
+    @media (max-width: 768px) {
+        .about-page-shell {
+            padding-left: 6px;
+            padding-right: 6px;
+        }
+
+        .about-page-shell .display-4 {
+            font-size: 2.1rem;
+        }
+
+        .about-page-shell .lead {
+            font-size: 1rem;
+        }
+
+        .about-page-shell .card .card-body {
+            padding: 1.5rem;
+        }
+
+        .about-image-badge,
+        .about-image-badge-small {
+            opacity: 1;
+            transform: none;
+            right: 14px;
+            left: auto;
+            bottom: 14px;
+            max-width: calc(100% - 28px);
+            font-size: 0.76rem;
+            padding: 7px 12px;
+        }
+
+        .about-team-card .card-body {
+            padding-top: 0.75rem;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .about-page-shell {
+            padding-left: 0;
+            padding-right: 0;
+        }
+
+        .about-story-trigger {
+            border-radius: 1rem;
+        }
+
+        .about-page-shell .card .card-body {
+            padding: 1.25rem;
+        }
+
+        .about-page-shell h2 {
+            font-size: 1.6rem;
+        }
+
+        .about-page-shell h3 {
+            font-size: 1.35rem;
+        }
+
+        .about-page-shell h5 {
+            font-size: 1rem;
+        }
+    }
+</style>
 {% endblock %}
