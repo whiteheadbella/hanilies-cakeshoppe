@@ -1,7 +1,6 @@
 from django.db import models
 from django.db.models import Q
 from django.contrib.auth.models import User
-from django.utils import timezone
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 
@@ -241,6 +240,7 @@ class CakeOrder(models.Model):
     contact_email = models.EmailField(default='')
     order_number = models.CharField(
         max_length=32, unique=True, null=True, blank=True)
+    stock_deducted = models.BooleanField(default=False)
 
     is_archived = models.BooleanField(default=False)
     archived_at = models.DateTimeField(null=True, blank=True)
@@ -294,6 +294,7 @@ class Package(models.Model):
     package_type = models.CharField(max_length=20, choices=PACKAGE_TYPES)
     description = models.TextField(blank=True)
     base_price = models.DecimalField(max_digits=10, decimal_places=2)
+    stock = models.IntegerField(default=0)
     features = models.TextField(
         blank=True, help_text="List features, one per line")
     included_items = models.TextField(
@@ -416,7 +417,7 @@ class PackageOrder(models.Model):
         upload_to='designs/', blank=True, null=True)
     order_number = models.CharField(
         max_length=32, unique=True, null=True, blank=True)
-
+    stock_deducted = models.BooleanField(default=False)
     is_archived = models.BooleanField(default=False)
     archived_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -742,6 +743,9 @@ class ActivityLog(models.Model):
     def __str__(self):
         actor_label = self.actor.username if self.actor else 'Deleted user'
         return f"{self.action} by {actor_label}"
+
+
+
 
 
 

@@ -121,6 +121,7 @@
                     </td>
                     <td data-label="Cake Details">
                         <div class="order-primary">{{ order.cake.name|default:"Custom Cake" }}</div>
+                        <div class="order-secondary">Product ID: {{ order.cake.product_code|default:"Not assigned" }}</div>
                         <div class="order-secondary">Quantity: {{ order.quantity }}</div>
                     </td>
                     <td data-label="Total"><strong class="order-money">&#8369;{{ order.total_price }}</strong></td>
@@ -242,3 +243,4 @@ function submitOrderAction(form) {
 }
 </script>
 {% endblock %}
+

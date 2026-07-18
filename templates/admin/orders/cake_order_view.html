@@ -25,18 +25,22 @@
 
         <section class="preview-panel">
             <h3>Order Summary</h3>
-            <p><strong>Cake:</strong> {{ order.cake.name|default:"Custom Cake" }}</p>
-            <p><strong>Status:</strong> {{ order.get_order_status_display }}</p>
-            <p><strong>Quantity:</strong> {{ order.quantity }}</p>
-            <p><strong>Total Price:</strong> ₱{{ order.total_price }}</p>
-            <p><strong>Payment Plan:</strong> {{ order.get_payment_plan_display }}</p>
-            <p><strong>Deposit Amount:</strong> ₱{{ order.deposit_amount }}</p>
-            <p><strong>Balance Due:</strong> ₱{{ order.balance_due }}</p>
-            <p><strong>Delivery Date:</strong> {{ order.delivery_date|date:"Y-m-d H:i"|default:"-" }}</p>
-            <p><strong>Created:</strong> {{ order.created_at|date:"Y-m-d H:i" }}</p>
+            <div class="order-summary-stack">
+                <div class="order-summary-item"><span class="order-summary-label">Cake</span><span class="order-summary-value">{{ order.cake.name|default:"Custom Cake" }}</span></div>
+                <div class="order-summary-item"><span class="order-summary-label">Product ID</span><span class="order-summary-value">{{ order.cake.product_code|default:"Not assigned" }}</span></div>
+                {% if order_product_summary %}<p class="order-summary-note">{{ order_product_summary }}</p>{% endif %}
+                <div class="order-summary-item"><span class="order-summary-label">Status</span><span class="order-summary-value">{{ order.get_order_status_display }}</span></div>
+                <div class="order-summary-item"><span class="order-summary-label">Quantity</span><span class="order-summary-value">{{ order.quantity }}</span></div>
+                <div class="order-summary-item"><span class="order-summary-label">Total Price</span><span class="order-summary-value">₱{{ order.total_price }}</span></div>
+                <div class="order-summary-item"><span class="order-summary-label">Payment Plan</span><span class="order-summary-value">{{ order.get_payment_plan_display }}</span></div>
+                <div class="order-summary-item"><span class="order-summary-label">Deposit Amount</span><span class="order-summary-value">₱{{ order.deposit_amount }}</span></div>
+                <div class="order-summary-item"><span class="order-summary-label">Balance Due</span><span class="order-summary-value">₱{{ order.balance_due }}</span></div>
+                <div class="order-summary-item"><span class="order-summary-label">Delivery Date</span><span class="order-summary-value">{{ order.delivery_date|date:"Y-m-d H:i"|default:"-" }}</span></div>
+                <div class="order-summary-item"><span class="order-summary-label">Created</span><span class="order-summary-value">{{ order.created_at|date:"Y-m-d H:i" }}</span></div>
+            </div>
         </section>
 
-        <section class="preview-panel preview-panel-wide">
+        <section class="preview-panel">
             <h3>Design Reference</h3>
             {% if order_customization.design_reference %}
             <div class="order-preview-media-grid">
@@ -92,15 +96,15 @@
         gap: 20px;
     }
     .preview-panel {
-        background: #fff7fb;
-        border: 1px solid #f3d9e7;
+        background: #fffaf0;
+        border: 1px solid #f5e4b8;
         border-radius: 16px;
         padding: 20px;
     }
     .preview-panel h3 {
         margin-top: 0;
         margin-bottom: 14px;
-        color: #9d174d;
+        color: #b45309;
     }
     .preview-panel p {
         margin: 0 0 10px;
@@ -108,7 +112,7 @@
     }
     .payment-row {
         padding: 12px 0;
-        border-top: 1px solid #f3d9e7;
+        border-top: 1px solid #f5e4b8;
     }
     .payment-row:first-child {
         border-top: none;
@@ -124,3 +128,7 @@
     }
 </style>
 {% endblock %}
+
+
+
+

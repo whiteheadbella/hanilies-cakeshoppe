@@ -121,6 +121,7 @@
                     </td>
                     <td data-label="Package">
                         <div class="order-primary">{{ order.package.name|default:"Custom Package" }}</div>
+                        <div class="order-secondary">Product ID: {{ order.package.product_code|default:"Not assigned" }}</div>
                     </td>
                     <td data-label="Event Type"><span class="order-secondary">{{ order.get_event_type_display }}</span></td>
                     <td data-label="Event Date">
@@ -243,3 +244,4 @@ function submitPackageOrderAction(form) {
 }
 </script>
 {% endblock %}
+

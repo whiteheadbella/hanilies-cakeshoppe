@@ -25,16 +25,20 @@
 
         <section class="preview-panel">
             <h3>Order Summary</h3>
-            <p><strong>Package:</strong> {{ order.package.name|default:"Custom Package" }}</p>
-            <p><strong>Status:</strong> {{ order.get_order_status_display }}</p>
-            <p><strong>Event Type:</strong> {{ order.get_event_type_display }}</p>
-            <p><strong>Event Date:</strong> {{ order.event_date|date:"Y-m-d" }}</p>
-            <p><strong>Event Time:</strong> {{ order.event_time|time:"H:i"|default:"-" }}</p>
-            <p><strong>Total Price:</strong> ₱{{ order.total_price }}</p>
-            <p><strong>Payment Plan:</strong> {{ order.get_payment_plan_display }}</p>
-            <p><strong>Deposit Amount:</strong> ₱{{ order.deposit_amount }}</p>
-            <p><strong>Balance Due:</strong> ₱{{ order.balance_due }}</p>
-            <p><strong>Created:</strong> {{ order.created_at|date:"Y-m-d H:i" }}</p>
+            <div class="order-summary-stack">
+                <div class="order-summary-item"><span class="order-summary-label">Package</span><span class="order-summary-value">{{ order.package.name|default:"Custom Package" }}</span></div>
+                <div class="order-summary-item"><span class="order-summary-label">Product ID</span><span class="order-summary-value">{{ order.package.product_code|default:"Not assigned" }}</span></div>
+                {% if order_product_summary %}<p class="order-summary-note">{{ order_product_summary }}</p>{% endif %}
+                <div class="order-summary-item"><span class="order-summary-label">Status</span><span class="order-summary-value">{{ order.get_order_status_display }}</span></div>
+                <div class="order-summary-item"><span class="order-summary-label">Event Type</span><span class="order-summary-value">{{ order.get_event_type_display }}</span></div>
+                <div class="order-summary-item"><span class="order-summary-label">Event Date</span><span class="order-summary-value">{{ order.event_date|date:"Y-m-d" }}</span></div>
+                <div class="order-summary-item"><span class="order-summary-label">Event Time</span><span class="order-summary-value">{{ order.event_time|time:"H:i"|default:"-" }}</span></div>
+                <div class="order-summary-item"><span class="order-summary-label">Total Price</span><span class="order-summary-value">₱{{ order.total_price }}</span></div>
+                <div class="order-summary-item"><span class="order-summary-label">Payment Plan</span><span class="order-summary-value">{{ order.get_payment_plan_display }}</span></div>
+                <div class="order-summary-item"><span class="order-summary-label">Deposit Amount</span><span class="order-summary-value">₱{{ order.deposit_amount }}</span></div>
+                <div class="order-summary-item"><span class="order-summary-label">Balance Due</span><span class="order-summary-value">₱{{ order.balance_due }}</span></div>
+                <div class="order-summary-item"><span class="order-summary-label">Created</span><span class="order-summary-value">{{ order.created_at|date:"Y-m-d H:i" }}</span></div>
+            </div>
         </section>
 
         <section class="preview-panel">
@@ -121,3 +125,5 @@
     }
 </style>
 {% endblock %}
+
+

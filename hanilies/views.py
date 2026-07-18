@@ -1,9 +1,6 @@
 import json
 import os
 import re
-import signal
-import subprocess
-import sys
 import csv
 import hashlib
 import time
@@ -18,7 +15,7 @@ from django.core.mail import send_mail
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, JsonResponse
 from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.views import PasswordResetConfirmView, PasswordResetDoneView, PasswordResetView
@@ -37,14 +34,11 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_POST
 from PIL import Image, UnidentifiedImageError
 from .forms import (
-    CAKE_ORDER_MAX_LEAD_DAYS,
-    CAKE_ORDER_MIN_LEAD_DAYS,
     CakeBookingDateForm,
     AdminContactInquiryReplyForm,
     ContactInquiryForm,
     HaniliesPasswordResetForm,
     HaniliesSetPasswordForm,
-    PACKAGE_ORDER_MIN_LEAD_DAYS,
     PackageBookingDateForm,
     build_cake_booking_window,
     build_package_booking_window,
@@ -452,6 +446,9 @@ CAKE_PRODUCT_ROLE_VALUES = FULL_ACCESS_ROLE_VALUES | {'cashier', 'baker'}
 PACKAGE_PRODUCT_ROLE_VALUES = FULL_ACCESS_ROLE_VALUES | {'cashier', 'packager'}
 CAKE_ORDER_ROLE_VALUES = FULL_ACCESS_ROLE_VALUES | {'cashier', 'baker'}
 PACKAGE_ORDER_ROLE_VALUES = FULL_ACCESS_ROLE_VALUES | {'cashier', 'packager'}
+SALES_REPORT_ROLE_VALUES = CAKE_ORDER_ROLE_VALUES | PACKAGE_ORDER_ROLE_VALUES | PAYMENT_REVIEW_ROLE_VALUES
+STOCK_REPORT_ROLE_VALUES = CAKE_PRODUCT_ROLE_VALUES | PACKAGE_PRODUCT_ROLE_VALUES
+LOW_STOCK_THRESHOLD = 5
 PAYMENT_PLAN_LABELS = {
     'cod': '50% GCash Deposit + COD Balance',
     'gcash': 'Full GCash Payment',
@@ -491,34 +488,38 @@ PAYMENT_PROOF_GENERIC_CONTENT_TYPES = {
     'binary/octet-stream',
 }
 ADMIN_MENU_ITEMS = [
-    {'name': 'Dashboard', 'url': 'admin_dashboard',
-        'icon': 'tachometer-alt', 'roles': STAFF_ROLE_VALUES},
-    {'name': 'Homepage Hero', 'url': 'admin_home_hero_images',
-        'icon': 'images', 'roles': HOME_HERO_ROLE_VALUES},
-    {'name': 'Homepage Strip', 'url': 'admin_home_strip_images',
-        'icon': 'panorama', 'roles': HOME_HERO_ROLE_VALUES},
+    {'name': 'Admin Dashboard', 'url': 'admin_dashboard',
+        'icon': 'house', 'roles': STAFF_ROLE_VALUES, 'section': 'Dashboard'},
+    {'name': 'Homepage Banner', 'url': 'admin_home_hero_images',
+        'icon': 'images', 'roles': HOME_HERO_ROLE_VALUES, 'section': 'Content'},
+    {'name': 'Promotional Banner', 'url': 'admin_home_strip_images',
+        'icon': 'panorama', 'roles': HOME_HERO_ROLE_VALUES, 'section': 'Content'},
     {'name': 'About Images', 'url': 'admin_about_images',
-        'icon': 'address-card', 'roles': HOME_HERO_ROLE_VALUES},
-    {'name': 'Cakes', 'url': 'admin_cakes', 'icon': 'birthday-cake',
-        'roles': CAKE_PRODUCT_ROLE_VALUES},
-    {'name': 'Cake Orders', 'url': 'admin_cake_orders', 'icon': 'shopping-cart',
-        'roles': CAKE_ORDER_ROLE_VALUES},
-    {'name': 'Packages', 'url': 'admin_packages', 'icon': 'gift',
-        'roles': PACKAGE_PRODUCT_ROLE_VALUES},
-    {'name': 'Package Orders', 'url': 'admin_package_orders', 'icon': 'calendar-check',
-        'roles': PACKAGE_ORDER_ROLE_VALUES},
-    {'name': 'Payments', 'url': 'admin_payments', 'icon': 'credit-card',
-        'roles': PAYMENT_REVIEW_ROLE_VALUES},
+        'icon': 'address-card', 'roles': HOME_HERO_ROLE_VALUES, 'section': 'Content'},
     {'name': 'Testimonials', 'url': 'admin_testimonials', 'icon': 'comments',
-        'roles': FULL_ACCESS_ROLE_VALUES},
+        'roles': FULL_ACCESS_ROLE_VALUES, 'section': 'Content'},
+    {'name': 'Cake Products', 'url': 'admin_cakes', 'icon': 'birthday-cake',
+        'roles': CAKE_PRODUCT_ROLE_VALUES, 'section': 'Products'},
+    {'name': 'Package Products', 'url': 'admin_packages', 'icon': 'gift',
+        'roles': PACKAGE_PRODUCT_ROLE_VALUES, 'section': 'Products'},
+    {'name': 'Cake Orders', 'url': 'admin_cake_orders', 'icon': 'shopping-cart',
+        'roles': CAKE_ORDER_ROLE_VALUES, 'section': 'Orders'},
+    {'name': 'Package Orders', 'url': 'admin_package_orders', 'icon': 'calendar-check',
+        'roles': PACKAGE_ORDER_ROLE_VALUES, 'section': 'Orders'},
+    {'name': 'Payments', 'url': 'admin_payments', 'icon': 'credit-card',
+        'roles': PAYMENT_REVIEW_ROLE_VALUES, 'section': 'Orders'},
     {'name': 'Refunds', 'url': 'admin_refunds', 'icon': 'rotate-left',
-        'roles': PAYMENT_REVIEW_ROLE_VALUES},
+        'roles': PAYMENT_REVIEW_ROLE_VALUES, 'section': 'Orders'},
+    {'name': 'Stock Report', 'url': 'admin_stock_report', 'icon': 'boxes-stacked',
+        'roles': STOCK_REPORT_ROLE_VALUES, 'section': 'Inventory'},
+    {'name': 'Order Sales Report', 'url': 'admin_order_sales_report', 'icon': 'chart-column',
+        'roles': SALES_REPORT_ROLE_VALUES, 'section': 'Reports'},
+    {'name': 'Users & Customers', 'url': 'admin_users', 'icon': 'users',
+        'roles': USER_MANAGEMENT_ROLE_VALUES, 'section': 'Users'},
     {'name': 'Inquiries', 'url': 'admin_contact_inquiries', 'icon': 'envelope-open-text',
-        'roles': FULL_ACCESS_ROLE_VALUES},
-    {'name': 'Users', 'url': 'admin_users', 'icon': 'users',
-        'roles': USER_MANAGEMENT_ROLE_VALUES},
+        'roles': FULL_ACCESS_ROLE_VALUES, 'section': 'Users'},
     {'name': 'Audit Trail', 'url': 'admin_activity_logs',
-        'icon': 'clipboard-list', 'roles': AUDIT_TRAIL_ROLE_VALUES},
+        'icon': 'clipboard-list', 'roles': AUDIT_TRAIL_ROLE_VALUES, 'section': 'System'},
 ]
 
 ROLE_CHOICES = UserProfile.ROLE_CHOICES
@@ -1304,6 +1305,226 @@ def _build_sales_export_rows(payments):
     return rows
 
 
+def _parse_stock_quantity(value, default=0):
+    try:
+        return max(int(value), 0)
+    except (TypeError, ValueError):
+        return default
+
+
+def _build_order_sales_report_rows(limit=8):
+    product_totals = {}
+
+    cake_orders = CakeOrder.objects.select_related('cake').filter(is_archived=False).exclude(
+        order_status='cancelled',
+    )
+    for order in cake_orders:
+        product = order.cake
+        product_name = str(getattr(product, 'name', '') or 'Custom Cake').strip()
+        product_code = str(getattr(product, 'product_code', '') or '').strip()
+        product_key = ('cake', getattr(product, 'pk', None) or f'cake-order-{order.pk}')
+        summary = product_totals.setdefault(product_key, {
+            'type_key': 'cake',
+            'type_label': 'Cake',
+            'product_name': product_name,
+            'product_code': product_code,
+            'product_id': product_code or f'CAKE-ORDER-{order.pk}',
+            'order_count': 0,
+            'units_sold': 0,
+            'gross_sales': Decimal('0.00'),
+            'manage_url': reverse('admin_cake_edit', args=[product.pk]) if product else reverse('admin_cakes'),
+        })
+        summary['order_count'] += 1
+        summary['units_sold'] += max(order.quantity or 0, 1)
+        summary['gross_sales'] += order.total_price or Decimal('0.00')
+
+    package_orders = PackageOrder.objects.select_related('package').filter(is_archived=False).exclude(
+        order_status='cancelled',
+    )
+    for order in package_orders:
+        product = order.package
+        product_name = str(getattr(product, 'name', '') or 'Custom Package').strip()
+        product_code = str(getattr(product, 'product_code', '') or '').strip()
+        product_key = ('package', getattr(product, 'pk', None) or f'package-order-{order.pk}')
+        summary = product_totals.setdefault(product_key, {
+            'type_key': 'package',
+            'type_label': 'Package',
+            'product_name': product_name,
+            'product_code': product_code,
+            'product_id': product_code or f'PACKAGE-ORDER-{order.pk}',
+            'order_count': 0,
+            'units_sold': 0,
+            'gross_sales': Decimal('0.00'),
+            'manage_url': reverse('admin_package_edit', args=[product.pk]) if product else reverse('admin_packages'),
+        })
+        summary['order_count'] += 1
+        summary['units_sold'] += 1
+        summary['gross_sales'] += order.total_price or Decimal('0.00')
+
+    rows = sorted(
+        product_totals.values(),
+        key=lambda item: (
+            item['gross_sales'],
+            item['units_sold'],
+            item['product_name'].lower(),
+        ),
+        reverse=True,
+    )
+    if limit is not None:
+        return rows[:limit]
+    return rows
+
+
+def _get_stock_health(stock_value):
+    stock_value = int(stock_value or 0)
+    if stock_value <= 0:
+        return {'key': 'out', 'label': 'Out of Stock', 'tone': 'cancelled'}
+    if stock_value <= LOW_STOCK_THRESHOLD:
+        return {'key': 'low', 'label': 'Needs Replenishment', 'tone': 'pending'}
+    return {'key': 'available', 'label': 'Available', 'tone': 'completed'}
+
+
+def _decorate_products_with_stock_health(products):
+    for product in products:
+        stock_value = int(getattr(product, 'stock', 0) or 0)
+        health = _get_stock_health(stock_value)
+        product.stock_value = stock_value
+        product.stock_health_key = health['key']
+        product.stock_health_label = health['label']
+        product.stock_health_tone = health['tone']
+    return products
+
+
+def _build_stock_report_rows(limit=None):
+    rows = []
+    for cake in Cake.objects.filter(is_archived=False).order_by('name'):
+        health = _get_stock_health(cake.stock)
+        rows.append({
+            'type_key': 'cake',
+            'type_label': 'Cake Product',
+            'product_name': cake.name,
+            'product_code': cake.product_code or f'CK-{cake.pk}',
+            'stock_value': int(cake.stock or 0),
+            'health_key': health['key'],
+            'health_label': health['label'],
+            'health_tone': health['tone'],
+            'is_active': cake.is_active,
+            'manage_url': reverse('admin_cake_edit', args=[cake.pk]),
+        })
+    for package in Package.objects.filter(is_archived=False).order_by('name'):
+        health = _get_stock_health(package.stock)
+        rows.append({
+            'type_key': 'package',
+            'type_label': 'Package Product',
+            'product_name': package.name,
+            'product_code': package.product_code or f'PKG-{package.pk}',
+            'stock_value': int(package.stock or 0),
+            'health_key': health['key'],
+            'health_label': health['label'],
+            'health_tone': health['tone'],
+            'is_active': package.status == 'active',
+            'manage_url': reverse('admin_package_edit', args=[package.pk]),
+        })
+
+    priority = {'out': 0, 'low': 1, 'available': 2}
+    rows.sort(key=lambda item: (priority[item['health_key']], item['stock_value'], item['product_name'].lower()))
+    if limit is not None:
+        return rows[:limit]
+    return rows
+
+
+def _get_order_stock_context(order):
+    if isinstance(order, CakeOrder):
+        return {
+            'product': order.cake,
+            'quantity': max(order.quantity or 0, 1),
+            'product_type': 'cake',
+            'product_label': 'Cake Product',
+            'order_label': 'cake order',
+        }
+    return {
+        'product': order.package,
+        'quantity': 1,
+        'product_type': 'package',
+        'product_label': 'Package Product',
+        'order_label': 'package order',
+    }
+
+
+def _validate_order_stock_availability(order):
+    stock_context = _get_order_stock_context(order)
+    product = stock_context['product']
+    if product is None:
+        return None
+
+    available_stock = int(getattr(product, 'stock', 0) or 0)
+    required_units = int(stock_context['quantity'])
+    if available_stock >= required_units:
+        return None
+
+    product_name = getattr(product, 'name', stock_context['product_label'])
+    product_code = getattr(product, 'product_code', '') or 'Not assigned'
+    return (
+        f'Cannot complete order #{order.id} because {product_name} '
+        f'({product_code}) only has {available_stock} stock on hand and '
+        f'this order needs {required_units}.'
+    )
+
+
+def _commit_order_stock(order, actor=None):
+    if getattr(order, 'stock_deducted', False):
+        return False
+
+    stock_error = _validate_order_stock_availability(order)
+    if stock_error:
+        raise ValueError(stock_error)
+
+    stock_context = _get_order_stock_context(order)
+    product = stock_context['product']
+    if product is None:
+        return False
+
+    product.stock = max(int(product.stock or 0) - int(stock_context['quantity']), 0)
+    product.save(update_fields=['stock', 'updated_at'])
+    order.stock_deducted = True
+    order.save(update_fields=['stock_deducted'])
+
+    if actor is not None:
+        _log_staff_activity(
+            actor,
+            f"{stock_context['product_type']}_stock_deducted",
+            f"Deducted {stock_context['quantity']} stock from {stock_context['product_label']} \"{product.name}\" ({product.product_code or 'Not assigned'}) after completing {stock_context['order_label']} #{order.id}.",
+            stock_context['product_type'],
+            product.id,
+        )
+    return True
+
+
+def _restore_order_stock(order, actor=None):
+    if not getattr(order, 'stock_deducted', False):
+        return False
+
+    stock_context = _get_order_stock_context(order)
+    product = stock_context['product']
+    if product is None:
+        return False
+
+    product.stock = int(product.stock or 0) + int(stock_context['quantity'])
+    product.save(update_fields=['stock', 'updated_at'])
+    order.stock_deducted = False
+    order.save(update_fields=['stock_deducted'])
+
+    if actor is not None:
+        _log_staff_activity(
+            actor,
+            f"{stock_context['product_type']}_stock_restored",
+            f"Restored {stock_context['quantity']} stock to {stock_context['product_label']} \"{product.name}\" ({product.product_code or 'Not assigned'}) after moving {stock_context['order_label']} #{order.id} away from completed status.",
+            stock_context['product_type'],
+            product.id,
+        )
+    return True
+
+
 def _build_sales_export_filename(file_format):
     return f'hanilies-sales-report-{timezone.localdate().isoformat()}.{file_format}'
 
@@ -1315,10 +1536,215 @@ def _build_activity_log_export_filename(file_format):
     return f'hanilies-audit-trail-{timezone.localdate().isoformat()}.{file_format}'
 
 
+AUDIT_VALUE_LABEL_OVERRIDES = {
+    'cake': 'Cake Product',
+    'package': 'Package Product',
+    'cake_order': 'Cake Order',
+    'package_order': 'Package Order',
+    'contact_inquiry': 'Inquiry',
+    'home_hero_image': 'Homepage Banner',
+    'home_strip_image': 'Promotional Banner',
+    'about_page_image': 'About Image',
+    'report': 'Report',
+    'home_hero_created': 'Homepage Banner Created',
+    'home_hero_updated': 'Homepage Banner Updated',
+    'home_hero_deleted': 'Homepage Banner Deleted',
+    'home_strip_created': 'Promotional Banner Created',
+    'home_strip_updated': 'Promotional Banner Updated',
+    'home_strip_deleted': 'Promotional Banner Deleted',
+    'about_image_updated': 'About Images Updated',
+    'cake_created': 'Cake Product Created',
+    'cake_updated': 'Cake Product Updated',
+    'cake_archived': 'Cake Product Archived',
+    'cake_restored': 'Cake Product Restored',
+    'package_created': 'Package Product Created',
+    'package_updated': 'Package Product Updated',
+    'package_archived': 'Package Product Archived',
+    'package_restored': 'Package Product Restored',
+    'cake_stock_initialized': 'Cake Product Stock Initialized',
+    'cake_stock_updated': 'Cake Product Stock Updated',
+    'cake_stock_deducted': 'Cake Product Stock Deducted',
+    'cake_stock_restored': 'Cake Product Stock Restored',
+    'package_stock_initialized': 'Package Product Stock Initialized',
+    'package_stock_updated': 'Package Product Stock Updated',
+    'package_stock_deducted': 'Package Product Stock Deducted',
+    'package_stock_restored': 'Package Product Stock Restored',
+    'user_password_reset_sent': 'Admin Password Reset Email Sent',
+    'order_confirmed_from_payment': 'Order Confirmed From Payment',
+    'order_awaiting_payment_resubmission': 'Order Awaiting Payment Resubmission',
+    'sales_report_exported': 'Sales Report Exported',
+    'audit_trail_exported': 'Audit Trail Exported',
+    'audit_trail_print_preview': 'Audit Trail Print Preview Opened',
+}
+
+AUDIT_ACTION_GROUP_DEFINITIONS = [
+    {
+        'key': 'authentication',
+        'label': 'Authentication',
+        'description': 'Login sessions and password reset activity.',
+        'icon': 'shield-halved',
+        'actions': [
+            'User login',
+            'User logout',
+            'Password reset requested',
+            'Password reset completed',
+            'user_password_reset_sent',
+        ],
+    },
+    {
+        'key': 'users',
+        'label': 'Users & Customers',
+        'description': 'Account creation, edits, role updates, and account status changes.',
+        'icon': 'users',
+        'actions': [
+            'user_created',
+            'user_updated',
+            'user_role_updated',
+            'user_archived',
+            'user_restored',
+        ],
+    },
+    {
+        'key': 'content',
+        'label': 'Content',
+        'description': 'Homepage banners, promotional banners, and About page image updates.',
+        'icon': 'images',
+        'actions': [
+            'home_hero_created',
+            'home_hero_updated',
+            'home_hero_deleted',
+            'home_strip_created',
+            'home_strip_updated',
+            'home_strip_deleted',
+            'about_image_updated',
+        ],
+    },
+    {
+        'key': 'products',
+        'label': 'Products',
+        'description': 'Cake product and package product maintenance activity.',
+        'icon': 'box-open',
+        'actions': [
+            'cake_created',
+            'cake_updated',
+            'cake_archived',
+            'cake_restored',
+            'package_created',
+            'package_updated',
+            'package_archived',
+            'package_restored',
+        ],
+    },
+    {
+        'key': 'inventory',
+        'label': 'Inventory',
+        'description': 'Stock setup, replenishment, deduction, and restoration events.',
+        'icon': 'boxes-stacked',
+        'actions': [
+            'cake_stock_initialized',
+            'cake_stock_updated',
+            'cake_stock_deducted',
+            'cake_stock_restored',
+            'package_stock_initialized',
+            'package_stock_updated',
+            'package_stock_deducted',
+            'package_stock_restored',
+        ],
+    },
+    {
+        'key': 'cake_orders',
+        'label': 'Cake Orders',
+        'description': 'Cake order status, archive, and restore actions.',
+        'icon': 'shopping-cart',
+        'actions': [
+            'cake_order_status_updated',
+            'cake_order_archived',
+            'cake_order_restored',
+        ],
+    },
+    {
+        'key': 'package_orders',
+        'label': 'Package Orders',
+        'description': 'Package order status, archive, and restore actions.',
+        'icon': 'calendar-check',
+        'actions': [
+            'package_order_status_updated',
+            'package_order_archived',
+            'package_order_restored',
+        ],
+    },
+    {
+        'key': 'payments',
+        'label': 'Payments',
+        'description': 'Payment verification changes and order payment follow-up events.',
+        'icon': 'credit-card',
+        'actions': [
+            'payment_status_updated',
+            'payment_archived',
+            'payment_restored',
+            'order_confirmed_from_payment',
+            'order_awaiting_payment_resubmission',
+        ],
+    },
+    {
+        'key': 'refunds',
+        'label': 'Refunds',
+        'description': 'Refund approval, rejection, and processing events.',
+        'icon': 'rotate-left',
+        'actions': [
+            'refund_approved',
+            'refund_rejected',
+            'refund_processed',
+        ],
+    },
+    {
+        'key': 'inquiries',
+        'label': 'Inquiries',
+        'description': 'Customer inquiry read states, replies, archive, and restore actions.',
+        'icon': 'envelope-open-text',
+        'actions': [
+            'contact_inquiry_read',
+            'contact_inquiry_unread',
+            'contact_inquiry_replied',
+            'contact_inquiry_archived',
+            'contact_inquiry_restored',
+            'contact_inquiry_deleted',
+        ],
+    },
+    {
+        'key': 'testimonials',
+        'label': 'Testimonials',
+        'description': 'Testimonial moderation, archive, and restore events.',
+        'icon': 'comments',
+        'actions': [
+            'testimonial_approved',
+            'testimonial_rejected',
+            'testimonial_hidden',
+            'testimonial_archived',
+            'testimonial_restored',
+        ],
+    },
+    {
+        'key': 'reports',
+        'label': 'Reports',
+        'description': 'Report exports and print-preview activity from the admin dashboard.',
+        'icon': 'chart-column',
+        'actions': [
+            'sales_report_exported',
+            'audit_trail_exported',
+            'audit_trail_print_preview',
+        ],
+    },
+]
+
+
 def _format_activity_label(value):
     if not value:
         return '-'
-    return str(value).replace('_', ' ').strip().title()
+    return AUDIT_VALUE_LABEL_OVERRIDES.get(
+        value,
+        str(value).replace('_', ' ').strip().title(),
+    )
 
 
 def _parse_admin_filter_date(value):
@@ -1578,6 +2004,88 @@ def _build_activity_log_filter_chips(filter_state, actor_options):
     return chips
 
 
+
+def _build_activity_log_action_groups(available_actions, selected_actions):
+    available_action_set = {
+        str(value).strip()
+        for value in available_actions
+        if str(value).strip()
+    }
+    selected_action_set = {
+        str(value).strip()
+        for value in selected_actions
+        if str(value).strip()
+    }
+    known_action_values = set()
+    action_groups = []
+
+    for index, definition in enumerate(AUDIT_ACTION_GROUP_DEFINITIONS):
+        actions = []
+        for action_value in definition['actions']:
+            if action_value in known_action_values:
+                continue
+            known_action_values.add(action_value)
+            label = _format_activity_label(action_value)
+            actions.append({
+                'value': action_value,
+                'label': label,
+                'selected': action_value in selected_action_set,
+                'search_text': ' '.join([
+                    definition['label'],
+                    label,
+                    action_value.replace('_', ' '),
+                ]).strip(),
+            })
+
+        selected_count = sum(1 for action in actions if action['selected'])
+        action_groups.append({
+            'key': definition['key'],
+            'label': definition['label'],
+            'description': definition['description'],
+            'icon': definition['icon'],
+            'actions': actions,
+            'selected_count': selected_count,
+            'total_actions': len(actions),
+            'has_actions': bool(actions),
+            'default_open': bool(selected_count) or (index == 0 and not selected_action_set),
+            'has_available_actions': any(action['value'] in available_action_set for action in actions),
+        })
+
+    extra_actions = sorted(
+        (available_action_set | selected_action_set) - known_action_values,
+        key=lambda value: _format_activity_label(value).lower(),
+    )
+    if extra_actions:
+        actions = []
+        for action_value in extra_actions:
+            label = _format_activity_label(action_value)
+            actions.append({
+                'value': action_value,
+                'label': label,
+                'selected': action_value in selected_action_set,
+                'search_text': ' '.join([
+                    'System Other',
+                    label,
+                    action_value.replace('_', ' '),
+                ]).strip(),
+            })
+
+        action_groups.append({
+            'key': 'system_other',
+            'label': 'System & Other',
+            'description': 'Additional audit actions currently recorded outside the standard dashboard categories.',
+            'icon': 'gear',
+            'actions': actions,
+            'selected_count': sum(1 for action in actions if action['selected']),
+            'total_actions': len(actions),
+            'has_actions': bool(actions),
+            'default_open': any(action['selected'] for action in actions),
+            'has_available_actions': True,
+        })
+
+    return action_groups
+
+
 def _get_customer_cake_orders_queryset(user):
     return CakeOrder.objects.filter(user=user).order_by('-created_at')
 
@@ -1824,7 +2332,7 @@ def _normalize_package_inclusion_label_text(label):
 
     if re.match(r'^event\s+duration\s*:', normalized_label, re.IGNORECASE):
         return re.sub(
-            r'^event\s+duration\s*:\s*3\s*(?:-|–|—|û|u|to)\s*4\s+hours\s+only\s*$',
+            r'^event\s+duration\s*:\s*3\s*(?:-|â€“|â€”|Ã»|u|to)\s*4\s+hours\s+only\s*$',
             'Event Duration: 3-4 Hours only',
             normalized_label,
             flags=re.IGNORECASE,
@@ -4999,15 +5507,24 @@ def package_payment(request):
 # ============================================
 
 def get_admin_menu(request):
-    """Generate an admin sidebar filtered by the current user's role."""
-    return [
-        {
+    """Generate grouped admin sidebar sections filtered by the current user's role."""
+    grouped_items = {}
+    for item in ADMIN_MENU_ITEMS:
+        if not _user_has_any_role(request.user, item['roles']):
+            continue
+        section = item.get('section', 'General')
+        grouped_items.setdefault(section, []).append({
             'name': item['name'],
             'url': item['url'],
             'icon': item['icon'],
+        })
+
+    return [
+        {
+            'title': section,
+            'items': items,
         }
-        for item in ADMIN_MENU_ITEMS
-        if _user_has_any_role(request.user, item['roles'])
+        for section, items in grouped_items.items()
     ]
 
 
@@ -5388,6 +5905,119 @@ def admin_dashboard(request):
     can_view_cake_orders = user_allowed(CAKE_ORDER_ROLE_VALUES)
     can_view_package_orders = user_allowed(PACKAGE_ORDER_ROLE_VALUES)
     can_view_refunds = user_allowed(PAYMENT_REVIEW_ROLE_VALUES)
+    can_view_sales_reports = user_allowed(SALES_REPORT_ROLE_VALUES)
+    can_view_stock_reports = user_allowed(STOCK_REPORT_ROLE_VALUES)
+
+    order_sales_cards = []
+    order_sales_report_rows = []
+    if can_view_sales_reports:
+        cake_order_sales_today = CakeOrder.objects.filter(
+            is_archived=False,
+            created_at__date=today,
+        ).exclude(order_status='cancelled').aggregate(total=Sum('total_price'))['total'] or Decimal('0.00')
+        package_order_sales_today = PackageOrder.objects.filter(
+            is_archived=False,
+            created_at__date=today,
+        ).exclude(order_status='cancelled').aggregate(total=Sum('total_price'))['total'] or Decimal('0.00')
+        order_sales_week = CakeOrder.objects.filter(
+            is_archived=False,
+            created_at__date__gte=start_of_week,
+            created_at__date__lte=today,
+        ).exclude(order_status='cancelled').aggregate(total=Sum('total_price'))['total'] or Decimal('0.00')
+        order_sales_week += PackageOrder.objects.filter(
+            is_archived=False,
+            created_at__date__gte=start_of_week,
+            created_at__date__lte=today,
+        ).exclude(order_status='cancelled').aggregate(total=Sum('total_price'))['total'] or Decimal('0.00')
+        order_sales_month = CakeOrder.objects.filter(
+            is_archived=False,
+            created_at__date__gte=start_of_month,
+            created_at__date__lte=today,
+        ).exclude(order_status='cancelled').aggregate(total=Sum('total_price'))['total'] or Decimal('0.00')
+        order_sales_month += PackageOrder.objects.filter(
+            is_archived=False,
+            created_at__date__gte=start_of_month,
+            created_at__date__lte=today,
+        ).exclude(order_status='cancelled').aggregate(total=Sum('total_price'))['total'] or Decimal('0.00')
+        order_sales_cards = [
+            {
+                'title': 'Cake Order Sales Today',
+                'value': f'P{cake_order_sales_today:.2f}',
+                'copy': 'Booked cake order sales created today.',
+                'chip': 'Cake orders',
+                'icon': 'birthday-cake',
+                'url': reverse('admin_order_sales_report'),
+            },
+            {
+                'title': 'Package Order Sales Today',
+                'value': f'P{package_order_sales_today:.2f}',
+                'copy': 'Booked package order sales created today.',
+                'chip': 'Package orders',
+                'icon': 'gift',
+                'url': reverse('admin_order_sales_report'),
+            },
+            {
+                'title': 'This Week Order Sales',
+                'value': f'P{order_sales_week:.2f}',
+                'copy': 'Combined cake and package order totals this week.',
+                'chip': 'Weekly activity',
+                'icon': 'chart-line',
+                'url': reverse('admin_order_sales_report'),
+            },
+            {
+                'title': 'This Month Order Sales',
+                'value': f'P{order_sales_month:.2f}',
+                'copy': 'Combined cake and package order totals this month.',
+                'chip': 'Monthly activity',
+                'icon': 'calendar-alt',
+                'url': reverse('admin_order_sales_report'),
+            },
+        ]
+        order_sales_report_rows = _build_order_sales_report_rows(limit=8)
+
+    stock_report_cards = []
+    stock_report_rows = []
+    if can_view_stock_reports:
+        all_stock_rows = _build_stock_report_rows(limit=None)
+        stock_report_rows = all_stock_rows[:6]
+        available_stock_count = sum(1 for row in all_stock_rows if row['health_key'] == 'available')
+        low_stock_count = sum(1 for row in all_stock_rows if row['health_key'] == 'low')
+        out_of_stock_count = sum(1 for row in all_stock_rows if row['health_key'] == 'out')
+        stock_units_on_hand = sum(row['stock_value'] for row in all_stock_rows)
+        stock_report_cards = [
+            {
+                'title': 'Available Products',
+                'value': available_stock_count,
+                'copy': 'Products with healthy stock on hand.',
+                'chip': 'Available',
+                'icon': 'boxes-stacked',
+                'url': reverse('admin_stock_report'),
+            },
+            {
+                'title': 'Needs Replenishment',
+                'value': low_stock_count,
+                'copy': f'Products at or below {LOW_STOCK_THRESHOLD} stock.',
+                'chip': 'Replenish soon',
+                'icon': 'triangle-exclamation',
+                'url': reverse('admin_stock_report'),
+            },
+            {
+                'title': 'Out of Stock',
+                'value': out_of_stock_count,
+                'copy': 'Products that can no longer cover new sold units.',
+                'chip': 'Critical',
+                'icon': 'circle-xmark',
+                'url': reverse('admin_stock_report'),
+            },
+            {
+                'title': 'Units on Hand',
+                'value': stock_units_on_hand,
+                'copy': 'Total tracked stock across cake and package products.',
+                'chip': 'Inventory total',
+                'icon': 'warehouse',
+                'url': reverse('admin_stock_report'),
+            },
+        ]
 
     priority_cards = []
     if can_view_payments:
@@ -5637,14 +6267,143 @@ def admin_dashboard(request):
         'can_view_audit_trail': can_view_audit_trail,
         'can_view_cake_orders': can_view_cake_orders,
         'can_view_package_orders': can_view_package_orders,
+        'can_view_payments': can_view_payments,
+        'can_view_stock_reports': can_view_stock_reports,
         'priority_cards': priority_cards[:4],
         'secondary_cards': secondary_cards[:5],
         'quick_actions': quick_actions[:6],
         'attention_items': attention_items[:5],
         'hero_summary_items': hero_summary_items,
+        'order_sales_cards': order_sales_cards,
+        'order_sales_report_rows': order_sales_report_rows,
+        'stock_report_cards': stock_report_cards,
+        'stock_report_rows': stock_report_rows,
     }
 
     return render(request, 'admin/dashboard.html', context)
+
+
+@login_required
+def admin_order_sales_report(request):
+    access_denied = _require_admin_roles(request, SALES_REPORT_ROLE_VALUES)
+    if access_denied:
+        return access_denied
+
+    today = timezone.localdate()
+    start_of_week = today - timedelta(days=6)
+    start_of_month = today.replace(day=1)
+    cake_order_sales_today = CakeOrder.objects.filter(
+        is_archived=False,
+        created_at__date=today,
+    ).exclude(order_status='cancelled').aggregate(total=Sum('total_price'))['total'] or Decimal('0.00')
+    package_order_sales_today = PackageOrder.objects.filter(
+        is_archived=False,
+        created_at__date=today,
+    ).exclude(order_status='cancelled').aggregate(total=Sum('total_price'))['total'] or Decimal('0.00')
+    order_sales_week = CakeOrder.objects.filter(
+        is_archived=False,
+        created_at__date__gte=start_of_week,
+        created_at__date__lte=today,
+    ).exclude(order_status='cancelled').aggregate(total=Sum('total_price'))['total'] or Decimal('0.00')
+    order_sales_week += PackageOrder.objects.filter(
+        is_archived=False,
+        created_at__date__gte=start_of_week,
+        created_at__date__lte=today,
+    ).exclude(order_status='cancelled').aggregate(total=Sum('total_price'))['total'] or Decimal('0.00')
+    order_sales_month = CakeOrder.objects.filter(
+        is_archived=False,
+        created_at__date__gte=start_of_month,
+        created_at__date__lte=today,
+    ).exclude(order_status='cancelled').aggregate(total=Sum('total_price'))['total'] or Decimal('0.00')
+    order_sales_month += PackageOrder.objects.filter(
+        is_archived=False,
+        created_at__date__gte=start_of_month,
+        created_at__date__lte=today,
+    ).exclude(order_status='cancelled').aggregate(total=Sum('total_price'))['total'] or Decimal('0.00')
+
+    order_sales_cards = [
+        {
+            'title': 'Cake Order Sales Today',
+            'value': f'P{cake_order_sales_today:.2f}',
+            'copy': 'Booked cake order sales created today.',
+            'chip': 'Cake orders',
+            'icon': 'birthday-cake',
+        },
+        {
+            'title': 'Package Order Sales Today',
+            'value': f'P{package_order_sales_today:.2f}',
+            'copy': 'Booked package order sales created today.',
+            'chip': 'Package orders',
+            'icon': 'gift',
+        },
+        {
+            'title': 'This Week Order Sales',
+            'value': f'P{order_sales_week:.2f}',
+            'copy': 'Combined cake and package order totals this week.',
+            'chip': 'Weekly activity',
+            'icon': 'chart-line',
+        },
+        {
+            'title': 'This Month Order Sales',
+            'value': f'P{order_sales_month:.2f}',
+            'copy': 'Combined cake and package order totals this month.',
+            'chip': 'Monthly activity',
+            'icon': 'calendar-alt',
+        },
+    ]
+
+    return render(request, 'admin/reports/order_sales.html', {
+        'admin_menu': get_admin_menu(request),
+        'order_sales_cards': order_sales_cards,
+        'order_sales_report_rows': _build_order_sales_report_rows(limit=None),
+        'can_view_payments': _user_has_any_role(request.user, PAYMENT_REVIEW_ROLE_VALUES),
+        'today': today,
+    })
+
+
+@login_required
+def admin_stock_report(request):
+    access_denied = _require_admin_roles(request, STOCK_REPORT_ROLE_VALUES)
+    if access_denied:
+        return access_denied
+
+    stock_rows = _build_stock_report_rows(limit=None)
+    stock_report_cards = [
+        {
+            'title': 'Available Products',
+            'value': sum(1 for row in stock_rows if row['health_key'] == 'available'),
+            'copy': 'Products with healthy stock on hand.',
+            'chip': 'Available',
+            'icon': 'boxes-stacked',
+        },
+        {
+            'title': 'Needs Replenishment',
+            'value': sum(1 for row in stock_rows if row['health_key'] == 'low'),
+            'copy': f'Products at or below {LOW_STOCK_THRESHOLD} stock.',
+            'chip': 'Replenish soon',
+            'icon': 'triangle-exclamation',
+        },
+        {
+            'title': 'Out of Stock',
+            'value': sum(1 for row in stock_rows if row['health_key'] == 'out'),
+            'copy': 'Products that need immediate restocking.',
+            'chip': 'Critical',
+            'icon': 'circle-xmark',
+        },
+        {
+            'title': 'Units on Hand',
+            'value': sum(row['stock_value'] for row in stock_rows),
+            'copy': 'Total tracked stock across cake and package products.',
+            'chip': 'Inventory total',
+            'icon': 'warehouse',
+        },
+    ]
+
+    return render(request, 'admin/reports/stock_report.html', {
+        'admin_menu': get_admin_menu(request),
+        'stock_report_cards': stock_report_cards,
+        'stock_report_rows': stock_rows,
+    })
 
 
 # ============================================
@@ -5966,8 +6725,9 @@ def admin_cakes(request):
         return access_denied
 
     is_archived_view = _is_archived_admin_view(request)
-    cakes = Cake.objects.filter(
-        is_archived=is_archived_view).order_by('-created_at')
+    cakes = list(Cake.objects.filter(
+        is_archived=is_archived_view).order_by('-created_at'))
+    _decorate_products_with_stock_health(cakes)
     return render(request, 'admin/cakes/list.html', {
         'cakes': cakes,
         'is_archived_view': is_archived_view,
@@ -5991,7 +6751,6 @@ def admin_cake_add(request):
                     CAKE_CUSTOMIZATION_GROUP_SPECS,
                 )
             )
-            # Get form data
             name = request.POST.get('name')
             category = request.POST.get('category')
             if category not in CAKE_CATEGORY_VALUES:
@@ -6011,10 +6770,9 @@ def admin_cake_add(request):
 
             description = request.POST.get('description')
             price = request.POST.get('price')
-            stock = request.POST.get('stock', 0)
+            stock = _parse_stock_quantity(request.POST.get('stock', 0))
             is_active = request.POST.get('is_active') == 'on'
 
-            # Create cake object
             cake = Cake(
                 name=name,
                 category=category,
@@ -6022,10 +6780,9 @@ def admin_cake_add(request):
                 price=price,
                 stock=stock,
                 customization_options=customization_options,
-                is_active=is_active
+                is_active=is_active,
             )
 
-            # Handle image upload
             if 'image' in request.FILES:
                 cake.image = request.FILES['image']
 
@@ -6043,6 +6800,14 @@ def admin_cake_add(request):
             if customization_options != cake.customization_options:
                 cake.customization_options = customization_options
                 cake.save(update_fields=['customization_options'])
+            if cake.stock > 0:
+                _log_staff_activity(
+                    request.user,
+                    'cake_stock_initialized',
+                    f'Set stock for cake "{cake.name}" ({cake.product_code or "Not assigned"}) to {cake.stock}.',
+                    'cake',
+                    cake.id,
+                )
             _log_staff_activity(
                 request.user,
                 'cake_created',
@@ -6092,6 +6857,7 @@ def admin_cake_edit(request, cake_id):
 
     if request.method == 'POST':
         try:
+            previous_stock = int(cake.stock or 0)
             previous_option_images = _collect_option_image_paths(
                 cake.customization_options,
                 CAKE_CUSTOMIZATION_GROUP_SPECS,
@@ -6102,7 +6868,6 @@ def admin_cake_edit(request, cake_id):
                     CAKE_CUSTOMIZATION_GROUP_SPECS,
                 )
             )
-            # Update basic info
             cake.name = request.POST.get('name')
             category = request.POST.get('category')
             if category not in CAKE_CATEGORY_VALUES:
@@ -6124,22 +6889,18 @@ def admin_cake_edit(request, cake_id):
             cake.category = category
             cake.description = request.POST.get('description')
             cake.price = request.POST.get('price')
-            cake.stock = request.POST.get('stock')
+            cake.stock = _parse_stock_quantity(request.POST.get('stock'))
             cake.customization_options = customization_options
             cake.is_active = request.POST.get('is_active') == 'on'
 
-            # Handle image upload
             if 'image' in request.FILES:
-                # Delete old image if exists
                 if cake.image:
                     cake.image.delete(save=False)
                 cake.image = request.FILES['image']
 
-            # Handle remove image checkbox
-            if request.POST.get('remove_image') == 'on':
-                if cake.image:
-                    cake.image.delete(save=False)
-                    cake.image = None
+            if request.POST.get('remove_image') == 'on' and cake.image:
+                cake.image.delete(save=False)
+                cake.image = None
 
             customization_options = _apply_option_image_uploads(
                 customization_options,
@@ -6160,6 +6921,14 @@ def admin_cake_edit(request, cake_id):
             )
             _delete_option_images(
                 previous_option_images - updated_option_images)
+            if previous_stock != cake.stock:
+                _log_staff_activity(
+                    request.user,
+                    'cake_stock_updated',
+                    f'Updated stock for cake "{cake.name}" ({cake.product_code or "Not assigned"}) from {previous_stock} to {cake.stock}.',
+                    'cake',
+                    cake.id,
+                )
             _log_staff_activity(
                 request.user,
                 'cake_updated',
@@ -6319,6 +7088,14 @@ def admin_cake_order_update(request, order_id):
                 messages.error(
                     request, 'You are not allowed to apply that status change.')
                 return redirect(_get_safe_admin_return_url(request, 'admin_cake_orders'))
+            try:
+                if new_status == 'completed':
+                    _commit_order_stock(order, request.user)
+                elif getattr(order, 'stock_deducted', False):
+                    _restore_order_stock(order, request.user)
+            except ValueError as exc:
+                messages.error(request, str(exc))
+                return redirect(_get_safe_admin_return_url(request, 'admin_cake_orders'))
             order.order_status = new_status
             order.save(update_fields=['order_status', 'updated_at'])
             if new_status == 'cancelled':
@@ -6385,8 +7162,9 @@ def admin_packages(request):
         return access_denied
 
     is_archived_view = _is_archived_admin_view(request)
-    packages = Package.objects.filter(is_archived=is_archived_view).prefetch_related(
-        'thumbnails').order_by('-created_at')
+    packages = list(Package.objects.filter(is_archived=is_archived_view).prefetch_related(
+        'thumbnails').order_by('-created_at'))
+    _decorate_products_with_stock_health(packages)
     return render(request, 'admin/packages/list.html', {
         'packages': packages,
         'is_archived_view': is_archived_view,
@@ -6405,6 +7183,7 @@ def admin_package_add(request):
     if request.method == 'POST':
         try:
             package_type = request.POST.get('package_type')
+            stock = _parse_stock_quantity(request.POST.get('stock', 0))
             customization_options = _filter_removed_package_cake_decorations(
                 _parse_customization_options_payload(
                     request.POST.get('customization_options_payload'),
@@ -6447,6 +7226,7 @@ def admin_package_add(request):
                 package_type=package_type,
                 description=request.POST.get('description'),
                 base_price=request.POST.get('base_price'),
+                stock=stock,
                 status=request.POST.get('status', 'active'),
                 features=inclusion_summary,
                 included_items=inclusion_summary,
@@ -6471,6 +7251,14 @@ def admin_package_add(request):
                 package.customization_options = customization_options
                 package.save(update_fields=['customization_options'])
             _sync_package_thumbnails(package, request.FILES)
+            if package.stock > 0:
+                _log_staff_activity(
+                    request.user,
+                    'package_stock_initialized',
+                    f'Set stock for package "{package.name}" ({package.product_code or "Not assigned"}) to {package.stock}.',
+                    'package',
+                    package.id,
+                )
             _log_staff_activity(
                 request.user,
                 'package_created',
@@ -6512,6 +7300,7 @@ def admin_package_edit(request, package_id):
 
     if request.method == 'POST':
         try:
+            previous_stock = int(package.stock or 0)
             previous_option_images = _collect_option_image_paths(
                 package.customization_options,
                 PACKAGE_CUSTOMIZATION_GROUP_SPECS,
@@ -6563,6 +7352,7 @@ def admin_package_edit(request, package_id):
             package.package_type = package_type
             package.description = request.POST.get('description')
             package.base_price = request.POST.get('base_price')
+            package.stock = _parse_stock_quantity(request.POST.get('stock', 0))
             package.status = request.POST.get('status')
             package.features = inclusion_summary
             package.included_items = inclusion_summary
@@ -6608,6 +7398,14 @@ def admin_package_edit(request, package_id):
             _delete_option_images(
                 previous_inclusion_images - updated_inclusion_images,
             )
+            if previous_stock != package.stock:
+                _log_staff_activity(
+                    request.user,
+                    'package_stock_updated',
+                    f'Updated stock for package "{package.name}" ({package.product_code or "Not assigned"}) from {previous_stock} to {package.stock}.',
+                    'package',
+                    package.id,
+                )
             _log_staff_activity(
                 request.user,
                 'package_updated',
@@ -6755,6 +7553,14 @@ def admin_package_order_update(request, order_id):
             if new_status not in allowed_statuses:
                 messages.error(
                     request, 'You are not allowed to apply that status change.')
+                return redirect(_get_safe_admin_return_url(request, 'admin_package_orders'))
+            try:
+                if new_status == 'completed':
+                    _commit_order_stock(order, request.user)
+                elif getattr(order, 'stock_deducted', False):
+                    _restore_order_stock(order, request.user)
+            except ValueError as exc:
+                messages.error(request, str(exc))
                 return redirect(_get_safe_admin_return_url(request, 'admin_package_orders'))
             order.order_status = new_status
             order.save(update_fields=['order_status', 'updated_at'])
@@ -7157,6 +7963,12 @@ def admin_payments_export(request, file_format):
         response[
             'Content-Disposition'] = f'attachment; filename="{_build_sales_export_filename("xlsx")}"'
         workbook.save(response)
+        _log_staff_activity(
+            request.user,
+            'sales_report_exported',
+            'Exported the paid sales report in XLSX format.',
+            'report',
+        )
         return response
 
     if file_format == 'pdf':
@@ -7224,6 +8036,12 @@ def admin_payments_export(request, file_format):
         response = HttpResponse(pdf_bytes, content_type='application/pdf')
         response[
             'Content-Disposition'] = f'attachment; filename="{_build_sales_export_filename("pdf")}"'
+        _log_staff_activity(
+            request.user,
+            'sales_report_exported',
+            'Exported the paid sales report in PDF format.',
+            'report',
+        )
         return response
 
     messages.error(request, 'Unsupported export format requested.')
@@ -7406,6 +8224,10 @@ def admin_activity_logs(request):
         base_queryset.exclude(action='').order_by(
             'action').values_list('action', flat=True).distinct()
     )
+    action_groups = _build_activity_log_action_groups(
+        action_options,
+        filter_state['action_values'],
+    )
     target_type_options = list(
         base_queryset.exclude(target_type='').order_by(
             'target_type').values_list('target_type', flat=True).distinct()
@@ -7468,7 +8290,7 @@ def admin_activity_logs(request):
         'activity_logs': activity_logs_page,
         'activity_logs_pagination': activity_logs_pagination,
         'activity_log_summary': _build_activity_log_summary(activity_logs_queryset),
-        'action_options': action_options,
+        'action_groups': action_groups,
         'target_type_options': target_type_options,
         'actor_options': actor_options,
         'current_tab': current_tab,
@@ -7560,6 +8382,12 @@ def admin_activity_logs_export(request, file_format):
                 row['target'],
                 row['description'],
             ])
+        _log_staff_activity(
+            request.user,
+            'audit_trail_exported',
+            'Exported the audit trail in CSV format.',
+            'report',
+        )
         return response
 
     if file_format == 'xlsx':
@@ -7607,6 +8435,12 @@ def admin_activity_logs_export(request, file_format):
             f'attachment; filename="{_build_activity_log_export_filename("xlsx")}"'
         )
         workbook.save(response)
+        _log_staff_activity(
+            request.user,
+            'audit_trail_exported',
+            'Exported the audit trail in XLSX format.',
+            'report',
+        )
         return response
 
     if file_format == 'pdf':
@@ -7677,6 +8511,12 @@ def admin_activity_logs_export(request, file_format):
         response['Content-Disposition'] = (
             f'attachment; filename="{_build_activity_log_export_filename("pdf")}"'
         )
+        _log_staff_activity(
+            request.user,
+            'audit_trail_exported',
+            'Exported the audit trail in PDF format.',
+            'report',
+        )
         return response
 
     messages.error(request, 'Unsupported export format requested.')
@@ -7697,6 +8537,12 @@ def admin_activity_logs_print(request):
         ActivityLog.objects.select_related(
             'actor').filter(is_archived=is_archived_view),
         filter_state,
+    )
+    _log_staff_activity(
+        request.user,
+        'audit_trail_print_preview',
+        'Opened the audit trail print preview.',
+        'report',
     )
     return render(request, 'admin/activity_logs_print.html', {
         'activity_logs': _build_activity_log_export_rows(activity_logs_queryset),
@@ -7760,6 +8606,136 @@ def admin_users(request):
         'is_archived_view': is_archived_view,
         'admin_menu': get_admin_menu(request)
     })
+
+
+@login_required
+def admin_user_view(request, user_id):
+    """View a customer or staff account profile from the admin panel."""
+    access_denied = _require_admin_roles(request, USER_MANAGEMENT_ROLE_VALUES)
+    if access_denied:
+        return access_denied
+
+    view_user = get_object_or_404(User.objects.select_related('profile'), id=user_id)
+    profile = getattr(view_user, 'profile', None)
+    role_value = _get_user_role_value(view_user) or 'customer'
+    role_display = 'Owner' if role_value == 'owner' else (
+        profile.get_role_display() if profile else role_value.replace('_', ' ').title()
+    )
+    is_customer_account = (
+        role_value == 'customer'
+        and not view_user.is_staff
+        and not view_user.is_superuser
+    )
+
+    cake_orders = list(
+        CakeOrder.objects.filter(user=view_user)
+        .select_related('cake')
+        .order_by('-created_at')
+    )
+    package_orders = list(
+        PackageOrder.objects.filter(user=view_user)
+        .select_related('package')
+        .order_by('-created_at')
+    )
+
+    recent_order_history = sorted(
+        [
+            {
+                'type_label': 'Cake Order',
+                'order_id': order.id,
+                'product_name': order.cake.name if order.cake else 'Custom Cake',
+                'product_code': order.cake.product_code if order.cake else '',
+                'status_key': order.order_status,
+                'status_label': order.get_order_status_display(),
+                'total_price': order.total_price or Decimal('0.00'),
+                'created_at': order.created_at,
+            }
+            for order in cake_orders
+        ] + [
+            {
+                'type_label': 'Package Order',
+                'order_id': order.id,
+                'product_name': order.package.name if order.package else 'Custom Package',
+                'product_code': order.package.product_code if order.package else '',
+                'status_key': order.order_status,
+                'status_label': order.get_order_status_display(),
+                'total_price': order.total_price or Decimal('0.00'),
+                'created_at': order.created_at,
+            }
+            for order in package_orders
+        ],
+        key=lambda item: item['created_at'],
+        reverse=True,
+    )[:10]
+
+    total_orders = len(cake_orders) + len(package_orders)
+    completed_orders = sum(1 for order in cake_orders if order.order_status == 'completed')
+    completed_orders += sum(1 for order in package_orders if order.order_status == 'completed')
+    cancelled_orders = sum(1 for order in cake_orders if order.order_status == 'cancelled')
+    cancelled_orders += sum(1 for order in package_orders if order.order_status == 'cancelled')
+    total_spent = Payment.objects.filter(
+        Q(cake_order__user=view_user) | Q(package_order__user=view_user),
+        payment_status='paid',
+        is_archived=False,
+    ).aggregate(total=Sum('amount')).get('total') or Decimal('0.00')
+
+    return render(request, 'admin/users/detail.html', {
+        'view_user': view_user,
+        'profile': profile,
+        'role_display': role_display,
+        'account_status_label': 'Active' if view_user.is_active else 'Inactive',
+        'total_orders': total_orders,
+        'completed_orders': completed_orders,
+        'cancelled_orders': cancelled_orders,
+        'total_spent': total_spent,
+        'recent_order_history': recent_order_history,
+        'is_customer_account': is_customer_account,
+        'admin_menu': get_admin_menu(request),
+    })
+
+
+@login_required
+@require_POST
+def admin_user_password_reset(request, user_id):
+    """Send the standard password reset email to a selected account."""
+    access_denied = _require_admin_roles(request, USER_MANAGEMENT_ROLE_VALUES)
+    if access_denied:
+        return access_denied
+
+    reset_user = get_object_or_404(User, id=user_id)
+    if not reset_user.email:
+        messages.error(request, f'User "{reset_user.username}" does not have an email address on file.')
+        return redirect(_get_safe_admin_return_url(request, 'admin_users'))
+
+    if not reset_user.is_active:
+        messages.error(request, f'User "{reset_user.username}" is inactive. Activate the account before sending a password reset email.')
+        return redirect(_get_safe_admin_return_url(request, 'admin_users'))
+
+    form = HaniliesPasswordResetForm({'email': reset_user.email})
+    if not form.is_valid():
+        messages.error(request, 'Unable to send a password reset email for this account right now.')
+        return redirect(_get_safe_admin_return_url(request, 'admin_users'))
+
+    try:
+        form.save(
+            request=request,
+            use_https=request.is_secure(),
+            email_template_name='registration/password_reset_email.txt',
+            subject_template_name='registration/password_reset_subject.txt',
+        )
+    except Exception as exc:
+        messages.error(request, f'Unable to send password reset email: {exc}')
+        return redirect(_get_safe_admin_return_url(request, 'admin_users'))
+
+    _log_staff_activity(
+        request.user,
+        'user_password_reset_sent',
+        f'Sent a password reset email to user "{reset_user.username}".',
+        'user',
+        reset_user.id,
+    )
+    messages.success(request, f'Password reset email sent to "{reset_user.username}".')
+    return redirect(_get_safe_admin_return_url(request, 'admin_users'))
 
 
 @login_required
@@ -7878,7 +8854,6 @@ def admin_user_edit(request, user_id):
 
 
 @login_required
-@require_POST
 @require_POST
 def admin_user_delete(request, user_id):
     """Archive or restore a user from the admin panel"""

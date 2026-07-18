@@ -1,13 +1,13 @@
 {% extends "admin/base_admin.html" %}
 
-{% block title %}Add Cake{% endblock %}
-{% block page_title %}Add New Cake{% endblock %}
+{% block title %}Add Cake Product{% endblock %}
+{% block page_title %}Add New Cake Product{% endblock %}
 {% block page_icon %}plus-circle{% endblock %}
 
 {% block content %}
 <div class="module-card">
     <div class="module-header">
-        <h2><i class="fas fa-info-circle"></i> Cake Information</h2>
+        <h2><i class="fas fa-info-circle"></i> Cake Product Information</h2>
     </div>
     <div style="padding: 25px;">
         <form method="post" enctype="multipart/form-data">
@@ -78,7 +78,7 @@
             
             <div class="form-group">
                 <button type="submit" class="btn-primary">
-                    <i class="fas fa-save"></i> Save Cake
+                    <i class="fas fa-save"></i> Save Cake Product
                 </button>
                 <a href="{% url 'admin_cakes' %}" class="btn-secondary" style="background: #6c757d; color: white; padding: 10px 25px; border-radius: 50px; text-decoration: none; margin-left: 10px;">
                     <i class="fas fa-times"></i> Cancel

@@ -1,29 +1,21 @@
 {% extends "admin/base_admin.html" %}
 
-{% block title %}Edit Package{% endblock %}
-{% block page_title %}Edit Package: {{ package.name }}{% endblock %}
+{% block title %}Edit Package Product{% endblock %}
+{% block page_title %}Edit Package Product: {{ package.name }}{% endblock %}
 {% block page_icon %}edit{% endblock %}
 
 {% block content %}
 <div class="module-card">
-    <div class="module-header">
-        <h2><i class="fas fa-edit"></i> Edit Package Information</h2>
-    </div>
+    <div class="module-header"><h2><i class="fas fa-edit"></i> Edit Package Product Information</h2></div>
     <div style="padding: 25px;">
         <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
-
             <div class="form-group">
                 <label>Product Code</label>
                 <input type="text" class="form-control" value="{{ package.product_code|default:'Auto-generated after saving' }}" readonly>
                 <small class="text-muted">This package code is generated automatically and stays fixed for the product.</small>
             </div>
-            
-            <div class="form-group">
-                <label>Package Name <span class="text-danger">*</span></label>
-                <input type="text" name="name" class="form-control" value="{{ package.name }}" required>
-            </div>
-            
+            <div class="form-group"><label>Package Name <span class="text-danger">*</span></label><input type="text" name="name" class="form-control" value="{{ package.name }}" required></div>
             <div class="form-group">
                 <label>Package Type <span class="text-danger">*</span></label>
                 <select name="package_type" class="form-control" required>
@@ -33,23 +25,13 @@
                     <option value="wedding" {% if package.package_type == 'wedding' %}selected{% endif %}>Wedding</option>
                 </select>
             </div>
-            
-            <div class="form-group">
-                <label>Short Description</label>
-                <textarea name="description" class="form-control" rows="2">{{ package.description }}</textarea>
-            </div>
-
+            <div class="form-group"><label>Short Description</label><textarea name="description" class="form-control" rows="2">{{ package.description }}</textarea></div>
             <div class="form-group">
                 <label>Package Image</label>
-                {% if package.image %}
-                <div style="margin-bottom: 12px;">
-                    <img src="{{ package.image.url }}" alt="{{ package.name }}" style="width: 180px; height: 120px; object-fit: cover; border-radius: 12px; border: 1px solid #dee2e6;">
-                </div>
-                {% endif %}
+                {% if package.image %}<div style="margin-bottom: 12px;"><img src="{{ package.image.url }}" alt="{{ package.name }}" style="width: 180px; height: 120px; object-fit: cover; border-radius: 12px; border: 1px solid #dee2e6;"></div>{% endif %}
                 <input type="file" name="image" class="form-control" accept="image/*">
                 <small class="text-muted">Upload a new image only if you want to replace the current one.</small>
             </div>
-
             <div class="form-group">
                 <label>Additional Package Images</label>
                 <div class="row g-3">
@@ -57,14 +39,7 @@
                     <div class="col-md-6">
                         <div class="border rounded p-3 h-100 bg-light-subtle">
                             <div class="small text-muted mb-2">Image {{ slot.order|add:1 }}</div>
-                            {% if slot.thumbnail %}
-                            <div style="margin-bottom: 12px;">
-                                <img src="{{ slot.thumbnail.image.url }}" alt="{{ package.name }} image {{ slot.order|add:1 }}" style="width: 100%; height: 120px; object-fit: cover; border-radius: 12px; border: 1px solid #dee2e6;">
-                            </div>
-                            <label class="checkbox-inline mb-2">
-                                <input type="checkbox" name="remove_thumbnail_{{ slot.order }}"> Remove image {{ slot.order|add:1 }}
-                            </label>
-                            {% endif %}
+                            {% if slot.thumbnail %}<div style="margin-bottom: 12px;"><img src="{{ slot.thumbnail.image.url }}" alt="{{ package.name }} image {{ slot.order|add:1 }}" style="width: 100%; height: 120px; object-fit: cover; border-radius: 12px; border: 1px solid #dee2e6;"></div><label class="checkbox-inline mb-2"><input type="checkbox" name="remove_thumbnail_{{ slot.order }}"> Remove image {{ slot.order|add:1 }}</label>{% endif %}
                             <input type="file" name="thumbnail_{{ slot.order }}" class="form-control" accept="image/*">
                             <small class="text-muted d-block mt-2">Upload a new image to replace this slot.</small>
                         </div>
@@ -73,62 +48,22 @@
                 </div>
                 <small class="text-muted">Customers can browse these extra package images inside the zoom view.</small>
             </div>
-            
             <div class="row">
-                <div class="col-md-6">
-                    <div class="form-group">
-                        <label>Base Price (₱) <span class="text-danger">*</span></label>
-                        <input type="number" name="base_price" class="form-control" step="0.01" value="{{ package.base_price }}" required>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="form-group">
-                        <label>Status</label>
-                        <select name="status" class="form-control">
-                            <option value="active" {% if package.status == 'active' %}selected{% endif %}>Active</option>
-                            <option value="inactive" {% if package.status == 'inactive' %}selected{% endif %}>Inactive</option>
-                        </select>
-                    </div>
-                </div>
+                <div class="col-md-4"><div class="form-group"><label>Base Price (P) <span class="text-danger">*</span></label><input type="number" name="base_price" class="form-control" step="0.01" value="{{ package.base_price }}" required></div></div>
+                <div class="col-md-4"><div class="form-group"><label>Stock Quantity</label><input type="number" name="stock" class="form-control" value="{{ package.stock }}" min="0"><small class="text-muted">This stock is tracked under the package product ID and updates automatically after completed package orders.</small></div></div>
+                <div class="col-md-4"><div class="form-group"><label>Status</label><select name="status" class="form-control"><option value="active" {% if package.status == 'active' %}selected{% endif %}>Active</option><option value="inactive" {% if package.status == 'inactive' %}selected{% endif %}>Inactive</option></select></div></div>
             </div>
-            
             {% include "admin/includes/package_inclusion_builder.html" with package_inclusion_editor_items=package_inclusion_editor_items builder_title="Package Inclusion Builder" builder_help="Keep the package inclusion list synced with the storefront details and package summary." %}
-
             {% include "admin/includes/product_option_builder.html" with option_editor_groups=option_editor_groups hidden_input_name="customization_options_payload" builder_title="Package Upsell Builder" builder_help="Configure the optional add-ons and bundled cake customization choices available during package booking." show_option_images=True %}
-            
             <hr>
-            
-            <div class="form-group">
-                <button type="submit" class="btn-primary">
-                    <i class="fas fa-save"></i> Update Package
-                </button>
-                <a href="{% url 'admin_packages' %}" class="btn-secondary" style="background: #6c757d; color: white; padding: 10px 25px; border-radius: 50px; text-decoration: none; margin-left: 10px;">
-                    <i class="fas fa-times"></i> Cancel
-                </a>
-            </div>
+            <div class="form-group"><button type="submit" class="btn-primary"><i class="fas fa-save"></i> Update Package Product</button><a href="{% url 'admin_packages' %}" class="btn-secondary" style="background: #6c757d; color: white; padding: 10px 25px; border-radius: 50px; text-decoration: none; margin-left: 10px;"><i class="fas fa-times"></i> Cancel</a></div>
         </form>
     </div>
 </div>
-
 <style>
-    .text-danger {
-        color: #dc2626;
-    }
-    .form-group {
-        margin-bottom: 20px;
-    }
-    .form-group label {
-        display: block;
-        margin-bottom: 8px;
-        font-weight: 600;
-        color: #495057;
-    }
-    .form-control {
-        width: 100%;
-        padding: 10px 15px;
-        border: 1px solid #dee2e6;
-        border-radius: 10px;
-        font-family: 'Poppins', sans-serif;
-    }
+    .text-danger { color: #dc2626; }
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: #495057; }
+    .form-control { width: 100%; padding: 10px 15px; border: 1px solid #dee2e6; border-radius: 10px; font-family: 'Poppins', sans-serif; }
 </style>
 {% endblock %}

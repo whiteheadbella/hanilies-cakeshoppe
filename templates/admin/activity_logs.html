@@ -1,8 +1,11 @@
 {% extends "admin/base_admin.html" %}
 
-{% block title %}Audit Trail{% endblock %}
-{% block page_title %}Audit Trail{% endblock %}
-{% block page_icon %}clipboard-list{% endblock %}
+{% block title %}Audit Trail
+{% endblock %}
+{% block page_title %}Audit Trail
+{% endblock %}
+{% block page_icon %}clipboard-list
+{% endblock %}
 
 {% block content %}
 <style>
@@ -221,9 +224,16 @@
 .audit-ui-advanced-filters {
     margin-top: 18px;
     border: 1px solid #f1d7e5;
-    border-radius: 16px;
-    background: #fff8fb;
+    border-radius: 18px;
+    background: linear-gradient(180deg, #fff8fb, #ffffff);
     overflow: hidden;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.audit-ui-advanced-filters:hover {
+    border-color: #f3b6ce;
+    box-shadow: 0 14px 28px rgba(244, 114, 182, 0.12);
 }
 
 .audit-ui-advanced-filters summary {
@@ -232,46 +242,403 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 12px;
-    padding: 15px 18px;
-    font-weight: 700;
+    gap: 14px;
+    padding: 16px 18px;
     color: #111827;
+    transition: background-color 0.2s ease;
+}
+
+.audit-ui-advanced-filters summary:hover {
+    background: rgba(255, 241, 245, 0.72);
+}
+
+.audit-ui-advanced-filters summary:focus-visible {
+    outline: 3px solid rgba(236, 72, 153, 0.22);
+    outline-offset: -3px;
+    background: rgba(255, 241, 245, 0.72);
 }
 
 .audit-ui-advanced-filters summary::-webkit-details-marker {
     display: none;
 }
 
-.audit-ui-advanced-filters summary span {
-    color: #6b7280;
-    font-weight: 500;
-    font-size: 0.88rem;
+.audit-ui-advanced-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    flex: 1;
+    flex-wrap: wrap;
 }
 
-.audit-ui-checkbox-panel {
+.audit-ui-advanced-summary strong {
+    display: block;
+    font-size: 0.98rem;
+    font-weight: 800;
+}
+
+.audit-ui-advanced-summary-copy {
+    display: block;
+    margin-top: 4px;
+    color: #6b7280;
+    font-size: 0.86rem;
+    font-weight: 500;
+}
+
+.audit-ui-advanced-interaction {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    color: #9d174d;
+    font-size: 0.78rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.audit-ui-advanced-interaction i {
+    color: #ec4899;
+}
+
+.audit-ui-advanced-trigger-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.audit-ui-advanced-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: #fff;
+    border: 1px solid #fbcfe8;
+    color: #be185d;
+    font-size: 0.78rem;
+    font-weight: 800;
+    white-space: nowrap;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+}
+
+.audit-ui-advanced-total {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 110px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: #fff1f5;
+    border: 1px solid #fbcfe8;
+    color: #be185d;
+    font-size: 0.82rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.audit-ui-advanced-chevron {
+    color: #be185d;
+    transition: transform 0.2s ease;
+}
+
+.audit-ui-advanced-filters[open] {
+    border-color: #f3b6ce;
+    box-shadow: 0 16px 30px rgba(244, 114, 182, 0.16);
+}
+
+.audit-ui-advanced-filters[open] .audit-ui-advanced-chevron {
+    transform: rotate(180deg);
+}
+
+.audit-ui-advanced-panel {
     border-top: 1px solid #f3dce6;
     padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
 }
 
-.audit-ui-checkbox-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 10px;
+.audit-ui-advanced-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
 }
 
-.audit-ui-checkbox-chip {
+.audit-ui-action-search {
     display: flex;
     align-items: center;
     gap: 10px;
+    min-height: 44px;
+    flex: 1 1 280px;
+    padding: 0 12px;
+    border-radius: 14px;
+    border: 1px solid #e7d5df;
     background: #fff;
-    border: 1px solid #e7eaf0;
-    border-radius: 12px;
-    padding: 10px 12px;
-    color: #374151;
 }
 
-.audit-ui-checkbox-chip input {
+.audit-ui-action-search i {
+    color: #9ca3af;
+}
+
+.audit-ui-action-search input {
+    width: 100%;
+    border: none;
+    outline: none;
+    background: transparent;
+    padding: 11px 0;
+    color: #111827;
+}
+
+.audit-ui-action-search:focus-within {
+    border-color: #f472b6;
+    box-shadow: 0 0 0 4px rgba(244, 114, 182, 0.12);
+}
+
+.audit-ui-advanced-toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.audit-ui-toolbar-btn-compact {
+    padding: 9px 14px;
+    font-size: 0.84rem;
+}
+
+.audit-ui-advanced-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.audit-ui-advanced-meta .audit-ui-filter-note {
     margin: 0;
+}
+
+.audit-action-accordion {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.audit-action-group.is-search-hidden {
+    display: none;
+}
+
+.audit-action-group-card {
+    border: 1px solid #f2dde7;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+    overflow: hidden;
+}
+
+.audit-action-group-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    flex-wrap: wrap;
+}
+
+.audit-action-group-toggle {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    flex: 1 1 240px;
+    border: none;
+    background: transparent;
+    padding: 0;
+    text-align: left;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+
+.audit-action-group-toggle:hover {
+    opacity: 0.92;
+}
+
+.audit-action-group-toggle:focus-visible {
+    outline: 3px solid rgba(236, 72, 153, 0.22);
+    outline-offset: 4px;
+    border-radius: 12px;
+}
+
+.audit-action-group-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #fff1f5, #fff7ed);
+    color: #db2777;
+    flex-shrink: 0;
+}
+
+.audit-action-group-copy {
+    min-width: 0;
+}
+
+.audit-action-group-copy strong {
+    display: block;
+    color: #111827;
+    font-size: 0.94rem;
+    font-weight: 800;
+}
+
+.audit-action-group-copy span {
+    display: block;
+    margin-top: 3px;
+    color: #6b7280;
+    font-size: 0.82rem;
+    line-height: 1.4;
+}
+
+.audit-action-group-tools {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.audit-action-group-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 84px;
+    padding: 7px 10px;
+    border-radius: 999px;
+    background: #fff1f5;
+    color: #be185d;
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+.audit-action-select-all {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: 999px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    color: #374151;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.audit-action-select-all input {
+    margin: 0;
+}
+
+.audit-action-clear-btn {
+    border: none;
+    background: transparent;
+    color: #be185d;
+    font-size: 0.8rem;
+    font-weight: 800;
+    padding: 6px 0;
+}
+
+.audit-action-clear-btn[disabled] {
+    color: #cbd5e1;
+}
+
+.audit-action-group-body {
+    padding: 0 16px 16px;
+}
+
+.audit-action-item-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+}
+
+.audit-action-item {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    min-height: 52px;
+    padding: 12px;
+    border-radius: 14px;
+    border: 1px solid #e7eaf0;
+    background: #fcfcfd;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.audit-action-item:hover {
+    transform: translateY(-1px);
+    border-color: #f3c5d7;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+}
+
+.audit-action-item.is-checked {
+    border-color: #f9a8d4;
+    background: linear-gradient(135deg, #fff1f5, #fffdf8);
+    box-shadow: inset 0 0 0 1px rgba(249, 168, 212, 0.4);
+}
+
+.audit-action-item input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.audit-action-item-indicator {
+    width: 18px;
+    height: 18px;
+    margin-top: 2px;
+    border-radius: 999px;
+    border: 1px solid #d1d5db;
+    background: #fff;
+    color: transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.62rem;
+    flex-shrink: 0;
+}
+
+.audit-action-item.is-checked .audit-action-item-indicator {
+    border-color: #ec4899;
+    background: #ec4899;
+    color: #fff;
+}
+
+.audit-action-item-copy {
+    min-width: 0;
+}
+
+.audit-action-item-copy strong {
+    display: block;
+    color: #111827;
+    font-size: 0.84rem;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+.audit-action-empty-search,
+.audit-action-category-empty {
+    padding: 14px;
+    border-radius: 14px;
+    background: #fff8fb;
+    border: 1px dashed #f3c5d7;
+    color: #6b7280;
+    font-size: 0.84rem;
+    text-align: center;
 }
 
 .audit-ui-filter-footer {
@@ -709,6 +1076,131 @@
     .audit-export-note {
         margin: 0 16px 16px;
     }
+
+    .audit-ui-advanced-panel {
+        padding: 16px;
+    }
+
+    .audit-action-group-head {
+        padding: 14px;
+    }
+
+    .audit-action-item-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .audit-ui-filter-card {
+        padding: 18px 16px;
+    }
+
+    .audit-ui-advanced-filters summary,
+    .audit-ui-advanced-panel,
+    .audit-action-group-head,
+    .audit-action-group-body {
+        padding-left: 14px;
+        padding-right: 14px;
+    }
+
+    .audit-ui-advanced-summary {
+        align-items: flex-start;
+    }
+
+    .audit-ui-advanced-trigger,
+    .audit-ui-advanced-total,
+    .audit-action-group-count,
+    .audit-action-select-all {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .audit-ui-advanced-toolbar,
+    .audit-ui-advanced-meta,
+    .audit-action-group-head,
+    .audit-action-group-tools {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .audit-action-group-toggle {
+        width: 100%;
+    }
+
+    .audit-action-item-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .audit-ui-filter-footer {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .audit-ui-reset-link {
+        justify-content: center;
+    }
+
+    .audit-ui-table,
+    .audit-ui-table thead,
+    .audit-ui-table tbody,
+    .audit-ui-table tr,
+    .audit-ui-table th,
+    .audit-ui-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .audit-ui-table thead {
+        display: none;
+    }
+
+    .audit-ui-table tbody {
+        display: grid;
+        gap: 12px;
+    }
+
+    .audit-ui-table tbody tr {
+        border: 1px solid #f3d6e5;
+        border-radius: 18px;
+        overflow: hidden;
+        box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+        background: #ffffff;
+    }
+
+    .audit-ui-table td {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 14px;
+        padding: 12px 14px;
+        text-align: right;
+        white-space: normal;
+        border-bottom: 1px solid #fce7f3;
+    }
+
+    .audit-ui-table td::before {
+        content: attr(data-label);
+        color: #9d174d;
+        font-weight: 700;
+        text-align: left;
+    }
+
+    .audit-ui-table td:last-child {
+        border-bottom: none;
+    }
+
+    .audit-ui-table td.audit-empty-state {
+        display: block;
+        text-align: center;
+    }
+
+    .audit-ui-table td.audit-empty-state::before {
+        content: none;
+    }
+
+    .audit-ui-row-actions {
+        align-items: flex-start;
+    }
 }
 </style>
 
@@ -768,7 +1260,7 @@
         </article>
     </div>
 
-    <form method="get" class="audit-ui-filter-card">
+    <form method="get" class="audit-ui-filter-card" data-audit-filter-form>
         <input type="hidden" name="tab" value="{{ current_tab }}">
         {% if is_archived_view %}
         <input type="hidden" name="archived" value="1">
@@ -825,18 +1317,85 @@
             </label>
         </div>
 
-        <details class="audit-ui-advanced-filters" {% if current_filters.action_values %}open{% endif %}>
+        <details class="audit-ui-advanced-filters" id="auditAdvancedFilters" {% if current_filters.action_values %}open{% endif %}>
             <summary>
-                <div>Advanced Action Filters</div>
-                <span>{{ current_filters.action_values|length }} selected</span>
+                <div class="audit-ui-advanced-summary">
+                    <div>
+                        <strong>Advanced Action Filters</strong>
+                        <span class="audit-ui-advanced-summary-copy">Group related actions, search faster, and keep action-level filtering tidy until you are ready to apply it.</span>
+                        <span class="audit-ui-advanced-interaction">
+                            <i class="fas fa-hand-pointer"></i>
+                            <span data-advanced-summary-copy>Click to expand filters</span>
+                        </span>
+                    </div>
+                    <div class="audit-ui-advanced-trigger-wrap">
+                        <span class="audit-ui-advanced-total" data-advanced-selected aria-live="polite">{{ current_filters.action_values|length }} selected</span>
+                        <span class="audit-ui-advanced-trigger" data-advanced-trigger-label aria-hidden="true">
+                            <i class="fas fa-sliders"></i>
+                            <span>Tap to open</span>
+                        </span>
+                    </div>
+                </div>
+                <i class="fas fa-chevron-down audit-ui-advanced-chevron" aria-hidden="true"></i>
             </summary>
-            <div class="audit-ui-checkbox-panel">
-                <div class="audit-ui-checkbox-grid">
-                    {% for action in action_options %}
-                    <label class="audit-ui-checkbox-chip">
-                        <input type="checkbox" name="action" value="{{ action }}" {% if action in current_filters.action_values %}checked{% endif %}>
-                        <span>{{ action|title }}</span>
+            <div class="audit-ui-advanced-panel">
+                <div class="audit-ui-advanced-toolbar">
+                    <label class="audit-ui-action-search" for="auditActionSearch">
+                        <i class="fas fa-search"></i>
+                        <input type="search" id="auditActionSearch" placeholder="Search actions or event names" aria-label="Search actions" data-action-search-input>
                     </label>
+                    <div class="audit-ui-advanced-toolbar-actions">
+                        <button type="button" class="audit-ui-toolbar-btn audit-ui-toolbar-btn-outline audit-ui-toolbar-btn-compact" data-clear-all-actions>
+                            <i class="fas fa-broom"></i>
+                            <span>Clear All</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="audit-ui-advanced-meta">
+                    <div class="audit-ui-filter-note">Selections stay in place while you open or collapse categories. Filters only apply when you click Apply Filters.</div>
+                    <span class="audit-action-group-count" data-advanced-selected aria-live="polite">{{ current_filters.action_values|length }} selected</span>
+                </div>
+                <div class="audit-action-accordion">
+                    {% for group in action_groups %}
+                    <section class="audit-action-group{% if not group.has_actions %} is-empty{% endif %}" data-action-group >
+                        <div class="audit-action-group-card">
+                            <div class="audit-action-group-head">
+                                <button type="button" class="audit-action-group-toggle" data-group-toggle aria-expanded="{% if group.default_open %}true{% else %}false{% endif %}" aria-controls="audit-group-{{ group.key }}">
+                                    <span class="audit-action-group-icon"><i class="fas fa-{{ group.icon }}"></i></span>
+                                    <span class="audit-action-group-copy">
+                                        <strong>{{ group.label }}</strong>
+                                        <span>{{ group.description }}</span>
+                                    </span>
+                                </button>
+                                <div class="audit-action-group-tools">
+                                    <span class="audit-action-group-count" data-group-selected aria-live="polite">{{ group.selected_count }} selected</span>
+                                    <label class="audit-action-select-all">
+                                        <input type="checkbox" data-select-all {% if group.selected_count and group.selected_count == group.total_actions %}checked{% endif %} {% if not group.has_actions %}disabled{% endif %}>
+                                        <span>Select All</span>
+                                    </label>
+                                    <button type="button" class="audit-action-clear-btn" data-clear-group {% if not group.has_actions or not group.selected_count %}disabled{% endif %}>Clear Category</button>
+                                </div>
+                            </div>
+                            <div class="audit-action-group-body" id="audit-group-{{ group.key }}" data-group-body {% if not group.default_open %}hidden{% endif %}>
+                                {% if group.has_actions %}
+                                <div class="audit-action-item-grid">
+                                    {% for action in group.actions %}
+                                    <label class="audit-action-item {% if action.selected %}is-checked{% endif %}" data-action-item data-search-text="{{ action.search_text }}">
+                                        <input type="checkbox" name="action" value="{{ action.value }}" {% if action.selected %}checked{% endif %}>
+                                        <span class="audit-action-item-indicator"><i class="fas fa-check"></i></span>
+                                        <span class="audit-action-item-copy">
+                                            <strong>{{ action.label }}</strong>
+                                        </span>
+                                    </label>
+                                    {% endfor %}
+                                </div>
+                                <div class="audit-action-empty-search" data-empty-search hidden>No actions in {{ group.label }} match this search.</div>
+                                {% else %}
+                                <div class="audit-action-category-empty">No audit actions in this category yet.</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </section>
                     {% endfor %}
                 </div>
             </div>
@@ -911,8 +1470,8 @@
                 <tbody>
                     {% for log in activity_logs %}
                     <tr>
-                        <td>{{ log.exact_timestamp }}</td>
-                        <td>
+                        <td data-label="Date / Time">{{ log.exact_timestamp }}</td>
+                        <td data-label="User">
                             <div class="audit-ui-user-cell">
                                 <strong>{{ log.display_actor }}</strong>
                                 {% if not log.actor %}
@@ -920,25 +1479,25 @@
                                 {% endif %}
                             </div>
                         </td>
-                        <td>
+                        <td data-label="Role">
                             <span class="audit-role-badge audit-role-badge-{{ log.role_badge_key }}">{{ log.role_badge_label }}</span>
                         </td>
-                        <td>
+                        <td data-label="Module">
                             <div class="audit-ui-module-cell">
                                 <strong>{{ log.display_module }}</strong>
                                 <span>{{ log.display_target }}</span>
                             </div>
                         </td>
-                        <td>
+                        <td data-label="Action">
                             <span class="audit-action-badge audit-action-badge-{{ log.action_badge_key }}">{{ log.display_action }}</span>
                         </td>
-                        <td>
+                        <td data-label="Record ID">
                             <div class="audit-ui-record-cell">
                                 <strong>{{ log.display_record_id }}</strong>
                                 <span>{% if log.target_id %}Linked record{% else %}No record link{% endif %}</span>
                             </div>
                         </td>
-                        <td>
+                        <td data-label="Details">
                             <div class="audit-ui-description-cell">
                                 <details class="audit-ui-description-details">
                                     <summary class="audit-ui-description-toggle">{{ log.description|truncatechars:110 }}</summary>
@@ -946,7 +1505,7 @@
                                 </details>
                             </div>
                         </td>
-                        <td>
+                        <td data-label="Status">
                             <div class="audit-ui-row-actions">
                                 <span class="audit-ui-row-state {% if is_archived_view %}audit-ui-row-state-archived{% else %}audit-ui-row-state-active{% endif %}">{% if is_archived_view %}Archived{% else %}Active{% endif %}</span>
                                 <form method="post" action="{% url 'admin_activity_log_delete' log.id %}">
@@ -1068,31 +1627,31 @@
                 <tbody>
                     {% for row in export_preview_rows %}
                     <tr>
-                        <td>{{ row.date_display }}</td>
-                        <td>
+                        <td data-label="Date / Time">{{ row.date_display }}</td>
+                        <td data-label="User">
                             <div class="audit-ui-user-cell">
                                 <strong>{{ row.actor }}</strong>
                             </div>
                         </td>
-                        <td>
+                        <td data-label="Role">
                             <span class="audit-role-badge audit-role-badge-{{ row.role_badge_key }}">{{ row.role_badge_label }}</span>
                         </td>
-                        <td>
+                        <td data-label="Module">
                             <div class="audit-ui-module-cell">
                                 <strong>{{ row.module }}</strong>
                                 <span>{{ row.target }}</span>
                             </div>
                         </td>
-                        <td>
+                        <td data-label="Action">
                             <span class="audit-action-badge audit-action-badge-{{ row.action_key }}">{{ row.action }}</span>
                         </td>
-                        <td>
+                        <td data-label="Record ID">
                             <div class="audit-ui-record-cell">
                                 <strong>{{ row.display_record_id }}</strong>
                                 <span>{% if row.record_id %}Linked record{% else %}No record link{% endif %}</span>
                             </div>
                         </td>
-                        <td>
+                        <td data-label="Details">
                             <div class="audit-ui-description-cell">
                                 <details class="audit-ui-description-details">
                                     <summary class="audit-ui-description-toggle">{{ row.description|truncatechars:110 }}</summary>
@@ -1100,7 +1659,7 @@
                                 </details>
                             </div>
                         </td>
-                        <td>
+                        <td data-label="Status">
                             <span class="audit-ui-row-state audit-ui-row-state-{{ row.status_key }}">{{ row.status_label }}</span>
                         </td>
                     </tr>
@@ -1134,4 +1693,221 @@
     </section>
     {% endif %}
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const filterForm = document.querySelector('[data-audit-filter-form]');
+    const advancedFilters = document.getElementById('auditAdvancedFilters');
+    if (!filterForm || !advancedFilters) {
+        return;
+    }
+
+    const searchInput = filterForm.querySelector('[data-action-search-input]');
+    const totalSelectedNodes = Array.from(filterForm.querySelectorAll('[data-advanced-selected]'));
+    const groupNodes = Array.from(filterForm.querySelectorAll('[data-action-group]'));
+    const clearAllButton = filterForm.querySelector('[data-clear-all-actions]');
+    const summaryCopy = filterForm.querySelector('[data-advanced-summary-copy]');
+    const triggerLabel = filterForm.querySelector('[data-advanced-trigger-label] span');
+    const storageKey = 'hanilies-audit-advanced-filters-open';
+
+    function actionCheckboxes(scope) {
+        return Array.from(scope.querySelectorAll('input[type="checkbox"][name="action"]'));
+    }
+
+    function formatSelectedLabel(count) {
+        return count === 1 ? '1 selected' : count + ' selected';
+    }
+
+    function setCheckedState(itemNode, checked) {
+        itemNode.classList.toggle('is-checked', checked);
+    }
+
+    function updateGroupState(groupNode) {
+        const checkboxes = actionCheckboxes(groupNode);
+        const checkedCount = checkboxes.filter(function (checkbox) {
+            return checkbox.checked;
+        }).length;
+        const totalCount = checkboxes.length;
+        const selectAll = groupNode.querySelector('[data-select-all]');
+        const countNode = groupNode.querySelector('[data-group-selected]');
+        const clearButton = groupNode.querySelector('[data-clear-group]');
+
+        if (countNode) {
+            countNode.textContent = formatSelectedLabel(checkedCount);
+        }
+
+        if (selectAll) {
+            selectAll.checked = totalCount > 0 && checkedCount === totalCount;
+            selectAll.indeterminate = checkedCount > 0 && checkedCount < totalCount;
+        }
+
+        if (clearButton) {
+            clearButton.disabled = checkedCount === 0 || totalCount === 0;
+        }
+
+        checkboxes.forEach(function (checkbox) {
+            const itemNode = checkbox.closest('[data-action-item]');
+            if (itemNode) {
+                setCheckedState(itemNode, checkbox.checked);
+            }
+        });
+    }
+
+    function updateTotalSelected() {
+        const checkedCount = filterForm.querySelectorAll('input[type="checkbox"][name="action"]:checked').length;
+        totalSelectedNodes.forEach(function (node) {
+            node.textContent = formatSelectedLabel(checkedCount);
+        });
+    }
+
+    function updateAdvancedSummaryState() {
+        const isOpen = advancedFilters.open;
+        if (summaryCopy) {
+            summaryCopy.textContent = isOpen
+                ? 'Click again to collapse this section after choosing the actions you want.'
+                : 'Click to expand grouped actions, search inside them, and select multiple filters before applying.';
+        }
+        if (triggerLabel) {
+            triggerLabel.textContent = isOpen ? 'Tap to close' : 'Tap to open';
+        }
+    }
+
+    function filterActionItems() {
+        const term = searchInput ? searchInput.value.trim().toLowerCase() : '';
+
+        groupNodes.forEach(function (groupNode) {
+            const items = Array.from(groupNode.querySelectorAll('[data-action-item]'));
+            const emptySearch = groupNode.querySelector('[data-empty-search]');
+            let visibleItems = 0;
+
+            items.forEach(function (itemNode) {
+                const haystack = (itemNode.getAttribute('data-search-text') || '').toLowerCase();
+                const matches = !term || haystack.indexOf(term) !== -1;
+                itemNode.hidden = !matches;
+                if (matches) {
+                    visibleItems += 1;
+                }
+            });
+
+            if (emptySearch) {
+                emptySearch.hidden = visibleItems !== 0 || !term;
+            }
+
+            groupNode.classList.toggle('is-search-hidden', Boolean(term) && items.length > 0 && visibleItems === 0);
+        });
+    }
+
+    function toggleGroup(groupNode, forceExpanded) {
+        const toggle = groupNode.querySelector('[data-group-toggle]');
+        const body = groupNode.querySelector('[data-group-body]');
+        if (!toggle || !body) {
+            return;
+        }
+
+        const isExpanded = typeof forceExpanded === 'boolean'
+            ? forceExpanded
+            : toggle.getAttribute('aria-expanded') !== 'true';
+
+        toggle.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+        body.hidden = !isExpanded;
+    }
+
+    filterForm.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' && event.target.tagName !== 'BUTTON' && event.target.type !== 'submit') {
+            event.preventDefault();
+        }
+    });
+
+    if (searchInput) {
+        searchInput.addEventListener('input', filterActionItems);
+    }
+
+    if (clearAllButton) {
+        clearAllButton.addEventListener('click', function () {
+            actionCheckboxes(filterForm).forEach(function (checkbox) {
+                checkbox.checked = false;
+            });
+            groupNodes.forEach(function (groupNode) {
+                updateGroupState(groupNode);
+            });
+            updateTotalSelected();
+            if (searchInput) {
+                searchInput.value = '';
+                filterActionItems();
+            }
+        });
+    }
+
+    groupNodes.forEach(function (groupNode) {
+        const toggle = groupNode.querySelector('[data-group-toggle]');
+        const selectAll = groupNode.querySelector('[data-select-all]');
+        const clearButton = groupNode.querySelector('[data-clear-group]');
+        const checkboxes = actionCheckboxes(groupNode);
+
+        if (toggle) {
+            toggle.addEventListener('click', function () {
+                toggleGroup(groupNode);
+            });
+            toggleGroup(groupNode, toggle.getAttribute('aria-expanded') === 'true');
+        }
+
+        if (selectAll) {
+            selectAll.addEventListener('change', function () {
+                checkboxes.forEach(function (checkbox) {
+                    checkbox.checked = selectAll.checked;
+                });
+                updateGroupState(groupNode);
+                updateTotalSelected();
+            });
+        }
+
+        if (clearButton) {
+            clearButton.addEventListener('click', function () {
+                checkboxes.forEach(function (checkbox) {
+                    checkbox.checked = false;
+                });
+                updateGroupState(groupNode);
+                updateTotalSelected();
+            });
+        }
+
+        checkboxes.forEach(function (checkbox) {
+            checkbox.addEventListener('change', function () {
+                updateGroupState(groupNode);
+                updateTotalSelected();
+            });
+        });
+
+        updateGroupState(groupNode);
+    });
+
+    try {
+        const rememberedState = window.localStorage.getItem(storageKey);
+        if (rememberedState === 'true') {
+            advancedFilters.open = true;
+        } else if (rememberedState === 'false' && !filterForm.querySelector('input[name="action"]:checked')) {
+            advancedFilters.open = false;
+        }
+    } catch (error) {
+        // Ignore storage access issues and keep the server-rendered state.
+    }
+
+    advancedFilters.addEventListener('toggle', function () {
+        try {
+            window.localStorage.setItem(storageKey, advancedFilters.open ? 'true' : 'false');
+        } catch (error) {
+            // Ignore storage access issues.
+        }
+        updateAdvancedSummaryState();
+    });
+
+    filterActionItems();
+    updateTotalSelected();
+    updateAdvancedSummaryState();
+});
+</script>
 {% endblock %}
+
+
+
+

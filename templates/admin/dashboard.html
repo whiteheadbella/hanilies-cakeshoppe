@@ -1,12 +1,16 @@
 {% extends "admin/base_admin.html" %}
 {% load static %}
 
-{% block title %}Dashboard{% endblock %}
-{% block page_title %}Dashboard{% endblock %}
-{% block page_icon %}tachometer-alt{% endblock %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block page_title %}Admin Dashboard{% endblock %}
+{% block page_icon %}house{% endblock %}
 
 {% block extra_css %}
 <style>
+    .page-title i {
+        font-size: 1.3em;
+    }
+
     .dashboard-shell {
         display: flex;
         flex-direction: column;
@@ -738,6 +742,42 @@
         text-overflow: ellipsis;
     }
 
+    .product-summary-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+    }
+
+    .product-code-badge {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: #eff6ff;
+        color: #1d4ed8;
+        font-size: 0.72rem;
+        font-weight: 800;
+    }
+
+    .order-sales-helper {
+        color: #4b5563;
+        font-size: 0.83rem;
+        font-weight: 500;
+        line-height: 1.45;
+    }
+
+    .report-link {
+        color: #1d4ed8;
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+    .report-link:hover {
+        text-decoration: underline;
+    }
+
     .status-badge {
         display: inline-flex;
         align-items: center;
@@ -1185,7 +1225,7 @@
 
         <div class="kpi-grid-secondary">
             {% for card in secondary_cards %}
-            <a href="{{ card.url }}" class="stat-card{% if card.title == "This Week's Sales" or card.title == "This Month's Sales" %} is-sales{% elif card.title == 'Total Users' %} is-users{% elif card.title == 'Total Cakes' or card.title == 'Total Packages' %} is-catalog{% elif card.tone == 'sales' %} is-sales{% elif card.tone == 'neutral' %} is-catalog{% endif %}">
+            <a href="{{ card.url }}" class="stat-card{% if card.title == "This Week's Sales" or card.title == "This Month's Sales" %} is-sales{% elif card.title == 'Total Users' %} is-users{% elif card.title == 'Total Cake Products' or card.title == 'Total Package Products' %} is-catalog{% elif card.tone == 'sales' %} is-sales{% elif card.tone == 'neutral' %} is-catalog{% endif %}">
                 <div class="stat-card-body">
                     <div class="stat-card-top">
                         <div>
@@ -1204,7 +1244,162 @@
             {% endfor %}
         </div>
     </section>
-    <section class="dashboard-secondary-grid">
+
+    {% if order_sales_cards or order_sales_report_rows %}
+    <section class="dashboard-stack" id="order-sales-report">
+        <div class="dashboard-section-title">
+            <div>
+                <span class="dashboard-section-kicker"><i class="fas fa-chart-column"></i> Order Activity Sales</span>
+                <h3>Sales by Product ID</h3>
+                <p>Official revenue stays based on paid payments above. This section adds booked cake and package order sales so administrators can monitor business activity by product ID without replacing the payment report.</p>
+            </div>
+        </div>
+
+        {% if order_sales_cards %}
+        <div class="kpi-grid-secondary">
+            {% for card in order_sales_cards %}
+            <a href="{{ card.url }}" class="stat-card is-orders">
+                <div class="stat-card-body">
+                    <div class="stat-card-top">
+                        <div>
+                            <p class="stat-label">{{ card.title|safe }}</p>
+                        </div>
+                        <div class="stat-icon-wrapper"><i class="fas fa-{{ card.icon }}"></i></div>
+                    </div>
+                    <div class="stat-card-value">{{ card.value }}</div>
+                    <div class="stat-copy">{{ card.copy }}</div>
+                    <div class="stat-progress"><span></span></div>
+                    <div class="stat-foot">
+                        <span class="stat-chip"><i class="fas fa-chart-simple"></i> {{ card.chip }}</span>
+                        <span>Open</span>
+                    </div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="module-card full-span">
+            <div class="module-header">
+                <h2><i class="fas fa-chart-column"></i> Order Sales Report</h2>
+                {% if can_view_payments %}
+                <a href="{% url 'admin_payments' %}" class="view-all-link">Official Revenue <i class="fas fa-arrow-right"></i></a>
+                {% endif %}
+            </div>
+            <div class="table-responsive">
+                <table class="module-table">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Product</th>
+                            <th>Product ID</th>
+                            <th>Orders</th>
+                            <th>Units Sold</th>
+                            <th>Gross Order Sales</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in order_sales_report_rows %}
+                        <tr>
+                            <td data-label="Type"><span class="status-badge status-{% if row.type_key == 'cake' %}completed{% else %}confirmed{% endif %}">{{ row.type_label }}</span></td>
+                            <td data-label="Product">
+                                <div class="product-summary-stack">
+                                    <a href="{{ row.manage_url }}" class="report-link">{{ row.product_name }}</a>
+                                    <span class="order-sales-helper">{{ row.order_count }} order{{ row.order_count|pluralize }} contributing to this total.</span>
+                                </div>
+                            </td>
+                            <td data-label="Product ID"><span class="product-code-badge">{{ row.product_id }}</span></td>
+                            <td data-label="Orders"><span class="cell-strong">{{ row.order_count }}</span></td>
+                            <td data-label="Units Sold"><span class="cell-strong">{{ row.units_sold }}</span></td>
+                            <td data-label="Gross Order Sales"><span class="cell-strong">P{{ row.gross_sales|floatformat:2 }}</span></td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="empty-state">
+                                <i class="fas fa-chart-column"></i>
+                                <p>No order sales records are available yet</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="table-footer-note">Payment-based revenue remains the official sales report. These rows show booked order totals from cake and package orders for activity visibility and product ID tracking.</div>
+        </div>
+    </section>
+    {% endif %}
+
+    {% if stock_report_cards or stock_report_rows %}
+    <section class="dashboard-stack" id="stock-report">
+        <div class="dashboard-section-title">
+            <div>
+                <span class="dashboard-section-kicker"><i class="fas fa-boxes-stacked"></i> Inventory Overview</span>
+                <h3>Stock by Product ID</h3>
+                <p>Track cake and package product stock levels by product ID. Stock is deducted automatically when a matching order is marked completed and restored if the order moves away from completed.</p>
+            </div>
+        </div>
+
+        {% if stock_report_cards %}
+        <div class="kpi-grid-secondary">
+            {% for card in stock_report_cards %}
+            <a href="{% url 'admin_stock_report' %}" class="stat-card{% if card.title == 'Needs Replenishment' or card.title == 'Out of Stock' %} is-critical{% else %} is-catalog{% endif %}">
+                <div class="stat-card-body">
+                    <div class="stat-card-top">
+                        <div><p class="stat-label">{{ card.title }}</p></div>
+                        <div class="stat-icon-wrapper"><i class="fas fa-{{ card.icon }}"></i></div>
+                    </div>
+                    <div class="stat-card-value">{{ card.value }}</div>
+                    <div class="stat-copy">{{ card.copy }}</div>
+                    <div class="stat-progress"><span></span></div>
+                    <div class="stat-foot">
+                        <span class="stat-chip"><i class="fas fa-warehouse"></i> {{ card.chip }}</span>
+                        <span>Open</span>
+                    </div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="module-card full-span">
+            <div class="module-header">
+                <h2><i class="fas fa-boxes-stacked"></i> Stock Report</h2>
+                <a href="{% url 'admin_stock_report' %}" class="view-all-link">Open Stock Report <i class="fas fa-arrow-right"></i></a>
+            </div>
+            <div class="table-responsive">
+                <table class="module-table">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Product</th>
+                            <th>Product ID</th>
+                            <th>Stock</th>
+                            <th>Availability</th>
+                            <th>Storefront</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in stock_report_rows %}
+                        <tr>
+                            <td data-label="Type"><span class="status-badge status-{% if row.type_key == 'cake' %}completed{% else %}confirmed{% endif %}">{{ row.type_label }}</span></td>
+                            <td data-label="Product"><div class="product-summary-stack"><a href="{{ row.manage_url }}" class="report-link">{{ row.product_name }}</a><span class="order-sales-helper">Inventory is tracked directly from this product record.</span></div></td>
+                            <td data-label="Product ID"><span class="product-code-badge">{{ row.product_code }}</span></td>
+                            <td data-label="Stock"><span class="cell-strong">{{ row.stock_value }}</span></td>
+                            <td data-label="Availability"><span class="status-badge status-{{ row.health_tone }}">{{ row.health_label }}</span></td>
+                            <td data-label="Storefront"><span class="status-badge status-{% if row.is_active %}active{% else %}cancelled{% endif %}">{% if row.is_active %}Active{% else %}Inactive{% endif %}</span></td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="6" class="empty-state"><i class="fas fa-box-open"></i><p>No stock records are available yet</p></td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="table-footer-note">Use the full stock report to replenish low inventory and manage stock counts for cake and package product IDs.</div>
+        </div>
+    </section>
+    {% endif %}
+
+    <section class="dashboard-secondary-grid"> 
         <div class="dashboard-panel">
             <h3><i class="fas fa-bolt" style="color: #f59e0b;"></i> Quick Actions</h3>
             <p class="dashboard-panel-copy">Jump into the most common bakery admin tasks with fewer clicks.</p>
@@ -1326,7 +1521,12 @@
                                 <div class="cell-strong">{{ order.user.username }}</div>
                                 <div class="cell-muted">{{ order.created_at|date:"M d, Y" }}</div>
                             </td>
-                            <td data-label="Cake"><div class="cell-truncate">{{ order.cake.name|default:"Custom Cake" }}</div></td>
+                            <td data-label="Cake">
+                                <div class="product-summary-stack">
+                                    <div class="cell-truncate cell-strong">{{ order.cake.name|default:"Custom Cake" }}</div>
+                                    <span class="product-code-badge">{{ order.cake.product_code|default:"Not assigned" }}</span>
+                                </div>
+                            </td>
                             <td data-label="Total"><span class="cell-strong">P{{ order.total_price }}</span></td>
                             <td data-label="Status"><span class="status-badge status-{{ order.order_status }}">{{ order.get_order_status_display }}</span></td>
                         </tr>
@@ -1371,7 +1571,12 @@
                                 <div class="cell-strong">{{ order.user.username }}</div>
                                 <div class="cell-muted">{{ order.created_at|date:"M d, Y" }}</div>
                             </td>
-                            <td data-label="Package"><div class="cell-truncate">{{ order.package.name|default:"Custom Package" }}</div></td>
+                            <td data-label="Package">
+                                <div class="product-summary-stack">
+                                    <div class="cell-truncate cell-strong">{{ order.package.name|default:"Custom Package" }}</div>
+                                    <span class="product-code-badge">{{ order.package.product_code|default:"Not assigned" }}</span>
+                                </div>
+                            </td>
                             <td data-label="Event Date">{{ order.event_date|date:"M d, Y" }}</td>
                             <td data-label="Total"><span class="cell-strong">P{{ order.total_price }}</span></td>
                             <td data-label="Status"><span class="status-badge status-{{ order.order_status }}">{{ order.get_order_status_display }}</span></td>
@@ -1393,6 +1598,10 @@
     </section>
 </div>
 {% endblock %}
+
+
+
+
 
 
 

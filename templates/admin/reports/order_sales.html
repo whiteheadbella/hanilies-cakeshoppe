@@ -1,0 +1,107 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Order Sales Report{% endblock %}
+{% block page_title %}Order Sales Report{% endblock %}
+{% block page_icon %}chart-column{% endblock %}
+
+{% block extra_css %}
+<style>
+    .report-shell { display: flex; flex-direction: column; gap: 20px; }
+    .report-intro { margin: 8px 0 0; color: #4b5563; line-height: 1.6; max-width: 780px; }
+    .report-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 18px; }
+    .report-card { background: white; border: 1px solid #f2d8e6; border-radius: 18px; padding: 18px; box-shadow: 0 12px 24px rgba(15, 23, 42, 0.06); }
+    .report-label { color: #be185d; font-size: 0.8rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+    .report-value { margin-top: 12px; color: #111827; font-size: 1.85rem; font-weight: 900; letter-spacing: -0.03em; }
+    .report-copy { margin-top: 8px; color: #6b7280; font-size: 0.88rem; line-height: 1.5; }
+    .report-chip, .report-code-badge { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 6px 10px; font-size: 0.75rem; font-weight: 800; }
+    .report-chip { margin-top: 12px; background: #fff1f7; color: #be185d; }
+    .report-code-badge { background: #eff6ff; color: #1d4ed8; }
+    .report-link { color: #1d4ed8; font-weight: 700; text-decoration: none; }
+    .report-link:hover { text-decoration: underline; }
+    .report-meta, .report-note { color: #6b7280; font-size: 0.86rem; line-height: 1.55; }
+    .report-meta { display: block; margin-top: 4px; }
+    .report-note { margin-top: 12px; }
+    .strong-cell { font-weight: 800; color: #111827; }
+    .report-toolbar { display: flex; gap: 10px; flex-wrap: wrap; }
+    .report-toolbar a { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+
+    @media (max-width: 767px) {
+        .report-shell { gap: 16px; }
+        .report-card-grid { grid-template-columns: 1fr; }
+        .report-card { padding: 16px; border-radius: 16px; }
+        .report-value { font-size: 1.55rem; }
+        .report-toolbar { width: 100%; flex-direction: column; }
+        .report-toolbar a { width: 100%; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="report-shell">
+    <section class="module-card">
+        <div class="module-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap;">
+            <div>
+                <h2><i class="fas fa-chart-column"></i> Order Sales Overview</h2>
+                <p class="report-intro">Track booked cake and package order sales by product ID. Official revenue still stays based on paid payments, while this report shows order activity through {{ today|date:"F j, Y" }}.</p>
+            </div>
+            <div class="report-toolbar">
+                {% if can_view_payments %}
+                <a href="{% url 'admin_payments' %}" class="btn-primary" style="text-decoration: none;"><i class="fas fa-wallet"></i> Open Official Revenue</a>
+                {% endif %}
+                <a href="{% url 'admin_stock_report' %}" class="btn-secondary" style="background: #475569; color: white; padding: 10px 18px; border-radius: 999px; text-decoration: none;"><i class="fas fa-boxes-stacked"></i> Open Stock Report</a>
+            </div>
+        </div>
+        <div class="report-card-grid">
+            {% for card in order_sales_cards %}
+            <article class="report-card">
+                <div class="report-label"><i class="fas fa-{{ card.icon }}"></i> {{ card.title }}</div>
+                <div class="report-value">{{ card.value }}</div>
+                <div class="report-copy">{{ card.copy }}</div>
+                <div class="report-chip"><i class="fas fa-chart-simple"></i> {{ card.chip }}</div>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="module-card">
+        <div class="module-header" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <h2><i class="fas fa-receipt"></i> Sales by Product ID</h2>
+            <span class="report-chip"><i class="fas fa-layer-group"></i> {{ order_sales_report_rows|length }} tracked product{{ order_sales_report_rows|length|pluralize }}</span>
+        </div>
+        <div class="table-responsive">
+            <table class="module-table">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Product</th>
+                        <th>Product ID</th>
+                        <th>Orders</th>
+                        <th>Units Sold</th>
+                        <th>Gross Order Sales</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in order_sales_report_rows %}
+                    <tr>
+                        <td data-label="Type"><span class="status-badge status-{% if row.type_key == 'cake' %}completed{% else %}confirmed{% endif %}">{{ row.type_label }}</span></td>
+                        <td data-label="Product">
+                            <a href="{{ row.manage_url }}" class="report-link">{{ row.product_name }}</a>
+                            <span class="report-meta">{{ row.order_count }} contributing order{{ row.order_count|pluralize }} tracked from cake and package booking activity.</span>
+                        </td>
+                        <td data-label="Product ID"><span class="report-code-badge">{{ row.product_id }}</span></td>
+                        <td data-label="Orders"><span class="strong-cell">{{ row.order_count }}</span></td>
+                        <td data-label="Units Sold"><span class="strong-cell">{{ row.units_sold }}</span></td>
+                        <td data-label="Gross Order Sales"><span class="strong-cell">P{{ row.gross_sales|floatformat:2 }}</span></td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center" style="padding: 32px; color: #6b7280;">No cake or package order sales are available yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="report-note">Payment-based revenue remains the official financial report. Use this order sales report to monitor booked sales activity, units sold, and product ID performance across cakes and packages.</div>
+    </section>
+</div>
+{% endblock %}

@@ -1,30 +1,25 @@
 {% extends "admin/base_admin.html" %}
 
-{% block title %}Add Package{% endblock %}
-{% block page_title %}Add New Package{% endblock %}
+{% block title %}Add Package Product{% endblock %}
+{% block page_title %}Add New Package Product{% endblock %}
 {% block page_icon %}plus-circle{% endblock %}
 
 {% block content %}
 <div class="module-card">
-    <div class="module-header">
-        <h2><i class="fas fa-info-circle"></i> Package Information</h2>
-    </div>
+    <div class="module-header"><h2><i class="fas fa-info-circle"></i> Package Product Information</h2></div>
     <div style="padding: 25px;">
         <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
-
             <div class="form-group">
                 <label>Product Code</label>
                 <input type="text" class="form-control" value="Auto-generated after saving" disabled>
                 <small class="text-muted">The system will assign a package code automatically, such as PKG-0001.</small>
             </div>
-            
             <div class="form-group">
                 <label>Package Name <span class="text-danger">*</span></label>
                 <input type="text" name="name" class="form-control" required>
-                <small class="text-muted">Example: Christening Package A, Kid's Package 1, etc.</small>
+                <small class="text-muted">Example: Christening Package A, Kid's Package 1, and other customer-facing package product names.</small>
             </div>
-            
             <div class="form-group">
                 <label>Package Type <span class="text-danger">*</span></label>
                 <select name="package_type" class="form-control" required>
@@ -34,18 +29,15 @@
                     <option value="wedding">Wedding</option>
                 </select>
             </div>
-            
             <div class="form-group">
                 <label>Short Description</label>
                 <textarea name="description" class="form-control" rows="2" placeholder="Brief description of the package..."></textarea>
             </div>
-
             <div class="form-group">
                 <label>Package Image</label>
                 <input type="file" name="image" class="form-control" accept="image/*">
                 <small class="text-muted">Upload one image for this package.</small>
             </div>
-
             <div class="form-group">
                 <label>Additional Package Images</label>
                 <div class="row g-3">
@@ -58,62 +50,22 @@
                 </div>
                 <small class="text-muted">Upload up to four extra package images that customers can browse after opening zoom.</small>
             </div>
-            
             <div class="row">
-                <div class="col-md-6">
-                    <div class="form-group">
-                        <label>Base Price (₱) <span class="text-danger">*</span></label>
-                        <input type="number" name="base_price" class="form-control" step="0.01" required>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="form-group">
-                        <label>Status</label>
-                        <select name="status" class="form-control">
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                        </select>
-                    </div>
-                </div>
+                <div class="col-md-4"><div class="form-group"><label>Base Price (P) <span class="text-danger">*</span></label><input type="number" name="base_price" class="form-control" step="0.01" required></div></div>
+                <div class="col-md-4"><div class="form-group"><label>Stock Quantity</label><input type="number" name="stock" class="form-control" value="0" min="0"><small class="text-muted">This stock is tracked under the package product ID and decreases when completed package orders are fulfilled.</small></div></div>
+                <div class="col-md-4"><div class="form-group"><label>Status</label><select name="status" class="form-control"><option value="active">Active</option><option value="inactive">Inactive</option></select></div></div>
             </div>
-            
             {% include "admin/includes/package_inclusion_builder.html" with package_inclusion_editor_items=package_inclusion_editor_items builder_title="Package Inclusion Builder" builder_help="Add the package inclusions with quantity, optional photo, and customer-ready labels." %}
-
             {% include "admin/includes/product_option_builder.html" with option_editor_groups=option_editor_groups hidden_input_name="customization_options_payload" builder_title="Package Upsell Builder" builder_help="Configure the optional add-ons and bundled cake customization choices available during package booking." show_option_images=True %}
-            
             <hr>
-            
-            <div class="form-group">
-                <button type="submit" class="btn-primary">
-                    <i class="fas fa-save"></i> Save Package
-                </button>
-                <a href="{% url 'admin_packages' %}" class="btn-secondary" style="background: #6c757d; color: white; padding: 10px 25px; border-radius: 50px; text-decoration: none; margin-left: 10px;">
-                    <i class="fas fa-times"></i> Cancel
-                </a>
-            </div>
+            <div class="form-group"><button type="submit" class="btn-primary"><i class="fas fa-save"></i> Save Package Product</button><a href="{% url 'admin_packages' %}" class="btn-secondary" style="background: #6c757d; color: white; padding: 10px 25px; border-radius: 50px; text-decoration: none; margin-left: 10px;"><i class="fas fa-times"></i> Cancel</a></div>
         </form>
     </div>
 </div>
-
 <style>
-    .text-danger {
-        color: #dc2626;
-    }
-    .form-group {
-        margin-bottom: 20px;
-    }
-    .form-group label {
-        display: block;
-        margin-bottom: 8px;
-        font-weight: 600;
-        color: #495057;
-    }
-    .form-control {
-        width: 100%;
-        padding: 10px 15px;
-        border: 1px solid #dee2e6;
-        border-radius: 10px;
-        font-family: 'Poppins', sans-serif;
-    }
+    .text-danger { color: #dc2626; }
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: #495057; }
+    .form-control { width: 100%; padding: 10px 15px; border: 1px solid #dee2e6; border-radius: 10px; font-family: 'Poppins', sans-serif; }
 </style>
 {% endblock %}

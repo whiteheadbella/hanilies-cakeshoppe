@@ -1,117 +1,627 @@
 {% extends "admin/base_admin.html" %}
 
-{% block title %}Users{% endblock %}
-{% block page_title %}User And Role Management{% endblock %}
+{% block title %}Users And Customers{% endblock %}
+{% block page_title %}Users And Customers{% endblock %}
 {% block page_icon %}users{% endblock %}
 
+{% block extra_css %}
+<style>
+    .user-management-shell {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .user-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+    }
+
+    .user-summary-card {
+        background: linear-gradient(180deg, #ffffff, #fff8fb);
+        border: 1px solid #f3d7e4;
+        border-radius: 18px;
+        padding: 18px;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+    }
+
+    .user-summary-label {
+        color: #6b7280;
+        font-size: 0.78rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+
+    .user-summary-value {
+        margin-top: 8px;
+        color: #111827;
+        font-size: 2rem;
+        font-weight: 900;
+        letter-spacing: -0.03em;
+    }
+
+    .user-summary-copy {
+        margin-top: 8px;
+        color: #4b5563;
+        font-size: 0.88rem;
+        line-height: 1.45;
+    }
+
+    .section-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        flex-wrap: wrap;
+    }
+
+    .section-toolbar-copy {
+        margin: 6px 0 0;
+        color: #6b7280;
+        font-size: 0.92rem;
+        line-height: 1.5;
+    }
+
+    .section-anchor-links {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .section-anchor-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 14px;
+        border-radius: 999px;
+        background: #fff7fa;
+        border: 1px solid #f4d9e5;
+        color: #be185d;
+        font-size: 0.83rem;
+        font-weight: 800;
+        text-decoration: none;
+    }
+
+    .section-anchor-link:hover {
+        color: #9d174d;
+        text-decoration: none;
+        background: #fff1f5;
+    }
+
+    .customer-filter-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        flex-wrap: wrap;
+        padding: 18px 20px;
+        border-bottom: 1px solid #f4d9e5;
+        background: linear-gradient(180deg, #ffffff, #fffafb);
+    }
+
+    .customer-search-form {
+        flex: 1 1 380px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .customer-search-form .form-control {
+        flex: 1 1 260px;
+        min-width: 220px;
+        border-radius: 999px;
+        border: 1px solid #f3d7e4;
+        padding: 11px 16px;
+        font-weight: 500;
+    }
+
+    .customer-search-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .customer-filter-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: #fff7fa;
+        color: #be185d;
+        font-size: 0.8rem;
+        font-weight: 800;
+    }
+
+    .table-subtext {
+        color: #6b7280;
+        font-size: 0.82rem;
+        line-height: 1.45;
+    }
+
+    .customer-name-stack,
+    .contact-stack,
+    .metric-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .metric-strong {
+        color: #111827;
+        font-weight: 800;
+    }
+
+    .table-role-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .table-status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: #ecfdf5;
+        color: #047857;
+        font-size: 0.76rem;
+        font-weight: 800;
+    }
+
+    .table-status-pill.is-archived {
+        background: #f3f4f6;
+        color: #4b5563;
+    }
+
+    .table-action-menu {
+        position: relative;
+        display: inline-block;
+    }
+
+    .table-action-menu summary {
+        list-style: none;
+        cursor: pointer;
+        width: 36px;
+        height: 36px;
+        border-radius: 999px;
+        border: 1px solid #f3d7e4;
+        background: #fff7fa;
+        color: #be185d;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .table-action-menu summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .table-action-menu[open] summary,
+    .table-action-menu summary:hover {
+        background: #fff1f5;
+        color: #9d174d;
+    }
+
+    .table-action-popover {
+        position: absolute;
+        right: 0;
+        top: calc(100% + 8px);
+        min-width: 200px;
+        background: #ffffff;
+        border: 1px solid #f3d7e4;
+        border-radius: 14px;
+        box-shadow: 0 18px 32px rgba(15, 23, 42, 0.12);
+        padding: 8px;
+        z-index: 15;
+    }
+
+    .table-action-link,
+    .table-action-button {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 10px 12px;
+        border: none;
+        background: transparent;
+        border-radius: 10px;
+        color: #111827;
+        font-size: 0.88rem;
+        font-weight: 600;
+        text-decoration: none;
+        text-align: left;
+    }
+
+    .table-action-link:hover,
+    .table-action-button:hover {
+        background: #fff7fa;
+        color: #9d174d;
+        text-decoration: none;
+    }
+
+    .table-action-button.is-danger:hover {
+        background: #fff1f2;
+        color: #be123c;
+    }
+
+    .table-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        padding: 16px 20px 18px;
+        border-top: 1px solid #f4d9e5;
+        background: linear-gradient(180deg, #ffffff, #fffafb);
+    }
+
+    .table-pagination-info {
+        color: #6b7280;
+        font-size: 0.84rem;
+        font-weight: 600;
+    }
+
+    .table-pagination-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .table-pagination-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 92px;
+        padding: 9px 14px;
+        border-radius: 999px;
+        border: 1px solid #f3d7e4;
+        background: #fff7fa;
+        color: #be185d;
+        font-size: 0.82rem;
+        font-weight: 800;
+        text-decoration: none;
+    }
+
+    .table-pagination-button:hover {
+        background: #fff1f5;
+        color: #9d174d;
+        text-decoration: none;
+    }
+
+    .table-pagination-button.is-disabled {
+        opacity: 0.5;
+        cursor: default;
+        pointer-events: none;
+    }
+
+    .empty-table-note {
+        color: #6b7280;
+        font-weight: 600;
+        text-align: center;
+    }
+
+    @media (max-width: 991px) {
+        .customer-filter-bar,
+        .section-toolbar,
+        .table-pagination {
+            align-items: stretch;
+        }
+
+        .customer-search-form,
+        .customer-search-actions,
+        .section-anchor-links,
+        .table-pagination-actions {
+            width: 100%;
+        }
+
+        .customer-search-actions .btn-primary,
+        .customer-search-actions .btn-secondary,
+        .table-pagination-button {
+            flex: 1 1 auto;
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="module-card">
-    <div class="module-header" style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;">
-        <div>
-            <h2><i class="fas fa-users"></i> {% if is_archived_view %}Archived Accounts{% else %}User Access Overview{% endif %}</h2>
-            <p class="text-muted mb-0">Customers and staff use the same backend table, but are separated here to make access levels easier to review.</p>
+<div class="user-management-shell">
+    <div class="module-card">
+        <div class="module-header" style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;">
+            <div>
+                <h2><i class="fas fa-users"></i> {% if is_archived_view %}Archived Users And Customers{% else %}Users And Customers{% endif %}</h2>
+                <p class="text-muted mb-0">Keep RBAC staff accounts and public customer accounts in one organized admin workspace.</p>
+            </div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <a href="{% if is_archived_view %}{% url 'admin_users' %}{% else %}{% url 'admin_users' %}?archived=1{% endif %}" class="btn-primary" style="text-decoration: none; display: inline-flex; align-items: center; gap: 8px; background: {% if is_archived_view %}linear-gradient(135deg, #0f766e, #14b8a6){% else %}linear-gradient(135deg, #6b7280, #9ca3af){% endif %};">
+                    <i class="fas fa-box-archive"></i>{% if is_archived_view %}Back to Active{% else %}View Archived{% endif %}
+                </a>
+                <a href="{% url 'admin_user_add' %}" class="btn-primary" style="text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-user-plus"></i>Create User
+                </a>
+            </div>
         </div>
-        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-            <a href="{% if is_archived_view %}{% url 'admin_users' %}{% else %}{% url 'admin_users' %}?archived=1{% endif %}" class="btn-primary" style="text-decoration: none; display: inline-flex; align-items: center; gap: 8px; background: {% if is_archived_view %}linear-gradient(135deg, #0f766e, #14b8a6){% else %}linear-gradient(135deg, #6b7280, #9ca3af){% endif %};">
-                <i class="fas fa-box-archive"></i>{% if is_archived_view %}Back to Active{% else %}View Archived{% endif %}
-            </a>
-            <a href="{% url 'admin_user_add' %}" class="btn-primary" style="text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
-                <i class="fas fa-user-plus"></i>Create User
-            </a>
+    </div>
+
+    <section class="user-summary-grid">
+        <article class="user-summary-card">
+            <div class="user-summary-label">Visible Accounts</div>
+            <div class="user-summary-value">{{ total_account_count }}</div>
+            <div class="user-summary-copy">All {% if is_archived_view %}archived{% else %}active{% endif %} staff and customer accounts in this view.</div>
+        </article>
+        <article class="user-summary-card">
+            <div class="user-summary-label">RBAC Staff</div>
+            <div class="user-summary-value">{{ staff_account_count }}</div>
+            <div class="user-summary-copy">Owner, admin, and staff accounts with backend permissions.</div>
+        </article>
+        <article class="user-summary-card">
+            <div class="user-summary-label">Public Customers</div>
+            <div class="user-summary-value">{{ customer_account_count }}</div>
+            <div class="user-summary-copy">Customer portal accounts currently visible on this page.</div>
+        </article>
+        <article class="user-summary-card">
+            <div class="user-summary-label">Customer Spend</div>
+            <div class="user-summary-value">P{{ customer_revenue_total|floatformat:2 }}</div>
+            <div class="user-summary-copy">Paid customer transactions linked to cake and package orders.</div>
+        </article>
+    </section>
+
+    <div class="module-card">
+        <div class="module-header section-toolbar">
+            <div>
+                <h2><i class="fas fa-layer-group"></i> Account Sections</h2>
+                <p class="section-toolbar-copy">Use the RBAC section for staff permissions and the customer section for account activity, orders, and account follow-up.</p>
+            </div>
+            <div class="section-anchor-links">
+                <a href="#staff-rbac" class="section-anchor-link"><i class="fas fa-user-shield"></i> Staff And RBAC</a>
+                <a href="#customer-list" class="section-anchor-link"><i class="fas fa-user-group"></i> Customer List</a>
+            </div>
         </div>
     </div>
-</div>
 
-<div class="module-card">
-    <div class="module-header">
-        <h2><i class="fas fa-user-shield"></i> Staff And Admin Users <span class="badge" style="background: #fce7f3; color: #be185d; margin-left: 10px;">{{ staff_users|length }}</span></h2>
-    </div>
-    <div class="table-responsive">
-        <table class="module-table mobile-card-table">
-            <thead>
-                <tr><th>Username</th><th>Name</th><th>Email</th><th>Role</th><th>Joined</th><th>Actions</th></tr>
-            </thead>
-            <tbody>
-                {% for user in staff_users %}
-                <tr>
-                    <td data-label="Username">
-                        <strong>{{ user.username }}</strong>
-                        {% if user.is_superuser %}<div class="text-muted small">Superuser account</div>{% endif %}
-                    </td>
-                    <td data-label="Name">{{ user.get_full_name|default:"-" }}</td>
-                    <td data-label="Email">{{ user.email|default:"-" }}</td>
-                    <td data-label="Role">
-                        {% if user.profile %}
-                        <span class="status-badge role-{{ user.profile.role }}">{{ user.profile.get_role_display }}</span>
-                        {% else %}
-                        <span class="status-badge role-admin">Administrator</span>
-                        {% endif %}
-                    </td>
-                    <td data-label="Joined">
-                        <span title="{{ user.date_joined|date:'M j, Y g:i A' }}">{{ user.date_joined|timesince }} ago</span>
-                        <div class="text-muted small">{{ user.date_joined|date:"M j, Y" }}</div>
-                    </td>
-                    <td data-label="Actions">
-                        <div class="admin-table-action-stack">
-                            <a href="{% url 'admin_user_edit' user.id %}" style="color: #FF69B4;">Edit</a>
-                            <a href="{% url 'admin_user_role' user.id %}" style="color: #D4AF37;">Change Role</a>
-                            {% if user != request.user %}
-                            <form method="post" action="{% url 'admin_user_delete' user.id %}" class="admin-table-inline-form">
-                                {% csrf_token %}
-                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                                <button type="submit" onclick="return confirm('{% if is_archived_view %}Restore{% else %}Archive{% endif %} user {{ user.username|escapejs }}?');" style="background: none; border: none; padding: 0; color: {% if is_archived_view %}#2563eb{% else %}#d94b4b{% endif %}; cursor: pointer; text-decoration: underline; font: inherit;">{% if is_archived_view %}Restore{% else %}Archive{% endif %}</button>
-                            </form>
+    <div class="module-card" id="staff-rbac">
+        <div class="module-header">
+            <h2><i class="fas fa-user-shield"></i> Staff And RBAC Access <span class="badge" style="background: #fce7f3; color: #be185d; margin-left: 10px;">{{ staff_account_count }}</span></h2>
+            <p class="text-muted mb-0">Review staff access, role assignments, and archived or active backend accounts from one table.</p>
+        </div>
+        <div class="table-responsive">
+            <table class="module-table mobile-card-table" data-pagination-mode="server">
+                <thead>
+                    <tr><th>User</th><th>Contact</th><th>Role</th><th>Registered</th><th>Status</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                    {% for user in staff_users_page %}
+                    <tr>
+                        <td data-label="User">
+                            <div class="customer-name-stack">
+                                <strong>{{ user.get_full_name|default:user.username }}</strong>
+                                <span class="table-subtext">@{{ user.username }}</span>
+                                {% if user.is_superuser %}<span class="table-subtext">Superuser account</span>{% endif %}
+                            </div>
+                        </td>
+                        <td data-label="Contact">
+                            <div class="contact-stack">
+                                <span>{{ user.email|default:"-" }}</span>
+                                <span class="table-subtext">{{ user.profile.phone|default:"No phone" }}</span>
+                            </div>
+                        </td>
+                        <td data-label="Role">
+                            {% if user.profile %}
+                            <span class="status-badge role-{{ user.profile.role }} table-role-badge">{{ user.profile.get_role_display }}</span>
+                            {% else %}
+                            <span class="status-badge role-admin table-role-badge">Administrator</span>
                             {% endif %}
-                        </div>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr><td colspan="6" class="text-center">No staff or admin accounts found.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                        </td>
+                        <td data-label="Registered">
+                            <div class="metric-stack">
+                                <span class="metric-strong">{{ user.date_joined|timesince }} ago</span>
+                                <span class="table-subtext">{{ user.date_joined|date:"M j, Y" }}</span>
+                            </div>
+                        </td>
+                        <td data-label="Status">
+                            <span class="table-status-pill {% if is_archived_view %}is-archived{% endif %}">
+                                <i class="fas {% if is_archived_view %}fa-box-archive{% else %}fa-circle-check{% endif %}"></i>
+                                {% if is_archived_view %}Inactive{% else %}Active{% endif %}
+                            </span>
+                        </td>
+                        <td data-label="Actions">
+                            <details class="table-action-menu">
+                                <summary aria-label="Open staff actions"><i class="fas fa-ellipsis-v"></i></summary>
+                                <div class="table-action-popover">
+                                    <a href="{% url 'admin_user_view' user.id %}" class="table-action-link"><i class="fas fa-eye"></i> View</a>
+                                    <a href="{% url 'admin_user_edit' user.id %}" class="table-action-link"><i class="fas fa-pen"></i> Edit Details</a>
+                                    <a href="{% url 'admin_user_role' user.id %}" class="table-action-link"><i class="fas fa-user-gear"></i> Change Role</a>
+                                    {% if user != request.user %}
+                                    <form method="post" action="{% url 'admin_user_delete' user.id %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                        <button type="submit" class="table-action-button {% if not is_archived_view %}is-danger{% endif %}" onclick="return confirm('{% if is_archived_view %}Activate{% else %}Deactivate{% endif %} user {{ user.username|escapejs }}?');">
+                                            <i class="fas {% if is_archived_view %}fa-user-check{% else %}fa-user-slash{% endif %}"></i>
+                                            {% if is_archived_view %}Activate Account{% else %}Deactivate Account{% endif %}
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </details>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="empty-table-note">No staff or admin accounts found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if staff_users_pagination %}
+        <div class="table-pagination">
+            <div class="table-pagination-info">{{ staff_users_pagination.summary }}</div>
+            {% if staff_users_pagination.has_multiple_pages %}
+            <div class="table-pagination-actions">
+                {% if staff_users_pagination.prev_url %}
+                <a href="{{ staff_users_pagination.prev_url }}#staff-rbac" class="table-pagination-button">Previous</a>
+                {% else %}
+                <span class="table-pagination-button is-disabled">Previous</span>
+                {% endif %}
+                {% if staff_users_pagination.next_url %}
+                <a href="{{ staff_users_pagination.next_url }}#staff-rbac" class="table-pagination-button">Next</a>
+                {% else %}
+                <span class="table-pagination-button is-disabled">Next</span>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
     </div>
-</div>
 
-<div class="module-card">
-    <div class="module-header">
-        <h2><i class="fas fa-user"></i> Public Customers <span class="badge" style="background: #e0f2fe; color: #0369a1; margin-left: 10px;">{{ customer_users|length }}</span></h2>
-    </div>
-    <div class="table-responsive">
-        <table class="module-table mobile-card-table">
-            <thead>
-                <tr><th>Username</th><th>Name</th><th>Email</th><th>Role</th><th>Joined</th><th>Actions</th></tr>
-            </thead>
-            <tbody>
-                {% for user in customer_users %}
-                <tr>
-                    <td data-label="Username"><strong>{{ user.username }}</strong></td>
-                    <td data-label="Name">{{ user.get_full_name|default:"-" }}</td>
-                    <td data-label="Email">{{ user.email|default:"-" }}</td>
-                    <td data-label="Role"><span class="status-badge role-customer">Customer</span></td>
-                    <td data-label="Joined">
-                        <span title="{{ user.date_joined|date:'M j, Y g:i A' }}">{{ user.date_joined|timesince }} ago</span>
-                        <div class="text-muted small">{{ user.date_joined|date:"M j, Y" }}</div>
-                    </td>
-                    <td data-label="Actions">
-                        <div class="admin-table-action-stack">
-                            <a href="{% url 'admin_user_edit' user.id %}" style="color: #FF69B4;">Edit</a>
-                            <a href="{% url 'admin_user_role' user.id %}" style="color: #D4AF37;">Assign Staff Role</a>
-                            {% if user != request.user %}
-                            <form method="post" action="{% url 'admin_user_delete' user.id %}" class="admin-table-inline-form">
-                                {% csrf_token %}
-                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                                <button type="submit" onclick="return confirm('{% if is_archived_view %}Restore{% else %}Archive{% endif %} user {{ user.username|escapejs }}?');" style="background: none; border: none; padding: 0; color: {% if is_archived_view %}#2563eb{% else %}#d94b4b{% endif %}; cursor: pointer; text-decoration: underline; font: inherit;">{% if is_archived_view %}Restore{% else %}Archive{% endif %}</button>
-                            </form>
-                            {% endif %}
-                        </div>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr><td colspan="6" class="text-center">No customer accounts found.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <div class="module-card" id="customer-list">
+        <div class="module-header">
+            <h2><i class="fas fa-user-group"></i> Customer List <span class="badge" style="background: #e0f2fe; color: #0369a1; margin-left: 10px;">{{ customer_account_count }}</span></h2>
+            <p class="text-muted mb-0">Suggested layout for customer management: searchable contact details, registration history, order activity, spend, account status, and compact row actions.</p>
+        </div>
+
+        <div class="customer-filter-bar">
+            <form method="get" class="customer-search-form">
+                {% if is_archived_view %}<input type="hidden" name="archived" value="1">{% endif %}
+                <input type="search" name="q" value="{{ search_query }}" class="form-control" placeholder="Search by name, username, email, phone, or address...">
+                <div class="customer-search-actions">
+                    <button type="submit" class="btn-primary" style="border: none; display: inline-flex; align-items: center; gap: 8px;"><i class="fas fa-filter"></i> Apply</button>
+                    <a href="{{ customer_reset_url }}#customer-list" class="btn-secondary" style="text-decoration: none; display: inline-flex; align-items: center; gap: 8px;"><i class="fas fa-rotate-left"></i> Reset</a>
+                </div>
+            </form>
+            <div class="section-anchor-links">
+                <span class="customer-filter-chip"><i class="fas fa-user-plus"></i> {{ recent_customer_count }} joined in 30 days</span>
+                <span class="customer-filter-chip"><i class="fas fa-basket-shopping"></i> {{ customer_with_orders_count }} with orders</span>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="module-table mobile-card-table" data-pagination-mode="server">
+                <thead>
+                    <tr><th>Customer</th><th>Contact</th><th>Registered</th><th>Orders</th><th>Spent</th><th>Status</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                    {% for user in customer_users_page %}
+                    <tr>
+                        <td data-label="Customer">
+                            <div class="customer-name-stack">
+                                <strong>{{ user.get_full_name|default:user.username }}</strong>
+                                <span class="table-subtext">@{{ user.username }}</span>
+                            </div>
+                        </td>
+                        <td data-label="Contact">
+                            <div class="contact-stack">
+                                <span>{{ user.email|default:"-" }}</span>
+                                <span class="table-subtext">{{ user.profile.phone|default:"No phone" }}</span>
+                                <span class="table-subtext">{{ user.profile.address|default:"No saved address"|truncatechars:48 }}</span>
+                            </div>
+                        </td>
+                        <td data-label="Registered">
+                            <div class="metric-stack">
+                                <span class="metric-strong">{{ user.date_joined|timesince }} ago</span>
+                                <span class="table-subtext">{{ user.date_joined|date:"M j, Y" }}</span>
+                            </div>
+                        </td>
+                        <td data-label="Orders">
+                            <div class="metric-stack">
+                                <span class="metric-strong">{{ user.admin_total_orders }}</span>
+                                <span class="table-subtext">Cake {{ user.admin_cake_order_count }} | Package {{ user.admin_package_order_count }}</span>
+                            </div>
+                        </td>
+                        <td data-label="Spent">
+                            <div class="metric-stack">
+                                <span class="metric-strong">P{{ user.admin_total_spent|floatformat:2 }}</span>
+                                <span class="table-subtext">Paid transactions</span>
+                            </div>
+                        </td>
+                        <td data-label="Status">
+                            <div class="metric-stack">
+                                <span class="table-status-pill {% if is_archived_view %}is-archived{% endif %}">
+                                    <i class="fas {% if is_archived_view %}fa-box-archive{% else %}fa-circle-check{% endif %}"></i>
+                                    {% if is_archived_view %}Inactive{% else %}Active{% endif %}
+                                </span>
+                                <span class="status-badge role-customer">Customer</span>
+                            </div>
+                        </td>
+                        <td data-label="Actions">
+                            <details class="table-action-menu">
+                                <summary aria-label="Open customer actions"><i class="fas fa-ellipsis-v"></i></summary>
+                                <div class="table-action-popover">
+                                    <a href="{% url 'admin_user_view' user.id %}" class="table-action-link"><i class="fas fa-eye"></i> View Profile</a>
+                                    <a href="{% url 'admin_user_edit' user.id %}" class="table-action-link"><i class="fas fa-pen"></i> Edit Customer</a>
+                                    <a href="{% url 'admin_user_view' user.id %}#recent-order-history" class="table-action-link"><i class="fas fa-box"></i> View Orders</a>
+                                    <form method="post" action="{% url 'admin_user_password_reset' user.id %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                        <button type="submit" class="table-action-button" onclick="return confirm('Send a password reset email to customer {{ user.username|escapejs }}?');">
+                                            <i class="fas fa-key"></i> Send Password Reset
+                                        </button>
+                                    </form>
+                                    {% if user != request.user %}
+                                    {% if is_archived_view %}
+                                    <form method="post" action="{% url 'admin_user_delete' user.id %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                        <button type="submit" class="table-action-button" onclick="return confirm('Activate customer {{ user.username|escapejs }}?');">
+                                            <i class="fas fa-user-check"></i> Activate Account
+                                        </button>
+                                    </form>
+                                    {% else %}
+                                    <form method="post" action="{% url 'admin_user_delete' user.id %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                        <input type="hidden" name="intent" value="deactivate">
+                                        <button type="submit" class="table-action-button" onclick="return confirm('Deactivate customer {{ user.username|escapejs }}?');">
+                                            <i class="fas fa-user-slash"></i> Deactivate Account
+                                        </button>
+                                    </form>
+                                    <form method="post" action="{% url 'admin_user_delete' user.id %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                        <input type="hidden" name="intent" value="archive">
+                                        <button type="submit" class="table-action-button is-danger" onclick="return confirm('Archive customer {{ user.username|escapejs }}?');">
+                                            <i class="fas fa-box-archive"></i> Archive Customer
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                    {% endif %}
+                                </div>
+                            </details>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="7" class="empty-table-note">No customer accounts found{% if search_query %} for "{{ search_query }}"{% endif %}.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if customer_users_pagination %}
+        <div class="table-pagination">
+            <div class="table-pagination-info">{{ customer_users_pagination.summary }}</div>
+            {% if customer_users_pagination.has_multiple_pages %}
+            <div class="table-pagination-actions">
+                {% if customer_users_pagination.prev_url %}
+                <a href="{{ customer_users_pagination.prev_url }}#customer-list" class="table-pagination-button">Previous</a>
+                {% else %}
+                <span class="table-pagination-button is-disabled">Previous</span>
+                {% endif %}
+                {% if customer_users_pagination.next_url %}
+                <a href="{{ customer_users_pagination.next_url }}#customer-list" class="table-pagination-button">Next</a>
+                {% else %}
+                <span class="table-pagination-button is-disabled">Next</span>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
+
+
+

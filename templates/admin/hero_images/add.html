@@ -1,7 +1,7 @@
 {% extends "admin/base_admin.html" %}
 
-{% block title %}Add Homepage Hero Image{% endblock %}
-{% block page_title %}Add Homepage Hero Image{% endblock %}
+{% block title %}Add Homepage Banner Image{% endblock %}
+{% block page_title %}Add Homepage Banner Image{% endblock %}
 {% block page_icon %}image{% endblock %}
 
 {% block content %}
@@ -41,14 +41,14 @@
                     <input type="checkbox" name="is_active" checked> Active on homepage
                 </label>
                 <br>
-                <small class="text-muted">Only active images are considered for the public hero banner.</small>
+                <small class="text-muted">Only active images are considered for the public homepage banner.</small>
             </div>
 
             <hr>
 
             <div class="form-group">
                 <button type="submit" class="btn-primary">
-                    <i class="fas fa-save"></i> Save Hero Image
+                    <i class="fas fa-save"></i> Save Banner Image
                 </button>
                 <a href="{% url 'admin_home_hero_images' %}" class="btn-secondary" style="background: #6c757d; color: white; padding: 10px 25px; border-radius: 50px; text-decoration: none; margin-left: 10px;">
                     <i class="fas fa-times"></i> Cancel

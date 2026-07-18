@@ -7,9 +7,7 @@ from pathlib import Path
 import shutil
 import tempfile
 from urllib.parse import urlsplit
-from unittest.mock import patch
 from PIL import Image, ImageDraw
-from django.contrib.messages import get_messages
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core import mail
@@ -27,7 +25,6 @@ from .forms import (
     PACKAGE_MAX_BOOKING_MESSAGE,
     CakeBookingDateForm,
     PackageBookingDateForm,
-    add_calendar_months,
     build_cake_booking_window,
     build_package_booking_window,
 )
@@ -2691,8 +2688,8 @@ class SecurityValidationTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Cake Orders')
-        self.assertContains(response, 'Total Cakes')
-        self.assertContains(response, 'Add New Cake')
+        self.assertContains(response, 'Total Cake Products')
+        self.assertContains(response, 'Add New Cake Product')
         self.assertContains(response, 'Recent Cake Orders')
         self.assertNotContains(response, 'Verify Payments')
         self.assertNotContains(response, 'Manage Users')
@@ -2706,8 +2703,8 @@ class SecurityValidationTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Package Orders')
-        self.assertContains(response, 'Total Packages')
-        self.assertContains(response, 'Add New Package')
+        self.assertContains(response, 'Total Package Products')
+        self.assertContains(response, 'Add New Package Product')
         self.assertContains(response, 'Recent Package Orders')
         self.assertNotContains(response, 'Verify Payments')
         self.assertNotContains(response, 'Manage Users')
@@ -6842,3 +6839,4 @@ class CatalogSeedCommandTests(TestCase):
                          f'PKG-{existing_package.id:04d}')
         self.assertIn(
             'Assigned product codes to 1 cakes and 1 packages.', output.getvalue())
+

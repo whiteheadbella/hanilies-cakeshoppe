@@ -99,6 +99,10 @@ urlpatterns = [
          views.admin_package_order_update, name='admin_package_order_update'),
     path('admin-panel/package-orders/delete/<int:order_id>/',
          views.admin_package_order_delete, name='admin_package_order_delete'),
+    path('admin-panel/order-sales-report/',
+         views.admin_order_sales_report, name='admin_order_sales_report'),
+    path('admin-panel/stock-report/',
+         views.admin_stock_report, name='admin_stock_report'),
     path('admin-panel/payments/', views.admin_payments, name='admin_payments'),
     path('admin-panel/payments/export/<str:file_format>/',
          views.admin_payments_export, name='admin_payments_export'),
@@ -137,8 +141,14 @@ urlpatterns = [
     path('admin-panel/users/add/', views.admin_user_add, name='admin_user_add'),
     path('admin-panel/users/edit/<int:user_id>/',
          views.admin_user_edit, name='admin_user_edit'),
+    path('admin-panel/users/view/<int:user_id>/',
+         views.admin_user_view, name='admin_user_view'),
+    path('admin-panel/users/password-reset/<int:user_id>/',
+         views.admin_user_password_reset, name='admin_user_password_reset'),
     path('admin-panel/users/delete/<int:user_id>/',
          views.admin_user_delete, name='admin_user_delete'),
     path('admin-panel/users/role/<int:user_id>/',
          views.admin_user_role, name='admin_user_role'),
 ]
+
+

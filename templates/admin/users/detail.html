@@ -1,0 +1,431 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}{% if is_customer_account %}Customer Profile{% else %}User Profile{% endif %} - Hanilies Admin{% endblock %}
+
+{% block page_title %}{% if is_customer_account %}Customer Profile{% else %}User Profile{% endif %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .profile-shell {
+        display: grid;
+        gap: 20px;
+    }
+
+    .profile-hero {
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        flex-wrap: wrap;
+        padding: 22px 24px;
+        border-radius: 20px;
+        border: 1px solid #f2d4df;
+        background: linear-gradient(135deg, rgba(255, 244, 248, 0.98), rgba(255, 246, 238, 0.98));
+        box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
+    }
+
+    .profile-kpi-grid,
+    .profile-content-grid {
+        display: grid;
+        gap: 18px;
+    }
+
+    .profile-kpi-grid {
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
+
+    .profile-content-grid {
+        grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.35fr);
+    }
+
+    .profile-card {
+        background: #ffffff;
+        border: 1px solid #f2d8e2;
+        border-radius: 18px;
+        box-shadow: 0 12px 24px rgba(15, 23, 42, 0.06);
+        overflow: hidden;
+    }
+
+    .profile-card-header {
+        padding: 18px 20px 12px;
+        border-bottom: 1px solid #f7dfe7;
+    }
+
+    .profile-card-body {
+        padding: 18px 20px 20px;
+    }
+
+    .profile-heading {
+        margin: 0;
+        font-size: 1.75rem;
+        font-weight: 900;
+        color: #1f2937;
+    }
+
+    .profile-subcopy {
+        margin: 8px 0 0;
+        color: #6b7280;
+        font-size: 0.95rem;
+        max-width: 700px;
+    }
+
+    .profile-badges,
+    .profile-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .profile-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 14px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.78);
+        border: 1px solid #f3d7e4;
+        color: #9d174d;
+        font-size: 0.84rem;
+        font-weight: 800;
+    }
+
+    .profile-chip.is-active {
+        color: #047857;
+        background: #ecfdf5;
+        border-color: #bbf7d0;
+    }
+
+    .profile-chip.is-inactive {
+        color: #b45309;
+        background: #fff7ed;
+        border-color: #fed7aa;
+    }
+
+    .profile-button,
+    .profile-button-danger {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 11px 16px;
+        border-radius: 999px;
+        border: 1px solid #f3d7e4;
+        font-size: 0.88rem;
+        font-weight: 800;
+        text-decoration: none;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    }
+
+    .profile-button {
+        background: #ffffff;
+        color: #be185d;
+    }
+
+    .profile-button:hover,
+    .profile-button-danger:hover {
+        transform: translateY(-1px);
+        text-decoration: none;
+        box-shadow: 0 10px 18px rgba(15, 23, 42, 0.08);
+    }
+
+    .profile-button-danger {
+        background: #fff1f2;
+        color: #be123c;
+        border-color: #fecdd3;
+    }
+
+    .profile-stat-card {
+        padding: 18px 18px 16px;
+    }
+
+    .profile-stat-label {
+        color: #6b7280;
+        font-size: 0.82rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .profile-stat-value {
+        margin-top: 10px;
+        color: #111827;
+        font-size: 1.8rem;
+        font-weight: 900;
+    }
+
+    .profile-stat-copy {
+        margin-top: 8px;
+        color: #6b7280;
+        font-size: 0.88rem;
+    }
+
+    .profile-definition-list {
+        display: grid;
+        gap: 14px;
+    }
+
+    .profile-definition-row {
+        display: grid;
+        grid-template-columns: 150px minmax(0, 1fr);
+        gap: 12px;
+        align-items: start;
+    }
+
+    .profile-definition-term {
+        color: #6b7280;
+        font-size: 0.84rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    .profile-definition-value {
+        color: #111827;
+        font-size: 0.96rem;
+        font-weight: 600;
+        word-break: break-word;
+    }
+
+    .profile-order-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .profile-order-table th,
+    .profile-order-table td {
+        padding: 14px 12px;
+        border-bottom: 1px solid #f6dfe8;
+        vertical-align: top;
+    }
+
+    .profile-order-table th {
+        background: linear-gradient(180deg, #fff5f8, #fffafa);
+        color: #be185d;
+        font-size: 0.78rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .profile-order-table tbody tr:hover {
+        background: #fff9fb;
+    }
+
+    .profile-order-meta {
+        color: #6b7280;
+        display: block;
+        font-size: 0.82rem;
+        margin-top: 4px;
+    }
+
+    .profile-empty-note {
+        margin: 0;
+        color: #6b7280;
+        font-weight: 600;
+    }
+
+    @media (max-width: 991px) {
+        .profile-content-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 640px) {
+        .profile-hero,
+        .profile-card-header,
+        .profile-card-body {
+            padding-left: 16px;
+            padding-right: 16px;
+        }
+
+        .profile-definition-row {
+            grid-template-columns: 1fr;
+            gap: 4px;
+        }
+
+        .profile-actions {
+            width: 100%;
+        }
+
+        .profile-button,
+        .profile-button-danger {
+            flex: 1 1 100%;
+        }
+
+        .profile-order-table,
+        .profile-order-table thead,
+        .profile-order-table tbody,
+        .profile-order-table th,
+        .profile-order-table td,
+        .profile-order-table tr {
+            display: block;
+        }
+
+        .profile-order-table thead {
+            display: none;
+        }
+
+        .profile-order-table tbody tr {
+            padding: 14px 0;
+            border-bottom: 1px solid #f6dfe8;
+        }
+
+        .profile-order-table td {
+            padding: 6px 0;
+            border-bottom: none;
+        }
+
+        .profile-order-table td::before {
+            content: attr(data-label);
+            display: block;
+            color: #6b7280;
+            font-size: 0.74rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="profile-shell">
+    <section class="profile-hero">
+        <div>
+            <h2 class="profile-heading">{{ view_user.get_full_name|default:view_user.username }}</h2>
+            <p class="profile-subcopy">Review account details, order activity, spend, and recent customer history from one admin profile view.</p>
+            <div class="profile-badges" style="margin-top: 14px;">
+                <span class="profile-chip"><i class="fas fa-user"></i> @{{ view_user.username }}</span>
+                <span class="profile-chip"><i class="fas fa-user-shield"></i> {{ role_display }}</span>
+                <span class="profile-chip {% if view_user.is_active %}is-active{% else %}is-inactive{% endif %}">
+                    <i class="fas {% if view_user.is_active %}fa-circle-check{% else %}fa-user-slash{% endif %}"></i> {{ account_status_label }}
+                </span>
+            </div>
+        </div>
+        <div class="profile-actions">
+            <a href="{% url 'admin_users' %}" class="profile-button"><i class="fas fa-arrow-left"></i> Back to Users</a>
+            <a href="{% url 'admin_user_edit' view_user.id %}" class="profile-button"><i class="fas fa-pen"></i> Edit Details</a>
+            <a href="{% url 'admin_user_role' view_user.id %}" class="profile-button"><i class="fas fa-user-gear"></i> {% if is_customer_account %}Assign Staff Role{% else %}Change Role{% endif %}</a>
+            {% if view_user != request.user %}
+            <form method="post" action="{% url 'admin_user_delete' view_user.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{% url 'admin_user_view' view_user.id %}">
+                <button type="submit" class="profile-button-danger" onclick="return confirm('{% if view_user.is_active %}Deactivate{% else %}Activate{% endif %} user {{ view_user.username|escapejs }}?');">
+                    <i class="fas {% if view_user.is_active %}fa-user-slash{% else %}fa-user-check{% endif %}"></i>
+                    {% if view_user.is_active %}Deactivate Account{% else %}Activate Account{% endif %}
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="profile-kpi-grid">
+        <article class="profile-card profile-stat-card">
+            <div class="profile-stat-label">Total Orders</div>
+            <div class="profile-stat-value">{{ total_orders }}</div>
+            <div class="profile-stat-copy">Combined cake and package orders placed by this account.</div>
+        </article>
+        <article class="profile-card profile-stat-card">
+            <div class="profile-stat-label">Completed Orders</div>
+            <div class="profile-stat-value">{{ completed_orders }}</div>
+            <div class="profile-stat-copy">Orders that reached a completed fulfillment status.</div>
+        </article>
+        <article class="profile-card profile-stat-card">
+            <div class="profile-stat-label">Cancelled Orders</div>
+            <div class="profile-stat-value">{{ cancelled_orders }}</div>
+            <div class="profile-stat-copy">Orders that were cancelled before fulfillment.</div>
+        </article>
+        <article class="profile-card profile-stat-card">
+            <div class="profile-stat-label">Total Amount Spent</div>
+            <div class="profile-stat-value">P{{ total_spent|floatformat:2 }}</div>
+            <div class="profile-stat-copy">Paid transactions linked to cake and package orders.</div>
+        </article>
+    </section>
+
+    <section class="profile-content-grid">
+        <article class="profile-card">
+            <div class="profile-card-header">
+                <h3 style="margin: 0; font-size: 1.18rem; font-weight: 900; color: #1f2937;"><i class="fas fa-id-card" style="color: #be185d; margin-right: 8px;"></i> Account Information</h3>
+            </div>
+            <div class="profile-card-body">
+                <div class="profile-definition-list">
+                    <div class="profile-definition-row">
+                        <div class="profile-definition-term">Full Name</div>
+                        <div class="profile-definition-value">{{ view_user.get_full_name|default:"-" }}</div>
+                    </div>
+                    <div class="profile-definition-row">
+                        <div class="profile-definition-term">Email</div>
+                        <div class="profile-definition-value">{{ view_user.email|default:"-" }}</div>
+                    </div>
+                    <div class="profile-definition-row">
+                        <div class="profile-definition-term">Phone Number</div>
+                        <div class="profile-definition-value">{{ profile.phone|default:"-" }}</div>
+                    </div>
+                    <div class="profile-definition-row">
+                        <div class="profile-definition-term">Address</div>
+                        <div class="profile-definition-value">{{ profile.address|default:"-" }}</div>
+                    </div>
+                    <div class="profile-definition-row">
+                        <div class="profile-definition-term">Registration Date</div>
+                        <div class="profile-definition-value">{{ view_user.date_joined|date:"F j, Y, g:i A" }}</div>
+                    </div>
+                    <div class="profile-definition-row">
+                        <div class="profile-definition-term">Account Status</div>
+                        <div class="profile-definition-value">{{ account_status_label }}</div>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+        <article class="profile-card" id="recent-order-history">
+            <div class="profile-card-header">
+                <h3 style="margin: 0; font-size: 1.18rem; font-weight: 900; color: #1f2937;"><i class="fas fa-clock-rotate-left" style="color: #f97316; margin-right: 8px;"></i> Recent Order History</h3>
+            </div>
+            <div class="profile-card-body">
+                {% if recent_order_history %}
+                <div class="table-responsive">
+                    <table class="profile-order-table">
+                        <thead>
+                            <tr>
+                                <th>Order</th>
+                                <th>Product</th>
+                                <th>Status</th>
+                                <th>Total</th>
+                                <th>Created</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in recent_order_history %}
+                            <tr>
+                                <td data-label="Order">
+                                    <strong>{{ item.type_label }} #{{ item.order_id }}</strong>
+                                </td>
+                                <td data-label="Product">
+                                    <strong>{{ item.product_name }}</strong>
+                                    <span class="profile-order-meta">Product ID: {{ item.product_code|default:"-" }}</span>
+                                </td>
+                                <td data-label="Status">
+                                    <span class="table-status-pill {% if item.status_key == 'completed' %}is-success{% elif item.status_key == 'cancelled' %}is-archived{% endif %}">
+                                        {{ item.status_label }}
+                                    </span>
+                                </td>
+                                <td data-label="Total">P{{ item.total_price|floatformat:2 }}</td>
+                                <td data-label="Created">
+                                    <strong>{{ item.created_at|date:"M j, Y" }}</strong>
+                                    <span class="profile-order-meta">{{ item.created_at|time:"g:i A" }}</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="profile-empty-note">No recent cake or package orders were found for this account.</p>
+                {% endif %}
+            </div>
+        </article>
+    </section>
+</div>
+{% endblock %}
+
+

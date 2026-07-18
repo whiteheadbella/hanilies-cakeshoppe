@@ -1,0 +1,110 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Stock Report{% endblock %}
+{% block page_title %}Stock Report{% endblock %}
+{% block page_icon %}boxes-stacked{% endblock %}
+
+{% block extra_css %}
+<style>
+    .report-shell { display: flex; flex-direction: column; gap: 20px; }
+    .report-intro { margin: 8px 0 0; color: #4b5563; line-height: 1.6; max-width: 780px; }
+    .report-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 18px; }
+    .report-card { background: white; border: 1px solid #f2d8e6; border-radius: 18px; padding: 18px; box-shadow: 0 12px 24px rgba(15, 23, 42, 0.06); }
+    .report-label { color: #be185d; font-size: 0.8rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+    .report-value { margin-top: 12px; color: #111827; font-size: 1.85rem; font-weight: 900; letter-spacing: -0.03em; }
+    .report-copy { margin-top: 8px; color: #6b7280; font-size: 0.88rem; line-height: 1.5; }
+    .report-chip, .report-code-badge, .report-stock-badge { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 6px 10px; font-size: 0.75rem; font-weight: 800; }
+    .report-chip { margin-top: 12px; background: #fff1f7; color: #be185d; }
+    .report-code-badge { background: #eff6ff; color: #1d4ed8; }
+    .report-stock-badge.is-available { background: #dcfce7; color: #166534; }
+    .report-stock-badge.is-low { background: #ffedd5; color: #c2410c; }
+    .report-stock-badge.is-out { background: #fee2e2; color: #b91c1c; }
+    .report-link, .report-action { color: #1d4ed8; font-weight: 700; text-decoration: none; }
+    .report-link:hover, .report-action:hover { text-decoration: underline; }
+    .report-meta, .report-note { color: #6b7280; font-size: 0.86rem; line-height: 1.55; }
+    .report-meta { display: block; margin-top: 4px; }
+    .report-note { margin-top: 12px; }
+    .strong-cell { font-weight: 800; color: #111827; }
+    .report-toolbar { display: flex; gap: 10px; flex-wrap: wrap; }
+    .report-toolbar a { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+
+    @media (max-width: 767px) {
+        .report-shell { gap: 16px; }
+        .report-card-grid { grid-template-columns: 1fr; }
+        .report-card { padding: 16px; border-radius: 16px; }
+        .report-value { font-size: 1.55rem; }
+        .report-toolbar { width: 100%; flex-direction: column; }
+        .report-toolbar a { width: 100%; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="report-shell">
+    <section class="module-card">
+        <div class="module-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap;">
+            <div>
+                <h2><i class="fas fa-boxes-stacked"></i> Inventory Overview</h2>
+                <p class="report-intro">Monitor available cake and package product stock by product ID. Stock is deducted automatically when an order is marked completed and restored automatically if the order moves away from completed.</p>
+            </div>
+            <div class="report-toolbar">
+                <a href="{% url 'admin_cakes' %}" class="btn-primary" style="text-decoration: none;"><i class="fas fa-birthday-cake"></i> Open Cake Products</a>
+                <a href="{% url 'admin_packages' %}" class="btn-secondary" style="background: #475569; color: white; padding: 10px 18px; border-radius: 999px; text-decoration: none;"><i class="fas fa-gift"></i> Open Package Products</a>
+            </div>
+        </div>
+        <div class="report-card-grid">
+            {% for card in stock_report_cards %}
+            <article class="report-card">
+                <div class="report-label"><i class="fas fa-{{ card.icon }}"></i> {{ card.title }}</div>
+                <div class="report-value">{{ card.value }}</div>
+                <div class="report-copy">{{ card.copy }}</div>
+                <div class="report-chip"><i class="fas fa-layer-group"></i> {{ card.chip }}</div>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="module-card">
+        <div class="module-header" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <h2><i class="fas fa-warehouse"></i> Stock by Product ID</h2>
+            <span class="report-chip"><i class="fas fa-list-check"></i> {{ stock_report_rows|length }} tracked product{{ stock_report_rows|length|pluralize }}</span>
+        </div>
+        <div class="table-responsive">
+            <table class="module-table">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Product</th>
+                        <th>Product ID</th>
+                        <th>Stock on Hand</th>
+                        <th>Availability</th>
+                        <th>Storefront Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in stock_report_rows %}
+                    <tr>
+                        <td data-label="Type"><span class="status-badge status-{% if row.type_key == 'cake' %}completed{% else %}confirmed{% endif %}">{{ row.type_label }}</span></td>
+                        <td data-label="Product">
+                            <a href="{{ row.manage_url }}" class="report-link">{{ row.product_name }}</a>
+                            <span class="report-meta">Product inventory is tracked from the matching product record and displayed under this product ID.</span>
+                        </td>
+                        <td data-label="Product ID"><span class="report-code-badge">{{ row.product_code }}</span></td>
+                        <td data-label="Stock on Hand"><span class="strong-cell">{{ row.stock_value }}</span></td>
+                        <td data-label="Availability"><span class="report-stock-badge is-{{ row.health_key }}">{{ row.health_label }}</span></td>
+                        <td data-label="Storefront Status"><span class="status-badge status-{% if row.is_active %}active{% else %}cancelled{% endif %}">{% if row.is_active %}Active{% else %}Inactive{% endif %}</span></td>
+                        <td data-label="Actions"><a href="{{ row.manage_url }}" class="report-action"><i class="fas fa-pen"></i> Manage Stock</a></td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center" style="padding: 32px; color: #6b7280;">No cake or package products are available for stock tracking yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="report-note">Use the product edit pages to add or replenish stock quantities. Orders only deduct stock when administrators mark them completed, which keeps inventory tied to real fulfilled sales.</div>
+    </section>
+</div>
+{% endblock %}

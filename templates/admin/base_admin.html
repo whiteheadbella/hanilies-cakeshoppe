@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hanilies Admin - {% block title %}Dashboard{% endblock %}</title>
+    <title>Hanilies Admin - {% block title %}Admin Dashboard{% endblock %}</title>
     
     <!-- Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -85,6 +85,47 @@
         
         .nav-link i {
             width: 24px;
+        }
+
+        .sidebar-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            padding: 0 14px 22px;
+        }
+
+        .sidebar-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .sidebar-group-title {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 0 10px 6px;
+            color: rgba(255, 240, 246, 0.78);
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            text-align: left;
+        }
+
+        .sidebar-group-title::before {
+            content: '';
+            width: 100%;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.16);
+        }
+
+        .sidebar-group-title span {
+            white-space: nowrap;
+            display: block;
+            width: 100%;
+            text-align: left;
         }
         
         .sidebar-header {
@@ -699,8 +740,7 @@ body.sidebar-open {
 }
 
 .admin-table-action-stack,
-.admin-table-select-row,
-.admin-table-secondary-actions {
+.admin-table-select-row {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -738,7 +778,14 @@ body.sidebar-open {
 
     .admin-header-actions {
         width: 100%;
-        justify-content: space-between;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+    }
+
+    .admin-site-link {
+        width: 100%;
+        justify-content: center;
+        min-height: 48px;
     }
 
     .page-title {
@@ -782,7 +829,6 @@ body.sidebar-open {
 
     .admin-table-action-stack,
     .admin-table-select-row,
-    .admin-table-secondary-actions,
     .admin-order-status-form {
         width: 100%;
     }
@@ -867,41 +913,25 @@ body.sidebar-open {
             
             <div class="sidebar-nav">
                 {% if admin_menu %}
-                    {% for item in admin_menu %}
+                    {% for group in admin_menu %}
+                    <div class="sidebar-group">
+                        <div class="sidebar-group-title"><span>{{ group.title }}</span></div>
+                        {% for item in group.items %}
                         <a href="{% url item.url %}" class="nav-link {% if request.resolver_match.url_name == item.url %}active{% endif %}">
                             <i class="fas fa-{{ item.icon }}"></i>
                             <span>{{ item.name }}</span>
                         </a>
+                        {% endfor %}
+                    </div>
                     {% endfor %}
                 {% else %}
-                    <a href="{% url 'admin_dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
-                        <i class="fas fa-tachometer-alt"></i>
-                        <span>Dashboard</span>
-                    </a>
-                    <a href="{% url 'admin_cakes' %}" class="nav-link">
-                        <i class="fas fa-birthday-cake"></i>
-                        <span>Cakes</span>
-                    </a>
-                    <a href="{% url 'admin_cake_orders' %}" class="nav-link">
-                        <i class="fas fa-shopping-cart"></i>
-                        <span>Cake Orders</span>
-                    </a>
-                    <a href="{% url 'admin_packages' %}" class="nav-link">
-                        <i class="fas fa-gift"></i>
-                        <span>Packages</span>
-                    </a>
-                    <a href="{% url 'admin_package_orders' %}" class="nav-link">
-                        <i class="fas fa-calendar-check"></i>
-                        <span>Package Orders</span>
-                    </a>
-                    <a href="{% url 'admin_payments' %}" class="nav-link">
-                        <i class="fas fa-credit-card"></i>
-                        <span>Payments</span>
-                    </a>
-                    <a href="{% url 'admin_users' %}" class="nav-link">
-                        <i class="fas fa-users"></i>
-                        <span>Users</span>
-                    </a>
+                    <div class="sidebar-group">
+                        <div class="sidebar-group-title"><span>Dashboard</span></div>
+                        <a href="{% url 'admin_dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
+                            <i class="fas fa-house"></i>
+                            <span>Admin Dashboard</span>
+                        </a>
+                    </div>
                 {% endif %}
             </div>
             
@@ -922,7 +952,7 @@ body.sidebar-open {
                     </button>
                     <h1 class="page-title">
                         <i class="fas fa-{% block page_icon %}tachometer-alt{% endblock %}"></i>
-                        {% block page_title %}Dashboard{% endblock %}
+                        {% block page_title %}Admin Dashboard{% endblock %}
                     </h1>
                 </div>
                 <div class="admin-header-actions">
@@ -1239,8 +1269,19 @@ body.sidebar-open {
             renderPage();
         }
 
+        function syncMobileCardTables() {
+            const shouldUseCards = window.innerWidth <= 640;
+
+            document.querySelectorAll('.module-table').forEach(function(table) {
+                const hasDataLabels = Boolean(table.querySelector('tbody td[data-label]'));
+                table.classList.toggle('mobile-card-table', shouldUseCards && hasDataLabels);
+            });
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('.module-table').forEach(enhanceAdminTable);
+            syncMobileCardTables();
+            window.addEventListener('resize', syncMobileCardTables);
         });
 
         // Mobile admin sidebar toggle
@@ -1292,6 +1333,9 @@ body.sidebar-open {
     {% block extra_js %}{% endblock %}
 </body>
 </html>
+
+
+
 
 
 
