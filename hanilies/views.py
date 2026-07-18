@@ -40,6 +40,7 @@ from .forms import (
     CAKE_ORDER_MAX_LEAD_DAYS,
     CAKE_ORDER_MIN_LEAD_DAYS,
     CakeBookingDateForm,
+    AdminContactInquiryReplyForm,
     ContactInquiryForm,
     HaniliesPasswordResetForm,
     HaniliesSetPasswordForm,
@@ -5019,6 +5020,43 @@ def is_admin_user(user):
 # ADMIN DASHBOARD
 # ============================================
 
+def _mark_contact_inquiry_as_read(inquiry):
+    if inquiry.is_read:
+        return False
+
+    inquiry.is_read = True
+    inquiry.read_at = timezone.now()
+    inquiry.save(update_fields=['is_read', 'read_at', 'updated_at'])
+    return True
+
+
+def _build_admin_contact_inquiry_reply_redirect(inquiry, return_url, anchor='reply-panel'):
+    detail_url = reverse('admin_contact_inquiry_view', args=[inquiry.id])
+    if return_url:
+        detail_url = f"{detail_url}?{urlencode({'next': return_url})}"
+    return f'{detail_url}#{anchor}'
+
+
+def _render_admin_contact_inquiry_detail(request, inquiry, reply_form=None, status_code=200):
+    return_url = _get_safe_admin_return_url(request, 'admin_contact_inquiries')
+    active_reply_form = reply_form or AdminContactInquiryReplyForm()
+    reply_delivery_text = (
+        f'This reply will be emailed to {inquiry.reply_email}.'
+        if inquiry.has_email_contact
+        else 'This inquiry does not include a valid email address, so the reply will be saved here for manual follow-up.'
+    )
+
+    return render(request, 'admin/contact_inquiries/detail.html', {
+        'inquiry': inquiry,
+        'reply_form': active_reply_form,
+        'reply_send_label': 'Send Reply' if inquiry.has_email_contact else 'Save Reply Note',
+        'reply_delivery_text': reply_delivery_text,
+        'return_url': return_url,
+        'admin_menu': get_admin_menu(request),
+            'hide_demo_panel': True,
+    }, status=status_code)
+
+
 @login_required
 def admin_contact_inquiries(request):
     """Review public customer contact inquiries."""
@@ -5052,18 +5090,60 @@ def admin_contact_inquiry_view(request, inquiry_id):
         return access_denied
 
     inquiry = get_object_or_404(ContactInquiry, id=inquiry_id)
-    if not inquiry.is_read:
-        inquiry.is_read = True
-        inquiry.read_at = timezone.now()
-        inquiry.save(update_fields=['is_read', 'read_at', 'updated_at'])
+    _mark_contact_inquiry_as_read(inquiry)
 
-    return render(request, 'admin/contact_inquiries/detail.html', {
-        'inquiry': inquiry,
-        'reply_href': inquiry.reply_href,
-        'return_url': _get_safe_admin_return_url(request, 'admin_contact_inquiries'),
-        'admin_menu': get_admin_menu(request),
-            'hide_demo_panel': True,
-    })
+    return _render_admin_contact_inquiry_detail(request, inquiry)
+
+
+@login_required
+@require_POST
+def admin_contact_inquiry_reply(request, inquiry_id):
+    """Send or save an admin reply for a public customer inquiry."""
+    access_denied = _require_admin_roles(request, FULL_ACCESS_ROLE_VALUES)
+    if access_denied:
+        return access_denied
+
+    inquiry = get_object_or_404(ContactInquiry, id=inquiry_id)
+    return_url = _get_safe_admin_return_url(request, 'admin_contact_inquiries')
+    reply_form = AdminContactInquiryReplyForm(request.POST)
+
+    if not reply_form.is_valid():
+        _mark_contact_inquiry_as_read(inquiry)
+        return _render_admin_contact_inquiry_detail(request, inquiry, reply_form=reply_form)
+
+    reply_message = reply_form.cleaned_data['reply_message']
+    if inquiry.has_email_contact:
+        send_mail(
+            'Reply from Hanilies Cakeshoppe',
+            (
+                f'Hello {inquiry.name},\n\n'
+                f'{reply_message}\n\n'
+                'If you need more help, please contact Hanilies Cakeshoppe again through the website.'
+            ),
+            settings.DEFAULT_FROM_EMAIL,
+            [inquiry.reply_email],
+            fail_silently=False,
+        )
+
+    _mark_contact_inquiry_as_read(inquiry)
+    inquiry.admin_reply = reply_message
+    inquiry.replied_at = timezone.now()
+    inquiry.replied_by = request.user
+    inquiry.save(update_fields=['admin_reply', 'replied_at', 'replied_by', 'updated_at'])
+    _log_staff_activity(
+        request.user,
+        'contact_inquiry_replied',
+        f'Replied to inquiry #{inquiry.id}.',
+        'contact_inquiry',
+        inquiry.id,
+    )
+
+    if inquiry.has_email_contact:
+        messages.success(request, f'Reply sent to {inquiry.reply_email} for inquiry #{inquiry.id}.')
+    else:
+        messages.success(request, f'Reply saved on inquiry #{inquiry.id} for manual follow-up.')
+
+    return redirect(_build_admin_contact_inquiry_reply_redirect(inquiry, return_url))
 
 
 @login_required
@@ -5093,6 +5173,26 @@ def admin_contact_inquiry_update(request, inquiry_id):
             inquiry.id,
         )
         messages.success(request, f'Inquiry #{inquiry.id} marked as read.')
+        return redirect(return_url)
+
+    if action == 'mark_unread':
+        if inquiry.admin_reply and inquiry.replied_at:
+            messages.info(request, f'Inquiry #{inquiry.id} already has a saved reply status.')
+            return redirect(return_url)
+        if not inquiry.is_read:
+            messages.info(request, f'Inquiry #{inquiry.id} is already marked as new.')
+            return redirect(return_url)
+        inquiry.is_read = False
+        inquiry.read_at = None
+        inquiry.save(update_fields=['is_read', 'read_at', 'updated_at'])
+        _log_staff_activity(
+            request.user,
+            'contact_inquiry_unread',
+            f'Marked inquiry #{inquiry.id} as new.',
+            'contact_inquiry',
+            inquiry.id,
+        )
+        messages.success(request, f'Inquiry #{inquiry.id} marked as new.')
         return redirect(return_url)
 
     if action == 'archive':

@@ -34,7 +34,7 @@
             </thead>
             <tbody>
                 {% for inquiry in inquiries_page %}
-                <tr{% if not inquiry.is_read and not inquiry.is_archived %} class="is-highlighted"{% endif %}>
+                <tr{% if inquiry.status_key == 'new' %} class="is-highlighted"{% endif %}>
                     <td data-label="Customer">
                         <strong>{{ inquiry.name }}</strong>
                         {% if inquiry.user %}
@@ -50,12 +50,9 @@
                         {{ inquiry.message|truncatechars:160 }}
                     </td>
                     <td data-label="Status">
-                        {% if inquiry.is_archived %}
-                        <span class="badge" style="background: #e5e7eb; color: #374151;">Archived</span>
-                        {% elif inquiry.is_read %}
-                        <span class="badge" style="background: #dbeafe; color: #1d4ed8;">Read</span>
-                        {% else %}
-                        <span class="badge" style="background: #dcfce7; color: #166534;">New</span>
+                        <span class="inquiry-status-badge inquiry-status-{{ inquiry.status_key }}">{{ inquiry.status_label }}</span>
+                        {% if inquiry.replied_at %}
+                        <div class="table-subtext">{{ inquiry.replied_at|date:"M d, Y g:i A" }}</div>
                         {% endif %}
                     </td>
                     <td data-label="Submitted">
@@ -68,20 +65,18 @@
                                 <a href="{% url 'admin_contact_inquiry_view' inquiry.id %}?next={{ request.get_full_path|urlencode }}" class="inquiry-primary-btn inquiry-primary-btn-view">
                                     <i class="fas fa-eye"></i> View
                                 </a>
-                                {% if inquiry.reply_href %}
-                                <a href="{{ inquiry.reply_href }}" class="inquiry-primary-btn inquiry-primary-btn-reply">
-                                    <i class="fas fa-reply"></i> {{ inquiry.reply_label }}
+                                <a href="{% url 'admin_contact_inquiry_view' inquiry.id %}?next={{ request.get_full_path|urlencode }}#reply-panel" class="inquiry-primary-btn inquiry-primary-btn-reply">
+                                    <i class="fas fa-reply"></i> Reply
                                 </a>
-                                {% endif %}
                             </div>
                             <details class="inquiry-more-menu">
                                 <summary class="inquiry-more-trigger">More actions</summary>
                                 <div class="inquiry-more-panel">
-                                    {% if not inquiry.is_read and not inquiry.is_archived %}
+                                    {% if not inquiry.is_archived and not inquiry.admin_reply %}
                                     <form method="post" action="{% url 'admin_contact_inquiry_update' inquiry.id %}?next={{ request.get_full_path|urlencode }}" class="admin-table-inline-form">
                                         {% csrf_token %}
-                                        <button type="submit" name="action" value="mark_read" class="inquiry-secondary-btn">
-                                            <i class="fas fa-envelope-open"></i> Mark as Read
+                                        <button type="submit" name="action" value="{% if inquiry.is_read %}mark_unread{% else %}mark_read{% endif %}" class="inquiry-secondary-btn">
+                                            <i class="fas {% if inquiry.is_read %}fa-envelope{% else %}fa-envelope-open{% endif %}"></i> {% if inquiry.is_read %}Mark as New{% else %}Mark as Read{% endif %}
                                         </button>
                                     </form>
                                     {% endif %}
@@ -161,6 +156,36 @@
 
     .inquiry-pill {
         background: #ec4899;
+    }
+
+    .inquiry-status-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 700;
+    }
+
+    .inquiry-status-new {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .inquiry-status-read {
+        background: #dbeafe;
+        color: #1d4ed8;
+    }
+
+    .inquiry-status-replied {
+        background: #ccfbf1;
+        color: #0f766e;
+    }
+
+    .inquiry-status-archived {
+        background: #e5e7eb;
+        color: #374151;
     }
 
     .inquiry-action-group {

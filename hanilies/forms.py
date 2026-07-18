@@ -181,3 +181,20 @@ class ContactInquiryForm(forms.Form):
         if len(value) < 10:
             raise ValidationError('Please enter a longer message so we can help you properly.')
         return value
+
+
+class AdminContactInquiryReplyForm(forms.Form):
+    reply_message = forms.CharField(
+        label='Reply Message',
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'placeholder': 'Write the response you want to send to the customer.',
+            'rows': 6,
+        }),
+    )
+
+    def clean_reply_message(self):
+        value = (self.cleaned_data.get('reply_message') or '').strip()
+        if len(value) < 5:
+            raise ValidationError('Please write a longer reply before sending.')
+        return value

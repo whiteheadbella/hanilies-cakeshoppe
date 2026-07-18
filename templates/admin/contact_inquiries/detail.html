@@ -9,7 +9,7 @@
     <div class="module-header" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
         <div>
             <h2><i class="fas fa-envelope-open-text"></i> Inquiry #{{ inquiry.id }}</h2>
-            <p style="margin: 8px 0 0; color: #6b7280; font-size: 0.95rem;">Review the full customer message and choose the next action.</p>
+            <p style="margin: 8px 0 0; color: #6b7280; font-size: 0.95rem;">Review the full customer message, write a reply, and update the inquiry status from one place.</p>
         </div>
         <a href="{{ return_url }}" class="detail-back-link">
             <i class="fas fa-arrow-left"></i> Back to Inquiries
@@ -25,11 +25,11 @@
         <div class="inquiry-detail-card">
             <span class="detail-label">Contact Detail</span>
             <div class="detail-value">{{ inquiry.contact_detail }}</div>
-            <div class="detail-subtext">Use the reply action below to respond quickly.</div>
+            <div class="detail-subtext">{{ reply_delivery_text }}</div>
         </div>
         <div class="inquiry-detail-card">
             <span class="detail-label">Status</span>
-            <div class="detail-value">{{ inquiry.status_label }}</div>
+            <div class="detail-value"><span class="inquiry-status-badge inquiry-status-{{ inquiry.status_key }}">{{ inquiry.status_label }}</span></div>
             <div class="detail-subtext">Submitted {{ inquiry.created_at|timesince }} ago</div>
         </div>
         <div class="inquiry-detail-card">
@@ -44,18 +44,39 @@
         <div class="inquiry-message-body">{{ inquiry.message|linebreaksbr }}</div>
     </div>
 
-    <div class="inquiry-detail-actions">
-        {% if reply_href %}
-        <a href="{{ reply_href }}" class="detail-action-btn detail-action-btn-reply">
-            <i class="fas fa-reply"></i> {{ inquiry.reply_label }}
-        </a>
-        {% endif %}
+    {% if inquiry.admin_reply %}
+    <div class="inquiry-message-card reply-history-card">
+        <span class="detail-label">Latest Admin Reply</span>
+        <div class="detail-subtext" style="margin-bottom: 12px;">Saved {{ inquiry.replied_at|date:"M d, Y g:i A" }}{% if inquiry.replied_by %} by {{ inquiry.replied_by }}{% endif %}.</div>
+        <div class="inquiry-message-body">{{ inquiry.admin_reply|linebreaksbr }}</div>
+    </div>
+    {% endif %}
 
-        {% if not inquiry.is_read and not inquiry.is_archived %}
+    <div class="inquiry-message-card reply-panel" id="reply-panel">
+        <span class="detail-label">Write Reply</span>
+        <p class="detail-subtext" style="margin: 0 0 14px;">{{ reply_delivery_text }}</p>
+        <form method="post" action="{% url 'admin_contact_inquiry_reply' inquiry.id %}?next={{ return_url|urlencode }}">
+            {% csrf_token %}
+            {% if reply_form.reply_message.errors %}
+            <div class="reply-form-errors">
+                {{ reply_form.reply_message.errors }}
+            </div>
+            {% endif %}
+            <div class="reply-form-field">{{ reply_form.reply_message }}</div>
+            <div class="reply-form-actions">
+                <button type="submit" class="detail-action-btn detail-action-btn-reply">
+                    <i class="fas fa-paper-plane"></i> {{ reply_send_label }}
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="inquiry-detail-actions">
+        {% if not inquiry.is_archived and not inquiry.admin_reply %}
         <form method="post" action="{% url 'admin_contact_inquiry_update' inquiry.id %}?next={{ request.get_full_path|urlencode }}">
             {% csrf_token %}
-            <button type="submit" name="action" value="mark_read" class="detail-action-btn detail-action-btn-read">
-                <i class="fas fa-envelope-open"></i> Mark as Read
+            <button type="submit" name="action" value="{% if inquiry.is_read %}mark_unread{% else %}mark_read{% endif %}" class="detail-action-btn detail-action-btn-read">
+                <i class="fas {% if inquiry.is_read %}fa-envelope{% else %}fa-envelope-open{% endif %}"></i> {% if inquiry.is_read %}Mark as New{% else %}Mark as Read{% endif %}
             </button>
         </form>
         {% endif %}
@@ -126,10 +147,75 @@
         color: #6b7280;
     }
 
+    .inquiry-status-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 700;
+    }
+
+    .inquiry-status-new {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .inquiry-status-read {
+        background: #dbeafe;
+        color: #1d4ed8;
+    }
+
+    .inquiry-status-replied {
+        background: #ccfbf1;
+        color: #0f766e;
+    }
+
+    .inquiry-status-archived {
+        background: #e5e7eb;
+        color: #374151;
+    }
+
+    .inquiry-message-card {
+        margin-bottom: 20px;
+    }
+
     .inquiry-message-body {
         color: #374151;
         line-height: 1.7;
         white-space: normal;
+    }
+
+    .reply-history-card {
+        background: #f8fffb;
+        border-color: #c6f6d5;
+    }
+
+    .reply-panel textarea {
+        width: 100%;
+        min-height: 170px;
+        resize: vertical;
+    }
+
+    .reply-form-errors {
+        margin-bottom: 12px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: #fee2e2;
+        color: #b91c1c;
+        font-size: 0.88rem;
+    }
+
+    .reply-form-errors ul {
+        margin: 0;
+        padding-left: 18px;
+    }
+
+    .reply-form-actions {
+        margin-top: 14px;
+        display: flex;
+        justify-content: flex-start;
     }
 
     .inquiry-detail-actions {

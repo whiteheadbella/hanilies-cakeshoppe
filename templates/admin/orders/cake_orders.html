@@ -26,14 +26,23 @@
     }
 
     .order-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 2px 6px;
+        margin-top: 2px;
+        border-radius: 8px;
         color: #1d4ed8;
         font-size: 0.85rem;
-        font-weight: 700;
+        font-weight: 600;
         text-decoration: none;
+        cursor: pointer;
+        transition: background-color 0.2s ease, color 0.2s ease;
     }
 
     .order-link:hover {
-        color: #1e3a8a;
+        background: rgba(37, 99, 235, 0.08);
+        color: #1d4ed8;
         text-decoration: underline;
     }
 
@@ -68,13 +77,22 @@
     }
 
     .module-table td[data-label="Actions"] .btn-preview {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 2px 6px;
+        border-radius: 8px;
         color: #1d4ed8;
         font-size: 0.84rem;
+        font-weight: 600;
         text-decoration: none;
+        cursor: pointer;
+        transition: background-color 0.2s ease, color 0.2s ease;
     }
 
     .module-table td[data-label="Actions"] .btn-preview:hover {
-        color: #1e3a8a;
+        background: rgba(37, 99, 235, 0.08);
+        color: #1d4ed8;
         text-decoration: underline;
     }
 </style>
@@ -112,7 +130,7 @@
                         <div><span class="status-badge status-{{ order.latest_payment_status }}">{{ order.latest_payment_status_label }}</span></div>
                         {% if order.latest_payment_summary_label %}<div class="order-secondary">{{ order.latest_payment_summary_label }}</div>{% endif %}
                         {% if order.latest_payment_id %}
-                        <div class="order-secondary"><a class="order-link" href="{% url 'admin_payments' %}?highlight={{ order.latest_payment_id }}#payment-{{ order.latest_payment_id }}">Open in Payments</a></div>
+                        <div class="order-secondary"><a class="order-link" href="{% url 'admin_payments' %}?highlight={{ order.latest_payment_id }}#payment-{{ order.latest_payment_id }}"><i class="fas fa-external-link-alt" aria-hidden="true"></i><span>Open in Payments</span></a></div>
                         {% endif %}
                         {% else %}
                         <span class="order-secondary">No payment yet</span>

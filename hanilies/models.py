@@ -2,7 +2,8 @@ from django.db import models
 from django.db.models import Q
 from django.contrib.auth.models import User
 from django.utils import timezone
-from urllib.parse import quote
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 
 
 def _build_generated_product_code(prefix, record_id):
@@ -549,6 +550,15 @@ class ContactInquiry(models.Model):
     name = models.CharField(max_length=120)
     contact_detail = models.CharField(max_length=150)
     message = models.TextField()
+    admin_reply = models.TextField(blank=True)
+    replied_at = models.DateTimeField(null=True, blank=True)
+    replied_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='replied_contact_inquiries',
+    )
     is_read = models.BooleanField(default=False)
     read_at = models.DateTimeField(null=True, blank=True)
     is_archived = models.BooleanField(default=False)
@@ -566,28 +576,32 @@ class ContactInquiry(models.Model):
     def status_label(self):
         if self.is_archived:
             return 'Archived'
+        if self.admin_reply and self.replied_at:
+            return 'Replied'
         if self.is_read:
             return 'Read'
         return 'New'
 
     @property
-    def reply_href(self):
+    def status_key(self):
+        return self.status_label.lower()
+
+    @property
+    def reply_email(self):
         contact_value = (self.contact_detail or '').strip()
         if not contact_value:
             return ''
-        if '@' in contact_value:
-            subject = quote('Reply from Hanilies Cakeshoppe')
-            body = quote(f'Hello {self.name},\n\n')
-            return f'mailto:{contact_value}?subject={subject}&body={body}'
-        digits = ''.join(character for character in contact_value if character.isdigit() or character == '+')
-        return f'tel:{digits}' if digits else ''
+        try:
+            validate_email(contact_value)
+        except ValidationError:
+            return ''
+        return contact_value
 
     @property
-    def reply_label(self):
-        contact_value = (self.contact_detail or '').strip()
-        if '@' in contact_value:
-            return 'Reply'
-        return 'Call'
+    def has_email_contact(self):
+        return bool(self.reply_email)
+
+
 
 
 class Payment(models.Model):

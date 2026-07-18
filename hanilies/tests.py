@@ -1,4 +1,4 @@
-﻿from io import BytesIO, StringIO
+from io import BytesIO, StringIO
 import base64
 from datetime import date, time, timedelta
 from decimal import Decimal
@@ -31,7 +31,7 @@ from .forms import (
     build_cake_booking_window,
     build_package_booking_window,
 )
-from .models import ActivityLog, Cake, CakeCustomization, CakeOrder, HomeHeroImage, HomeStripImage, Notification, Package, PackageOrder, PackageThumbnail, Payment, RefundRequest, Testimonial, UserProfile
+from .models import ActivityLog, Cake, CakeCustomization, CakeOrder, ContactInquiry, HomeHeroImage, HomeStripImage, Notification, Package, PackageOrder, PackageThumbnail, Payment, RefundRequest, Testimonial, UserProfile
 from .payment_qr import build_gcash_checkout_details, generate_qr_code_data_uri
 from .views import (
     CAKE_CUSTOMIZATION_GROUP_SPECS,
@@ -6049,6 +6049,104 @@ class TestimonialWorkflowTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
 
+
+class ContactInquiryAdminReplyTests(TestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_user(
+            username='contact-admin',
+            email='contact-admin@example.com',
+            password='TestPass123!',
+        )
+        UserProfile.objects.create(user=self.admin_user, role='admin')
+        self.admin_user.is_staff = True
+        self.admin_user.save(update_fields=['is_staff'])
+
+    def test_admin_reply_sends_email_and_marks_inquiry_replied(self):
+        inquiry = ContactInquiry.objects.create(
+            name='Jamie Customer',
+            contact_detail='jamie@example.com',
+            message='Hello, I want to know if you can customize a birthday cake for next week.',
+        )
+        self.client.login(username='contact-admin', password='TestPass123!')
+
+        response = self.client.post(
+            reverse('admin_contact_inquiry_reply', args=[inquiry.id]),
+            {
+                'reply_message': 'Yes, we can help with that. Please share your preferred theme and pickup date.',
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        inquiry.refresh_from_db()
+        self.assertTrue(inquiry.is_read)
+        self.assertEqual(inquiry.status_label, 'Replied')
+        self.assertEqual(
+            inquiry.admin_reply,
+            'Yes, we can help with that. Please share your preferred theme and pickup date.',
+        )
+        self.assertEqual(inquiry.replied_by, self.admin_user)
+        self.assertIsNotNone(inquiry.replied_at)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ['jamie@example.com'])
+        self.assertIn('Yes, we can help with that.', mail.outbox[0].body)
+
+        detail_response = self.client.get(reverse('admin_contact_inquiry_view', args=[inquiry.id]))
+
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertIsNone(detail_response.context['reply_form']['reply_message'].value())
+        self.assertContains(detail_response, 'name="reply_message"')
+        self.assertTrue(
+            ActivityLog.objects.filter(
+                action='contact_inquiry_replied',
+                target_type='contact_inquiry',
+                target_id=inquiry.id,
+            ).exists()
+        )
+
+    def test_admin_reply_saves_manual_note_when_inquiry_has_no_email(self):
+        inquiry = ContactInquiry.objects.create(
+            name='Phone Customer',
+            contact_detail='09171234567',
+            message='Please call me back about the package inclusions.',
+        )
+        self.client.login(username='contact-admin', password='TestPass123!')
+
+        response = self.client.post(
+            reverse('admin_contact_inquiry_reply', args=[inquiry.id]),
+            {
+                'reply_message': 'We noted your request and will follow up using the phone number you provided.',
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        inquiry.refresh_from_db()
+        self.assertEqual(inquiry.status_label, 'Replied')
+        self.assertEqual(len(mail.outbox), 0)
+        self.assertEqual(
+            inquiry.admin_reply,
+            'We noted your request and will follow up using the phone number you provided.',
+        )
+
+    def test_admin_can_mark_read_inquiry_back_to_new(self):
+        inquiry = ContactInquiry.objects.create(
+            name='Status Customer',
+            contact_detail='status@example.com',
+            message='Checking if the inquiry status can be changed back to new.',
+            is_read=True,
+            read_at=timezone.now(),
+        )
+        self.client.login(username='contact-admin', password='TestPass123!')
+
+        response = self.client.post(
+            reverse('admin_contact_inquiry_update', args=[inquiry.id]),
+            {'action': 'mark_unread'},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        inquiry.refresh_from_db()
+        self.assertFalse(inquiry.is_read)
+        self.assertIsNone(inquiry.read_at)
+        self.assertEqual(inquiry.status_label, 'New')
 
 class AuthenticationFlowTests(TestCase):
     def setUp(self):

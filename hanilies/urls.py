@@ -117,6 +117,8 @@ urlpatterns = [
          name='admin_contact_inquiries'),
     path('admin-panel/contact-inquiries/view/<int:inquiry_id>/',
          views.admin_contact_inquiry_view, name='admin_contact_inquiry_view'),
+    path('admin-panel/contact-inquiries/reply/<int:inquiry_id>/',
+         views.admin_contact_inquiry_reply, name='admin_contact_inquiry_reply'),
     path('admin-panel/contact-inquiries/update/<int:inquiry_id>/',
          views.admin_contact_inquiry_update, name='admin_contact_inquiry_update'),
     path('admin-panel/contact-inquiries/delete/<int:inquiry_id>/',
