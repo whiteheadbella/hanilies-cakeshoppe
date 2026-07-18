@@ -5040,6 +5040,7 @@ def admin_contact_inquiries(request):
         'is_archived_view': is_archived_view,
         'unread_inquiry_count': ContactInquiry.objects.filter(is_archived=False, is_read=False).count(),
         'admin_menu': get_admin_menu(request),
+            'hide_demo_panel': True,
     })
 
 
@@ -5061,6 +5062,7 @@ def admin_contact_inquiry_view(request, inquiry_id):
         'reply_href': inquiry.reply_href,
         'return_url': _get_safe_admin_return_url(request, 'admin_contact_inquiries'),
         'admin_menu': get_admin_menu(request),
+            'hide_demo_panel': True,
     })
 
 
@@ -5175,6 +5177,7 @@ def admin_about_images(request):
     return render(request, 'admin/about_images/list.html', {
         'about_images': about_images,
         'admin_menu': get_admin_menu(request),
+            'hide_demo_panel': True,
     })
 
 
@@ -5213,6 +5216,7 @@ def admin_about_image_edit(request, image_id):
         'slot_title': slot_title,
         'preview_url': preview_url,
         'admin_menu': get_admin_menu(request),
+            'hide_demo_panel': True,
     })
 
 
@@ -5558,6 +5562,7 @@ def admin_home_hero_images(request):
     return render(request, 'admin/hero_images/list.html', {
         'hero_images': hero_images,
         'admin_menu': get_admin_menu(request),
+            'hide_demo_panel': True,
     })
 
 
@@ -5574,13 +5579,15 @@ def admin_home_hero_add(request):
             messages.error(request, 'Title is required.')
             return render(request, 'admin/hero_images/add.html', {
                 'admin_menu': get_admin_menu(request),
-            })
+                    'hide_demo_panel': True,
+    })
 
         if 'image' not in request.FILES:
             messages.error(request, 'Please upload a celebration image.')
             return render(request, 'admin/hero_images/add.html', {
                 'admin_menu': get_admin_menu(request),
-            })
+                    'hide_demo_panel': True,
+    })
 
         try:
             hero_image = HomeHeroImage.objects.create(
@@ -5593,7 +5600,8 @@ def admin_home_hero_add(request):
             messages.error(request, 'Display order must be a whole number.')
             return render(request, 'admin/hero_images/add.html', {
                 'admin_menu': get_admin_menu(request),
-            })
+                    'hide_demo_panel': True,
+    })
 
         _log_staff_activity(
             request.user,
@@ -5608,6 +5616,7 @@ def admin_home_hero_add(request):
 
     return render(request, 'admin/hero_images/add.html', {
         'admin_menu': get_admin_menu(request),
+            'hide_demo_panel': True,
     })
 
 
@@ -5627,7 +5636,8 @@ def admin_home_hero_edit(request, hero_image_id):
             return render(request, 'admin/hero_images/edit.html', {
                 'hero_image': hero_image,
                 'admin_menu': get_admin_menu(request),
-            })
+                    'hide_demo_panel': True,
+    })
 
         try:
             hero_image.title = title
@@ -5646,7 +5656,8 @@ def admin_home_hero_edit(request, hero_image_id):
             return render(request, 'admin/hero_images/edit.html', {
                 'hero_image': hero_image,
                 'admin_menu': get_admin_menu(request),
-            })
+                    'hide_demo_panel': True,
+    })
 
         _log_staff_activity(
             request.user,
@@ -5662,6 +5673,7 @@ def admin_home_hero_edit(request, hero_image_id):
     return render(request, 'admin/hero_images/edit.html', {
         'hero_image': hero_image,
         'admin_menu': get_admin_menu(request),
+            'hide_demo_panel': True,
     })
 
 
@@ -5701,6 +5713,7 @@ def admin_home_strip_images(request):
     return render(request, 'admin/home_strip/list.html', {
         'strip_images': strip_images,
         'admin_menu': get_admin_menu(request),
+            'hide_demo_panel': True,
     })
 
 
@@ -5717,13 +5730,15 @@ def admin_home_strip_add(request):
             messages.error(request, 'Title is required.')
             return render(request, 'admin/home_strip/add.html', {
                 'admin_menu': get_admin_menu(request),
-            })
+                    'hide_demo_panel': True,
+    })
 
         if 'image' not in request.FILES:
             messages.error(request, 'Please upload a strip image.')
             return render(request, 'admin/home_strip/add.html', {
                 'admin_menu': get_admin_menu(request),
-            })
+                    'hide_demo_panel': True,
+    })
 
         try:
             strip_image = HomeStripImage.objects.create(
@@ -5736,7 +5751,8 @@ def admin_home_strip_add(request):
             messages.error(request, 'Display order must be a whole number.')
             return render(request, 'admin/home_strip/add.html', {
                 'admin_menu': get_admin_menu(request),
-            })
+                    'hide_demo_panel': True,
+    })
 
         _log_staff_activity(
             request.user,
@@ -5751,6 +5767,7 @@ def admin_home_strip_add(request):
 
     return render(request, 'admin/home_strip/add.html', {
         'admin_menu': get_admin_menu(request),
+            'hide_demo_panel': True,
     })
 
 
@@ -5770,7 +5787,8 @@ def admin_home_strip_edit(request, strip_image_id):
             return render(request, 'admin/home_strip/edit.html', {
                 'strip_image': strip_image,
                 'admin_menu': get_admin_menu(request),
-            })
+                    'hide_demo_panel': True,
+    })
 
         try:
             strip_image.title = title
@@ -5789,7 +5807,8 @@ def admin_home_strip_edit(request, strip_image_id):
             return render(request, 'admin/home_strip/edit.html', {
                 'strip_image': strip_image,
                 'admin_menu': get_admin_menu(request),
-            })
+                    'hide_demo_panel': True,
+    })
 
         _log_staff_activity(
             request.user,
@@ -5805,6 +5824,7 @@ def admin_home_strip_edit(request, strip_image_id):
     return render(request, 'admin/home_strip/edit.html', {
         'strip_image': strip_image,
         'admin_menu': get_admin_menu(request),
+            'hide_demo_panel': True,
     })
 
 
@@ -6880,6 +6900,7 @@ def admin_testimonials(request):
         'approved_testimonial_count': approved_testimonials.count(),
         'is_archived_view': is_archived_view,
         'admin_menu': get_admin_menu(request),
+            'hide_demo_panel': True,
     })
 
 
@@ -7130,6 +7151,7 @@ def admin_refunds(request):
         'approved_refunds': refunds.filter(status__in=['approved', 'processing']),
         'closed_refunds': refunds.filter(status__in=['rejected', 'processed']),
         'admin_menu': get_admin_menu(request),
+            'hide_demo_panel': True,
     })
 
 
@@ -7383,6 +7405,7 @@ def admin_activity_logs(request):
         'current_page_url': request.get_full_path(),
         'is_archived_view': is_archived_view,
         'admin_menu': get_admin_menu(request),
+            'hide_demo_panel': True,
     })
 
 
@@ -7684,7 +7707,8 @@ def admin_user_add(request):
                 return render(request, 'admin/users/add.html', {
                     'role_choices': ROLE_CHOICES,
                     'admin_menu': get_admin_menu(request),
-                })
+                        'hide_demo_panel': True,
+    })
 
             new_user = User.objects.create_user(
                 username=username,
@@ -7711,6 +7735,7 @@ def admin_user_add(request):
     return render(request, 'admin/users/add.html', {
         'role_choices': ROLE_CHOICES,
         'admin_menu': get_admin_menu(request),
+            'hide_demo_panel': True,
     })
 
 
@@ -7875,6 +7900,8 @@ def user_role_context(request):
             'user_role_display': role.get_role_display() if role else 'Customer - Customer Portal',
         }
     return {}
+
+
 
 
 
