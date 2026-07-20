@@ -1433,6 +1433,16 @@ def _build_stock_report_rows(limit=None):
     return rows
 
 
+
+
+def _get_archived_refund_filter():
+    return (
+        Q(cake_order__is_archived=True)
+        | Q(package_order__is_archived=True)
+        | Q(payment__is_archived=True)
+    )
+
+
 def _get_order_stock_context(order):
     if isinstance(order, CakeOrder):
         return {
@@ -5878,17 +5888,20 @@ def admin_dashboard(request):
         is_archived=False,
     ).count()
     pending_payments = Payment.objects.filter(
+        is_archived=False,
         payment_status__in=['pending', 'verifying'],
     ).count()
-    pending_refunds = RefundRequest.objects.filter(status='requested').count()
+    pending_refunds = RefundRequest.objects.filter(status='requested').exclude(
+        _get_archived_refund_filter()
+    ).distinct().count()
     pending_testimonials = Testimonial.objects.filter(
         status=Testimonial.STATUS_PENDING,
         is_archived=False,
     ).count()
     total_cakes = _get_public_cake_queryset().count()
-    total_cake_orders = CakeOrder.objects.count()
+    total_cake_orders = CakeOrder.objects.filter(is_archived=False).count()
     total_packages = _get_public_package_queryset().count()
-    total_package_orders = PackageOrder.objects.count()
+    total_package_orders = PackageOrder.objects.filter(is_archived=False).count()
     total_users = User.objects.filter(is_active=True).count()
 
     role_value = role.role if role else 'admin'
@@ -5905,81 +5918,11 @@ def admin_dashboard(request):
     can_view_cake_orders = user_allowed(CAKE_ORDER_ROLE_VALUES)
     can_view_package_orders = user_allowed(PACKAGE_ORDER_ROLE_VALUES)
     can_view_refunds = user_allowed(PAYMENT_REVIEW_ROLE_VALUES)
-    can_view_sales_reports = user_allowed(SALES_REPORT_ROLE_VALUES)
     can_view_stock_reports = user_allowed(STOCK_REPORT_ROLE_VALUES)
 
-    order_sales_cards = []
-    order_sales_report_rows = []
-    if can_view_sales_reports:
-        cake_order_sales_today = CakeOrder.objects.filter(
-            is_archived=False,
-            created_at__date=today,
-        ).exclude(order_status='cancelled').aggregate(total=Sum('total_price'))['total'] or Decimal('0.00')
-        package_order_sales_today = PackageOrder.objects.filter(
-            is_archived=False,
-            created_at__date=today,
-        ).exclude(order_status='cancelled').aggregate(total=Sum('total_price'))['total'] or Decimal('0.00')
-        order_sales_week = CakeOrder.objects.filter(
-            is_archived=False,
-            created_at__date__gte=start_of_week,
-            created_at__date__lte=today,
-        ).exclude(order_status='cancelled').aggregate(total=Sum('total_price'))['total'] or Decimal('0.00')
-        order_sales_week += PackageOrder.objects.filter(
-            is_archived=False,
-            created_at__date__gte=start_of_week,
-            created_at__date__lte=today,
-        ).exclude(order_status='cancelled').aggregate(total=Sum('total_price'))['total'] or Decimal('0.00')
-        order_sales_month = CakeOrder.objects.filter(
-            is_archived=False,
-            created_at__date__gte=start_of_month,
-            created_at__date__lte=today,
-        ).exclude(order_status='cancelled').aggregate(total=Sum('total_price'))['total'] or Decimal('0.00')
-        order_sales_month += PackageOrder.objects.filter(
-            is_archived=False,
-            created_at__date__gte=start_of_month,
-            created_at__date__lte=today,
-        ).exclude(order_status='cancelled').aggregate(total=Sum('total_price'))['total'] or Decimal('0.00')
-        order_sales_cards = [
-            {
-                'title': 'Cake Order Sales Today',
-                'value': f'P{cake_order_sales_today:.2f}',
-                'copy': 'Booked cake order sales created today.',
-                'chip': 'Cake orders',
-                'icon': 'birthday-cake',
-                'url': reverse('admin_order_sales_report'),
-            },
-            {
-                'title': 'Package Order Sales Today',
-                'value': f'P{package_order_sales_today:.2f}',
-                'copy': 'Booked package order sales created today.',
-                'chip': 'Package orders',
-                'icon': 'gift',
-                'url': reverse('admin_order_sales_report'),
-            },
-            {
-                'title': 'This Week Order Sales',
-                'value': f'P{order_sales_week:.2f}',
-                'copy': 'Combined cake and package order totals this week.',
-                'chip': 'Weekly activity',
-                'icon': 'chart-line',
-                'url': reverse('admin_order_sales_report'),
-            },
-            {
-                'title': 'This Month Order Sales',
-                'value': f'P{order_sales_month:.2f}',
-                'copy': 'Combined cake and package order totals this month.',
-                'chip': 'Monthly activity',
-                'icon': 'calendar-alt',
-                'url': reverse('admin_order_sales_report'),
-            },
-        ]
-        order_sales_report_rows = _build_order_sales_report_rows(limit=8)
-
     stock_report_cards = []
-    stock_report_rows = []
     if can_view_stock_reports:
         all_stock_rows = _build_stock_report_rows(limit=None)
-        stock_report_rows = all_stock_rows[:6]
         available_stock_count = sum(1 for row in all_stock_rows if row['health_key'] == 'available')
         low_stock_count = sum(1 for row in all_stock_rows if row['health_key'] == 'low')
         out_of_stock_count = sum(1 for row in all_stock_rows if row['health_key'] == 'out')
@@ -6034,7 +5977,7 @@ def admin_dashboard(request):
     if can_view_cake_orders:
         priority_cards.append({
             'title': 'Cake Orders',
-            'value': CakeOrder.objects.count(),
+            'value': total_cake_orders,
             'copy': f'{pending_cake_approvals} cake orders currently need approval or payment follow-up.',
             'chip': 'Order queue',
             'icon': 'shopping-cart',
@@ -6044,7 +5987,7 @@ def admin_dashboard(request):
     if can_view_package_orders:
         priority_cards.append({
             'title': 'Package Orders',
-            'value': PackageOrder.objects.count(),
+            'value': total_package_orders,
             'copy': f'{pending_package_approvals} package orders currently need approval or payment follow-up.',
             'chip': 'Event pipeline',
             'icon': 'calendar-check',
@@ -6268,16 +6211,12 @@ def admin_dashboard(request):
         'can_view_cake_orders': can_view_cake_orders,
         'can_view_package_orders': can_view_package_orders,
         'can_view_payments': can_view_payments,
-        'can_view_stock_reports': can_view_stock_reports,
         'priority_cards': priority_cards[:4],
         'secondary_cards': secondary_cards[:5],
         'quick_actions': quick_actions[:6],
         'attention_items': attention_items[:5],
         'hero_summary_items': hero_summary_items,
-        'order_sales_cards': order_sales_cards,
-        'order_sales_report_rows': order_sales_report_rows,
         'stock_report_cards': stock_report_cards,
-        'stock_report_rows': stock_report_rows,
     }
 
     return render(request, 'admin/dashboard.html', context)
@@ -8056,6 +7995,8 @@ def admin_refunds(request):
     if access_denied:
         return access_denied
 
+    is_archived_view = _is_archived_admin_view(request)
+    archived_refund_filter = _get_archived_refund_filter()
     refunds = RefundRequest.objects.select_related(
         'cake_order__user',
         'package_order__user',
@@ -8063,13 +8004,20 @@ def admin_refunds(request):
         'requested_by',
         'approved_by',
         'processed_by',
-    ).all()
+    )
+    if is_archived_view:
+        refunds = refunds.filter(archived_refund_filter)
+    else:
+        refunds = refunds.exclude(archived_refund_filter)
+    refunds = refunds.distinct()
+
     return render(request, 'admin/refunds/list.html', {
         'requested_refunds': refunds.filter(status='requested'),
         'approved_refunds': refunds.filter(status__in=['approved', 'processing']),
         'closed_refunds': refunds.filter(status__in=['rejected', 'processed']),
+        'is_archived_view': is_archived_view,
         'admin_menu': get_admin_menu(request),
-            'hide_demo_panel': True,
+        'hide_demo_panel': True,
     })
 
 
@@ -8089,6 +8037,7 @@ def admin_refund_update(request, refund_id):
     if access_denied:
         return access_denied
 
+    return_url = _get_safe_admin_return_url(request, 'admin_refunds')
     order = refund_request.cake_order or refund_request.package_order
     order_type = 'cake' if refund_request.cake_order_id else 'package'
 
@@ -8141,7 +8090,7 @@ def admin_refund_update(request, refund_id):
     elif action == 'process':
         if refund_request.status not in ['approved', 'processing']:
             messages.error(request, 'Only approved refunds can be processed.')
-            return redirect('admin_refunds')
+            return redirect(return_url)
 
         refund_request.status = 'processed'
         refund_request.processed_by = request.user
@@ -8162,7 +8111,7 @@ def admin_refund_update(request, refund_id):
         messages.success(
             request, f'Refund request #{refund_request.id} processed successfully.')
 
-    return redirect('admin_refunds')
+    return redirect(return_url)
 
 
 @login_required
@@ -8975,6 +8924,8 @@ def user_role_context(request):
             'user_role_display': role.get_role_display() if role else 'Customer - Customer Portal',
         }
     return {}
+
+
 
 
 

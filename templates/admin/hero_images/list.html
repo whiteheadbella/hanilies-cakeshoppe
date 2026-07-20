@@ -6,16 +6,17 @@
 
 {% block content %}
 <div class="module-card">
-    <div class="module-header" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+    <div class="module-header banner-toolbar">
         <div>
             <h2><i class="fas fa-images"></i> Homepage Banner Images</h2>
             <p class="text-muted mb-0">The first four active images are used on the public homepage collage.</p>
         </div>
-        <a href="{% url 'admin_home_hero_add' %}" class="btn-primary" style="text-decoration: none;">
+        <a href="{% url 'admin_home_hero_add' %}" class="btn-primary banner-toolbar-link" style="text-decoration: none;">
             <i class="fas fa-plus"></i> Add Banner Image
         </a>
     </div>
-    <table class="module-table">
+    <div class="table-responsive">
+        <table class="module-table">
         <thead>
             <tr>
                 <th>ID</th>
@@ -30,32 +31,34 @@
         <tbody>
             {% for hero_image in hero_images %}
             <tr>
-                <td>{{ hero_image.id }}</td>
-                <td>
-                    <img src="{{ hero_image.image.url }}" alt="{{ hero_image.title }}" style="width: 72px; height: 72px; object-fit: cover; border-radius: 16px; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);">
+                <td data-label="ID">{{ hero_image.id }}</td>
+                <td data-label="Preview">
+                    <img src="{{ hero_image.image.url }}" alt="{{ hero_image.title }}" class="banner-thumb">
                 </td>
-                <td>
+                <td data-label="Title">
                     <strong>{{ hero_image.title }}</strong>
                 </td>
-                <td>{{ hero_image.display_order }}</td>
-                <td>
+                <td data-label="Display Order">{{ hero_image.display_order }}</td>
+                <td data-label="Status">
                     {% if hero_image.is_active %}
                     <span class="status-badge status-active">Active</span>
                     {% else %}
                     <span class="status-badge status-muted">Hidden</span>
                     {% endif %}
                 </td>
-                <td>{{ hero_image.updated_at|date:"M d, Y g:i A" }}</td>
-                <td>
-                    <a href="{% url 'admin_home_hero_edit' hero_image.id %}" style="color: #FF69B4; margin-right: 10px;">
-                        <i class="fas fa-edit"></i> Edit
-                    </a>
-                    <form method="post" action="{% url 'admin_home_hero_delete' hero_image.id %}" style="display: inline;">
-                        {% csrf_token %}
-                        <button type="submit" style="background: none; border: none; padding: 0; color: #dc2626; cursor: pointer; font: inherit;" onclick="return confirm('Delete this banner image?');">
-                            <i class="fas fa-trash"></i> Delete
-                        </button>
-                    </form>
+                <td data-label="Updated">{{ hero_image.updated_at|date:"M d, Y g:i A" }}</td>
+                <td data-label="Actions">
+                    <div class="banner-action-stack">
+                        <a href="{% url 'admin_home_hero_edit' hero_image.id %}" class="banner-action-link">
+                            <i class="fas fa-edit"></i> Edit
+                        </a>
+                        <form method="post" action="{% url 'admin_home_hero_delete' hero_image.id %}" class="admin-table-inline-form">
+                            {% csrf_token %}
+                            <button type="submit" class="banner-action-button" onclick="return confirm('Delete this banner image?');">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </form>
+                    </div>
                 </td>
             </tr>
             {% empty %}
@@ -64,10 +67,17 @@
             </tr>
             {% endfor %}
         </tbody>
-    </table>
+        </table>
+    </div>
 </div>
 
 <style>
+    .banner-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .banner-toolbar-link { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+    .banner-thumb { width: 72px; height: 72px; object-fit: cover; border-radius: 16px; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12); }
+    .banner-action-stack { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .banner-action-link { color: #FF69B4; text-decoration: none; font-weight: 700; }
+    .banner-action-button { background: none; border: none; padding: 0; color: #dc2626; cursor: pointer; font: inherit; font-weight: 700; }
     .text-center {
         text-align: center;
     }
@@ -91,6 +101,12 @@
     .status-muted {
         background: #f3f4f6;
         color: #6b7280;
+    }
+    @media (max-width: 767px) {
+        .banner-toolbar-link { width: 100%; }
+        .banner-action-stack { flex-direction: column; align-items: stretch; }
+        .banner-action-link,
+        .banner-action-button { width: 100%; }
     }
 </style>
 {% endblock %}

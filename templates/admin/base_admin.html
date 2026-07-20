@@ -137,30 +137,52 @@
         .sidebar-header .logo {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 14px;
             text-decoration: none;
             color: white;
+            min-width: 0;
         }
-        
-        .sidebar-header .logo i {
-            font-size: 2rem;
-            color: #D4AF37;
+
+        .sidebar-header .logo-mark {
+            width: 52px;
+            height: 52px;
+            border-radius: 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            background: linear-gradient(135deg, #fb7185, #f59e0b);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            box-shadow: 0 12px 22px rgba(17, 24, 39, 0.22);
         }
-        
-        .sidebar-header .logo span {
+
+        .sidebar-header .logo-mark svg {
+            width: 30px;
+            height: 30px;
+            display: block;
+        }
+
+        .sidebar-header .logo-copy {
+            display: block;
+            min-width: 0;
             font-size: 1.3rem;
-            font-weight: 600;
-            background: linear-gradient(135deg, #D4AF37, #FF69B4);
+            font-weight: 700;
+            line-height: 1.05;
+            background: linear-gradient(135deg, #fef3c7, #f9a8d4);
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
         }
         
-        .sidebar-header .logo small {
+        .sidebar-header .logo-copy small {
             display: block;
+            margin-top: 4px;
             font-size: 0.7rem;
-            opacity: 0.7;
-            color: white;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            opacity: 0.88;
+            color: #ffffff;
+            -webkit-text-fill-color: #ffffff;
         }
         
         .sidebar-footer {
@@ -636,6 +658,27 @@
                 gap: 10px;
                 text-align: center;
             }
+            .sidebar-header {
+                padding: 20px 16px;
+            }
+            .sidebar-header .logo {
+                gap: 12px;
+            }
+            .sidebar-header .logo-mark {
+                width: 48px;
+                height: 48px;
+                border-radius: 14px;
+            }
+            .sidebar-header .logo-mark svg {
+                width: 26px;
+                height: 26px;
+            }
+            .sidebar-header .logo-copy {
+                font-size: 1.12rem;
+            }
+            .sidebar-header .logo-copy small {
+                font-size: 0.64rem;
+            }
         }
         
         .text-center {
@@ -906,8 +949,14 @@ body.sidebar-open {
         <aside class="admin-sidebar">
             <div class="sidebar-header">
                 <a href="{% url 'admin_dashboard' %}" class="logo">
-                    <i class="fas fa-birthday-cake"></i>
-                    <span>Hanilies<br><small>Admin Panel</small></span>
+                    <span class="logo-mark" aria-hidden="true">
+                        <svg viewBox="0 0 64 64" role="img" focusable="false" aria-hidden="true">
+                            <path d="M10 30 32 12l22 18v5a3 3 0 0 1-3 3h-4v12a6 6 0 0 1-6 6H23a6 6 0 0 1-6-6V38h-4a3 3 0 0 1-3-3z" fill="#f6b267"/>
+                            <path d="M7 29a4 4 0 0 1 1.47-3.1l20.99-17.3a4 4 0 0 1 5.08 0l20.99 17.3A4 4 0 0 1 57 29v2a3 3 0 0 1-4.91 2.32L32 16.78 11.91 33.32A3 3 0 0 1 7 31z" fill="#f58ca4"/>
+                            <path d="M28 39h8v17h-8z" fill="#fff7ed"/>
+                        </svg>
+                    </span>
+                    <span class="logo-copy">Hanilies<br><small>Admin Panel</small></span>
                 </a>
             </div>
             
