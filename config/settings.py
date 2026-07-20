@@ -197,8 +197,6 @@ DEFAULT_FROM_EMAIL = os.environ.get(
     'noreply@hanilies.local',
 )
 
-DEMO_BOT_REMOTE_ENABLED = _config_flag(
-    'DEMO_BOT_REMOTE_ENABLED', default=False)
 
 HANILIES_GCASH_ACCOUNT_NAME = os.environ.get(
     'HANILIES_GCASH_ACCOUNT_NAME',

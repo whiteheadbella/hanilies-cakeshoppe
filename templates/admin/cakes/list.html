@@ -45,10 +45,31 @@
         </div>
     </div>
 
+    <form id="cakeBulkForm" method="post" action="{% url 'admin_cakes_bulk_action' %}" class="admin-bulk-toolbar" data-bulk-form>
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <div class="admin-bulk-toolbar-group">
+            <span class="admin-bulk-count" data-bulk-count-for="cakeBulkForm">0 selected</span>
+            <span class="product-meta">Bulk archive tools keep the per-row edit and restore actions unchanged.</span>
+        </div>
+        <div class="admin-bulk-toolbar-group">
+            <select name="action" class="form-control">
+                <option value="">Bulk action</option>
+                {% if is_archived_view %}
+                <option value="restore" data-confirm="Restore {count} selected cake products?">Restore selected products</option>
+                {% else %}
+                <option value="archive" data-confirm="Archive {count} selected cake products?">Archive selected products</option>
+                {% endif %}
+            </select>
+            <button type="submit" class="btn-primary" data-bulk-submit disabled>Apply</button>
+        </div>
+    </form>
+
     <div class="table-responsive">
         <table class="module-table">
             <thead>
                 <tr>
+                    <th class="admin-bulk-select-head"><input type="checkbox" class="admin-bulk-checkbox" data-bulk-toggle-for="cakeBulkForm" aria-label="Select all cake products"></th>
                     <th>ID</th>
                     <th>Product</th>
                     <th>Category</th>
@@ -61,6 +82,7 @@
             <tbody>
                 {% for cake in cakes %}
                 <tr>
+                    <td data-label="Select" class="admin-bulk-select-cell"><input type="checkbox" class="admin-bulk-checkbox" name="selected_ids" value="{{ cake.id }}" form="cakeBulkForm" aria-label="Select cake product {{ cake.name }}"></td>
                     <td data-label="ID">#{{ cake.id }}</td>
                     <td data-label="Product">
                         <div class="product-stack">
@@ -69,7 +91,7 @@
                                 <img src="{{ cake.image.url }}" alt="{{ cake.name }}" class="product-thumb">
                                 {% endif %}
                                 <div class="product-stack" style="gap: 6px;">
-                                    <a href="{% url 'admin_cake_edit' cake.id %}" class="product-link">{{ cake.name }}</a>
+                                    <a href="{% url 'admin_cake_edit' cake.id %}?next={{ request.get_full_path|urlencode }}" class="product-link">{{ cake.name }}</a>
                                     <span class="product-code-badge">{{ cake.product_code|default:'Not assigned' }}</span>
                                 </div>
                             </div>
@@ -88,7 +110,7 @@
                     <td data-label="Listing Status">{% if cake.is_active %}<span class="status-badge status-active">Active</span>{% else %}<span class="status-badge status-cancelled">Inactive</span>{% endif %}</td>
                     <td data-label="Actions">
                         <div class="action-stack">
-                            <a href="{% url 'admin_cake_edit' cake.id %}" class="action-link"><i class="fas fa-pen"></i> Edit Cake Product</a>
+                            <a href="{% url 'admin_cake_edit' cake.id %}?next={{ request.get_full_path|urlencode }}" class="action-link"><i class="fas fa-pen"></i> Edit Cake Product</a>
                             <form method="post" action="{% url 'admin_cake_delete' cake.id %}" style="display: inline;">
                                 {% csrf_token %}
                                 <input type="hidden" name="next" value="{{ request.get_full_path }}">
@@ -99,7 +121,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="7" class="text-center" style="padding: 36px; color: #6b7280;">No cake products found. <a href="{% url 'admin_cake_add' %}">Add your first cake product</a>.</td>
+                    <td colspan="8" class="text-center" style="padding: 36px; color: #6b7280;">No cake products found. <a href="{% url 'admin_cake_add' %}">Add your first cake product</a>.</td>
                 </tr>
                 {% endfor %}
             </tbody>

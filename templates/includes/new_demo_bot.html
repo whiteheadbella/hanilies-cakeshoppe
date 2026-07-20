@@ -1,0 +1,51 @@
+{% load static %}
+<div class="new-demo-bot" data-new-demo-bot data-config-url="{% url 'new_demo_bot_config' %}" aria-live="polite">
+    <button type="button" class="new-demo-bot__launcher" data-demo-toggle aria-expanded="false" aria-controls="newDemoBotPanel">
+        <i class="fas fa-robot" aria-hidden="true"></i>
+    </button>
+    <section class="new-demo-bot__panel" id="newDemoBotPanel" data-new-tour-shell hidden aria-label="Hanilies Demo Bot controls">
+        <div class="new-demo-bot__header">
+            <span class="new-demo-bot__badge-top"><i class="fas fa-tv" aria-hidden="true"></i> Guided Presentation</span>
+            <button type="button" class="new-demo-bot__close" data-demo-close aria-label="Close Demo Bot">x</button>
+        </div>
+        <div class="new-demo-bot__intro">
+            <h2>Hanilies Demo Bot</h2>
+            <p>Run a browser-only guided demo that automatically presents the customer ordering journey and the administrator workflow using the live system pages.</p>
+        </div>
+        <div class="new-demo-bot__flow-grid" aria-label="Demo flow controls">
+            <button type="button" class="new-demo-bot__flow new-demo-bot__flow--primary" data-demo-run-full><i class="fas fa-play" aria-hidden="true"></i> Full Demo Flow</button>
+            <button type="button" class="new-demo-bot__flow" data-demo-run-flow="customer">Customer Flow</button>
+            <button type="button" class="new-demo-bot__flow" data-demo-run-flow="admin">Admin Flow</button>
+            <button type="button" class="new-demo-bot__flow new-demo-bot__flow--dark" data-demo-run-selected><i class="fas fa-list-check" aria-hidden="true"></i> Start Selected Demo</button>
+        </div>
+        <button type="button" class="new-demo-bot__stop" data-demo-stop><i class="fas fa-square" aria-hidden="true"></i> Stop Demo</button>
+
+        <div class="new-demo-bot__section">
+            <h3>Live Status</h3>
+            <div class="new-demo-bot__status" data-demo-status>Ready. Start the full guided demo or run a selected presentation flow.</div>
+        </div>
+
+        <div class="new-demo-bot__section">
+            <h3>Playback Speed</h3>
+            <label class="new-demo-bot__field">
+                <span>Demo pacing</span>
+                <select data-demo-pace aria-label="Demo pacing"></select>
+            </label>
+            <p class="new-demo-bot__helper">The bot uses the selected speed for typing, scrolling, clicks, and pause timing, including Super Fast mode.</p>
+        </div>
+
+        <div class="new-demo-bot__section">
+            <h3>Presentation Script</h3>
+            <p class="new-demo-bot__helper">Choose the exact modules to present. Steps run from top to bottom.</p>
+            <div class="new-demo-bot__selection-bar">
+                <div class="new-demo-bot__selected" data-demo-selected-count>0 selected</div>
+                <div class="new-demo-bot__selection-actions" aria-label="Demo step selection controls">
+                    <button type="button" data-demo-select-all>Select All</button>
+                    <button type="button" data-demo-clear-all>Clear All</button>
+                </div>
+            </div>
+            <div class="new-demo-bot__script" data-demo-script></div>
+        </div>
+    </section>
+</div>
+<script src="{% static 'js/new-demo-bot.js' %}?v=9" defer></script>

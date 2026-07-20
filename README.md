@@ -150,7 +150,6 @@ DEFAULT_FROM_EMAIL=Hanilies Cakeshoppe <your-email@example.com>
 HANILIES_GCASH_ACCOUNT_NAME=Hanilies Cakeshoppe
 HANILIES_GCASH_ACCOUNT_NUMBER=
 HANILIES_GCASH_PAYMENT_NOTE=Send payment using the account details shown on the checkout page.
-DEMO_BOT_REMOTE_ENABLED=False
 ```
 
 ## Email behavior
@@ -183,9 +182,6 @@ Collect static files for deployment:
 python manage.py collectstatic --no-input
 ```
 
-## Demo bot
-
-Use the built-in Demo Bot launcher in the web interface to run the browser-based customer and administrator presentation flow. The current demo is driven from the live UI instead of a separate management command.
 
 ## Deployment
 
@@ -203,7 +199,6 @@ Render environment variables currently include:
 
 - `PYTHON_VERSION`
 - `DEBUG`
-- `DEMO_BOT_REMOTE_ENABLED`
 - `SECRET_KEY`
 - `ALLOWED_HOSTS`
 - `CSRF_TRUSTED_ORIGINS`
@@ -258,7 +253,3 @@ The following project commands have been verified in this workspace:
 - Static fallback cake images use `/static/images/bg.png`
 - The canonical package-order route is `/order-package/`, with `/package-order/` kept as a compatibility alias
 - Customer notifications are backed by the `Notification` model and can also send email through Django mail settings
-
-
-
-

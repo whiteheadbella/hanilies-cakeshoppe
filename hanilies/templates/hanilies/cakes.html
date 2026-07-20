@@ -2,6 +2,95 @@
 
 {% block title %}Our Cakes{% endblock %}
 
+{% block extra_css %}
+<style>
+    .catalog-results-anchor {
+        scroll-margin-top: 110px;
+    }
+
+    .catalog-pagination-shell {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-top: 2rem;
+    }
+
+    .catalog-pagination-summary {
+        color: #6c757d;
+        font-weight: 600;
+    }
+
+    .catalog-pagination-nav {
+        margin-left: auto;
+    }
+
+    .catalog-pagination-list {
+        list-style: none;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0;
+        margin: 0;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .catalog-pagination-link {
+        min-width: 42px;
+        height: 42px;
+        padding: 0 0.95rem;
+        border-radius: 999px;
+        border: 1px solid rgba(214, 174, 106, 0.3);
+        background: #fff;
+        color: #5b4b4f;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        font-weight: 600;
+        transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    }
+
+    .catalog-pagination-link:hover,
+    .catalog-pagination-link:focus-visible {
+        background: #fff6ea;
+        border-color: #d6ae6a;
+        color: #8c5a17;
+    }
+
+    .catalog-pagination-link.is-current {
+        background: linear-gradient(135deg, #ff8fb1, #d6ae6a);
+        border-color: transparent;
+        color: #fff;
+        box-shadow: 0 10px 20px rgba(214, 174, 106, 0.18);
+    }
+
+    .catalog-pagination-link.is-disabled {
+        background: #f8f9fa;
+        border-color: #e9ecef;
+        color: #adb5bd;
+        cursor: not-allowed;
+    }
+
+    @media (max-width: 767.98px) {
+        .catalog-pagination-shell {
+            align-items: stretch;
+        }
+
+        .catalog-pagination-nav {
+            width: 100%;
+            margin-left: 0;
+        }
+
+        .catalog-pagination-list {
+            justify-content: flex-start;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container py-4">
     <div class="row mb-4">
@@ -15,7 +104,7 @@
         <div class="col-12">
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
-                    <form method="get" class="row g-3 align-items-end">
+                    <form method="get" action="{% url 'cakes' %}#cakes-collection" class="row g-3 align-items-end">
                         <div class="col-md-4">
                             <label for="category" class="form-label fw-semibold">Category</label>
                             <select class="form-select" id="category" name="category">
@@ -38,49 +127,84 @@
         </div>
     </div>
 
-    <div class="row g-4">
-        {% for cake in cakes %}
-        <div class="col-md-6 col-xl-4">
-            <div class="card h-100 border-0 shadow-sm overflow-hidden">
-                {% if cake.image %}
-                <div class="image-zoom-frame">
-                    <img src="{{ cake.image.url }}" class="card-img-top" alt="{{ cake.name }}" style="height: 240px; object-fit: cover;">
-                    <button type="button" class="image-zoom-trigger" data-zoom-src="{{ cake.image.url }}" data-zoom-title="{{ cake.name }}" data-zoom-gallery="cakes-catalog">
-                        <i class="fas fa-search-plus"></i> Zoom
-                    </button>
-                </div>
-                {% else %}
-                <div class="bg-light d-flex align-items-center justify-content-center" style="height: 240px;">
-                    <div class="text-center text-muted">
-                        <i class="fas fa-birthday-cake fa-3x mb-3"></i>
-                        <div>No cake image uploaded</div>
+    <section id="cakes-collection" class="catalog-results-anchor" aria-label="Cake catalog results">
+        <div class="row g-4">
+            {% for cake in cakes %}
+            <div class="col-md-6 col-xl-4">
+                <div class="card h-100 border-0 shadow-sm overflow-hidden">
+                    {% if cake.image %}
+                    <div class="image-zoom-frame">
+                        <img src="{{ cake.image.url }}" class="card-img-top" alt="{{ cake.name }}" style="height: 240px; object-fit: cover;">
+                        <button type="button" class="image-zoom-trigger" data-zoom-src="{{ cake.image.url }}" data-zoom-title="{{ cake.name }}" data-zoom-gallery="cakes-catalog">
+                            <i class="fas fa-search-plus"></i> Zoom
+                        </button>
                     </div>
-                </div>
-                {% endif %}
-                <div class="card-body d-flex flex-column">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <h4 class="h5 mb-0">{{ cake.name }}</h4>
-                        <span class="badge text-bg-light text-capitalize">{{ cake.get_category_display }}</span>
-                    </div>
-                    <p class="text-muted mb-3">{{ cake.description|default:'Customized celebration cake available for made-to-order requests.' }}</p>
-                    <div class="small text-muted mb-3">
-                        <div><i class="fas fa-box me-2"></i>Available stock: {{ cake.stock }}</div>
-                    </div>
-                    <div class="mt-auto d-flex justify-content-between align-items-center">
-                        <div>
-                            <div class="small text-muted">Starting at</div>
-                            <div class="h4 text-gold-pink mb-0">P{{ cake.price }}</div>
+                    {% else %}
+                    <div class="bg-light d-flex align-items-center justify-content-center" style="height: 240px;">
+                        <div class="text-center text-muted">
+                            <i class="fas fa-birthday-cake fa-3x mb-3"></i>
+                            <div>No cake image uploaded</div>
                         </div>
-                        <a href="{% url 'cake_customize' %}?cake_id={{ cake.id }}" class="btn btn-gold">Customize & Order</a>
+                    </div>
+                    {% endif %}
+                    <div class="card-body d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h4 class="h5 mb-0">{{ cake.name }}</h4>
+                            <span class="badge text-bg-light text-capitalize">{{ cake.get_category_display }}</span>
+                        </div>
+                        <p class="text-muted mb-3">{{ cake.description|default:'Customized celebration cake available for made-to-order requests.' }}</p>
+                        <div class="small text-muted mb-3">
+                            <div><i class="fas fa-box me-2"></i>Available stock: {{ cake.stock }}</div>
+                        </div>
+                        <div class="mt-auto d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="small text-muted">Starting at</div>
+                                <div class="h4 text-gold-pink mb-0">P{{ cake.price }}</div>
+                            </div>
+                            <a href="{% url 'cake_customize' %}?cake_id={{ cake.id }}" class="btn btn-gold">Customize & Order</a>
+                        </div>
                     </div>
                 </div>
             </div>
+            {% empty %}
+            <div class="col-12">
+                <div class="alert alert-warning mb-0">No cakes matched your filters. Try a different category or search term.</div>
+            </div>
+            {% endfor %}
         </div>
-        {% empty %}
-        <div class="col-12">
-            <div class="alert alert-warning mb-0">No cakes matched your filters. Try a different category or search term.</div>
+
+        <div class="catalog-pagination-shell">
+            <div class="catalog-pagination-summary">{{ cakes_pagination.summary }}</div>
+            {% if cakes_pagination.result_count %}
+            <nav class="catalog-pagination-nav" aria-label="Cake catalog pagination">
+                <ul class="catalog-pagination-list">
+                    <li>
+                        {% if cakes_pagination.prev_url %}
+                        <a href="{{ cakes_pagination.prev_url }}" class="catalog-pagination-link" aria-label="Go to previous page">Previous</a>
+                        {% else %}
+                        <span class="catalog-pagination-link is-disabled" aria-disabled="true">Previous</span>
+                        {% endif %}
+                    </li>
+                    {% for page_link in cakes_pagination.page_links %}
+                    <li>
+                        {% if page_link.is_current %}
+                        <span class="catalog-pagination-link is-current" aria-current="page">{{ page_link.number }}</span>
+                        {% else %}
+                        <a href="{{ page_link.url }}" class="catalog-pagination-link" aria-label="{{ page_link.aria_label }}">{{ page_link.number }}</a>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                    <li>
+                        {% if cakes_pagination.next_url %}
+                        <a href="{{ cakes_pagination.next_url }}" class="catalog-pagination-link" aria-label="Go to next page">Next</a>
+                        {% else %}
+                        <span class="catalog-pagination-link is-disabled" aria-disabled="true">Next</span>
+                        {% endif %}
+                    </li>
+                </ul>
+            </nav>
+            {% endif %}
         </div>
-        {% endfor %}
-    </div>
+    </section>
 </div>
 {% endblock %}

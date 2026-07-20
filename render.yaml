@@ -9,8 +9,6 @@ services:
         value: 3.13.1
       - key: DEBUG
         value: "False"
-      - key: DEMO_BOT_REMOTE_ENABLED
-        value: "True"
       - key: SECRET_KEY
         generateValue: true
       - key: ALLOWED_HOSTS

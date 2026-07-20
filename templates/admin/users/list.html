@@ -391,14 +391,38 @@
             <h2><i class="fas fa-user-shield"></i> Staff And RBAC Access <span class="badge" style="background: #fce7f3; color: #be185d; margin-left: 10px;">{{ staff_account_count }}</span></h2>
             <p class="text-muted mb-0">Review staff access, role assignments, and archived or active backend accounts from one table.</p>
         </div>
+        <form id="staffBulkForm" method="post" action="{% url 'admin_users_bulk_action' %}" class="admin-bulk-toolbar" data-bulk-form>
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}#staff-rbac">
+            <div class="admin-bulk-toolbar-group">
+                <span class="admin-bulk-count" data-bulk-count-for="staffBulkForm">0 selected</span>
+                <span class="table-subtext">Bulk actions keep the individual menus available for one-off edits.</span>
+            </div>
+            <div class="admin-bulk-toolbar-group">
+                <select name="action" class="form-control">
+                    <option value="">Bulk action</option>
+                    {% if is_archived_view %}
+                    <option value="activate" data-confirm="Activate {count} selected staff accounts?">Activate selected staff</option>
+                    {% else %}
+                    <option value="deactivate" data-confirm="Deactivate {count} selected staff accounts?">Deactivate selected staff</option>
+                    {% endif %}
+                </select>
+                <button type="submit" class="btn-primary" data-bulk-submit disabled>Apply</button>
+            </div>
+        </form>
         <div class="table-responsive">
             <table class="module-table mobile-card-table" data-pagination-mode="server">
                 <thead>
-                    <tr><th>User</th><th>Contact</th><th>Role</th><th>Registered</th><th>Status</th><th>Actions</th></tr>
+                    <tr><th class="admin-bulk-select-head"><input type="checkbox" class="admin-bulk-checkbox" data-bulk-toggle-for="staffBulkForm" aria-label="Select all staff accounts"></th><th>User</th><th>Contact</th><th>Role</th><th>Registered</th><th>Status</th><th>Actions</th></tr>
                 </thead>
                 <tbody>
                     {% for user in staff_users_page %}
                     <tr>
+                        <td data-label="Select" class="admin-bulk-select-cell">
+                            {% if user != request.user %}
+                            <input type="checkbox" class="admin-bulk-checkbox" name="selected_ids" value="{{ user.id }}" form="staffBulkForm" aria-label="Select staff account {{ user.username }}">
+                            {% endif %}
+                        </td>
                         <td data-label="User">
                             <div class="customer-name-stack">
                                 <strong>{{ user.get_full_name|default:user.username }}</strong>
@@ -435,13 +459,23 @@
                             <details class="table-action-menu">
                                 <summary aria-label="Open staff actions"><i class="fas fa-ellipsis-v"></i></summary>
                                 <div class="table-action-popover">
-                                    <a href="{% url 'admin_user_view' user.id %}" class="table-action-link"><i class="fas fa-eye"></i> View</a>
+                                    <a href="{% url 'admin_user_view' user.id %}?next={{ request.get_full_path|urlencode }}" class="table-action-link"><i class="fas fa-eye"></i> View</a>
                                     <a href="{% url 'admin_user_edit' user.id %}" class="table-action-link"><i class="fas fa-pen"></i> Edit Details</a>
                                     <a href="{% url 'admin_user_role' user.id %}" class="table-action-link"><i class="fas fa-user-gear"></i> Change Role</a>
                                     {% if user != request.user %}
                                     <form method="post" action="{% url 'admin_user_delete' user.id %}">
                                         {% csrf_token %}
                                         <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                        <input type="hidden" name="intent" value="activate">
+                                        <button type="submit" class="table-action-button" onclick="return confirm('Restore user {{ user.username|escapejs }}?');">
+                                            <i class="fas fa-rotate-left"></i>
+                                            Restore
+                                        </button>
+                                    </form>
+                                    <form method="post" action="{% url 'admin_user_delete' user.id %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                        <input type="hidden" name="intent" value="{% if is_archived_view %}activate{% else %}deactivate{% endif %}">
                                         <button type="submit" class="table-action-button {% if not is_archived_view %}is-danger{% endif %}" onclick="return confirm('{% if is_archived_view %}Activate{% else %}Deactivate{% endif %} user {{ user.username|escapejs }}?');">
                                             <i class="fas {% if is_archived_view %}fa-user-check{% else %}fa-user-slash{% endif %}"></i>
                                             {% if is_archived_view %}Activate Account{% else %}Deactivate Account{% endif %}
@@ -453,7 +487,7 @@
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="6" class="empty-table-note">No staff or admin accounts found.</td></tr>
+                    <tr><td colspan="7" class="empty-table-note">No staff or admin accounts found.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -499,15 +533,40 @@
                 <span class="customer-filter-chip"><i class="fas fa-basket-shopping"></i> {{ customer_with_orders_count }} with orders</span>
             </div>
         </div>
+        <form id="customerBulkForm" method="post" action="{% url 'admin_users_bulk_action' %}" class="admin-bulk-toolbar" data-bulk-form>
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}#customer-list">
+            <div class="admin-bulk-toolbar-group">
+                <span class="admin-bulk-count" data-bulk-count-for="customerBulkForm">0 selected</span>
+                <span class="table-subtext">Use bulk account actions for customer cleanup without removing the row-level options.</span>
+            </div>
+            <div class="admin-bulk-toolbar-group">
+                <select name="action" class="form-control">
+                    <option value="">Bulk action</option>
+                    {% if is_archived_view %}
+                    <option value="activate" data-confirm="Activate {count} selected customer accounts?">Activate selected customers</option>
+                    {% else %}
+                    <option value="deactivate" data-confirm="Deactivate {count} selected customer accounts?">Deactivate selected customers</option>
+                    <option value="archive" data-confirm="Archive {count} selected customer accounts?">Archive selected customers</option>
+                    {% endif %}
+                </select>
+                <button type="submit" class="btn-primary" data-bulk-submit disabled>Apply</button>
+            </div>
+        </form>
 
         <div class="table-responsive">
             <table class="module-table mobile-card-table" data-pagination-mode="server">
                 <thead>
-                    <tr><th>Customer</th><th>Contact</th><th>Registered</th><th>Orders</th><th>Spent</th><th>Status</th><th>Actions</th></tr>
+                    <tr><th class="admin-bulk-select-head"><input type="checkbox" class="admin-bulk-checkbox" data-bulk-toggle-for="customerBulkForm" aria-label="Select all customers"></th><th>Customer</th><th>Contact</th><th>Registered</th><th>Orders</th><th>Spent</th><th>Status</th><th>Actions</th></tr>
                 </thead>
                 <tbody>
                     {% for user in customer_users_page %}
                     <tr>
+                        <td data-label="Select" class="admin-bulk-select-cell">
+                            {% if user != request.user %}
+                            <input type="checkbox" class="admin-bulk-checkbox" name="selected_ids" value="{{ user.id }}" form="customerBulkForm" aria-label="Select customer {{ user.username }}">
+                            {% endif %}
+                        </td>
                         <td data-label="Customer">
                             <div class="customer-name-stack">
                                 <strong>{{ user.get_full_name|default:user.username }}</strong>
@@ -552,9 +611,9 @@
                             <details class="table-action-menu">
                                 <summary aria-label="Open customer actions"><i class="fas fa-ellipsis-v"></i></summary>
                                 <div class="table-action-popover">
-                                    <a href="{% url 'admin_user_view' user.id %}" class="table-action-link"><i class="fas fa-eye"></i> View Profile</a>
+                                    <a href="{% url 'admin_user_view' user.id %}?next={{ request.get_full_path|urlencode }}" class="table-action-link"><i class="fas fa-eye"></i> View Profile</a>
                                     <a href="{% url 'admin_user_edit' user.id %}" class="table-action-link"><i class="fas fa-pen"></i> Edit Customer</a>
-                                    <a href="{% url 'admin_user_view' user.id %}#recent-order-history" class="table-action-link"><i class="fas fa-box"></i> View Orders</a>
+                                    <a href="{% url 'admin_user_view' user.id %}?next={{ request.get_full_path|urlencode }}#recent-order-history" class="table-action-link"><i class="fas fa-box"></i> View Orders</a>
                                     <form method="post" action="{% url 'admin_user_password_reset' user.id %}">
                                         {% csrf_token %}
                                         <input type="hidden" name="next" value="{{ request.get_full_path }}">
@@ -567,6 +626,15 @@
                                     <form method="post" action="{% url 'admin_user_delete' user.id %}">
                                         {% csrf_token %}
                                         <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                        <input type="hidden" name="intent" value="activate">
+                                        <button type="submit" class="table-action-button" onclick="return confirm('Restore customer {{ user.username|escapejs }}?');">
+                                            <i class="fas fa-rotate-left"></i> Restore
+                                        </button>
+                                    </form>
+                                    <form method="post" action="{% url 'admin_user_delete' user.id %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                        <input type="hidden" name="intent" value="activate">
                                         <button type="submit" class="table-action-button" onclick="return confirm('Activate customer {{ user.username|escapejs }}?');">
                                             <i class="fas fa-user-check"></i> Activate Account
                                         </button>
@@ -595,7 +663,7 @@
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="7" class="empty-table-note">No customer accounts found{% if search_query %} for "{{ search_query }}"{% endif %}.</td></tr>
+                    <tr><td colspan="8" class="empty-table-note">No customer accounts found{% if search_query %} for "{{ search_query }}"{% endif %}.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

@@ -106,14 +106,40 @@
             <i class="fas fa-box-archive"></i> {% if is_archived_view %}Back to Active{% else %}View Archived{% endif %}
         </a>
     </div>
+    <form id="cakeOrdersBulkForm" method="post" action="{% url 'admin_cake_orders_bulk_action' %}" class="admin-bulk-toolbar" data-bulk-form>
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <div class="admin-bulk-toolbar-group">
+            <span class="admin-bulk-count" data-bulk-count-for="cakeOrdersBulkForm">0 selected</span>
+            <span class="order-secondary">Bulk status updates will skip any order your role cannot move to that state.</span>
+        </div>
+        <div class="admin-bulk-toolbar-group">
+            <select name="action" class="form-control">
+                <option value="">Bulk action</option>
+                <option value="pending" data-confirm="Move {count} selected cake orders to Pending Admin Approval?">Pending Admin Approval</option>
+                <option value="payment_retry" data-confirm="Move {count} selected cake orders to Awaiting Payment Resubmission?">Awaiting Payment Resubmission</option>
+                <option value="confirmed" data-confirm="Move {count} selected cake orders to Confirmed?">Confirmed</option>
+                <option value="preparing" data-confirm="Move {count} selected cake orders to Preparing?">Preparing</option>
+                <option value="ready_for_pickup" data-confirm="Move {count} selected cake orders to Ready for Pickup?">Ready for Pickup</option>
+                <option value="out_for_delivery" data-confirm="Move {count} selected cake orders to Out for Delivery?">Out for Delivery</option>
+                <option value="completed" data-confirm="Move {count} selected cake orders to Completed?">Completed</option>
+                <option value="cancelled" data-confirm="Move {count} selected cake orders to Cancelled?">Cancelled</option>
+                {% if can_bulk_archive %}
+                <option value="{% if is_archived_view %}restore{% else %}archive{% endif %}" data-confirm="{% if is_archived_view %}Restore{% else %}Archive{% endif %} {count} selected cake orders?">{% if is_archived_view %}Restore selected{% else %}Archive selected{% endif %}</option>
+                {% endif %}
+            </select>
+            <button type="submit" class="btn-primary" data-bulk-submit disabled>Apply</button>
+        </div>
+    </form>
     <div class="table-responsive">
         <table class="module-table mobile-card-table" data-pagination-mode="server">
             <thead>
-                <tr><th>Order</th><th>Customer</th><th>Cake Details</th><th>Total</th><th>Status</th><th>Latest Payment</th><th>Last Activity</th><th>Actions</th></tr>
+                <tr><th class="admin-bulk-select-head"><input type="checkbox" class="admin-bulk-checkbox" data-bulk-toggle-for="cakeOrdersBulkForm" aria-label="Select all cake orders"></th><th>Order</th><th>Customer</th><th>Cake Details</th><th>Total</th><th>Status</th><th>Latest Payment</th><th>Last Activity</th><th>Actions</th></tr>
             </thead>
             <tbody>
                 {% for order in orders %}
                 <tr>
+                    <td data-label="Select" class="admin-bulk-select-cell"><input type="checkbox" class="admin-bulk-checkbox" name="selected_ids" value="{{ order.id }}" form="cakeOrdersBulkForm" aria-label="Select cake order {{ order.id }}"></td>
                     <td data-label="Order"><strong class="order-primary">Cake Order #{{ order.id }}</strong></td>
                     <td data-label="Customer">
                         <strong class="order-primary">{{ order.user.get_full_name|default:order.user.username }}</strong>
@@ -183,7 +209,7 @@
                     </td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="8" class="text-center order-empty-note">No cake orders yet</td></tr>
+                <tr><td colspan="9" class="text-center order-empty-note">No cake orders yet</td></tr>
                 {% endfor %}
             </tbody>
         </table>

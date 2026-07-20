@@ -20,10 +20,32 @@
             </a>
         </div>
     </div>
+    <form id="inquiriesBulkForm" method="post" action="{% url 'admin_contact_inquiries_bulk_action' %}" class="admin-bulk-toolbar" data-bulk-form>
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <div class="admin-bulk-toolbar-group">
+            <span class="admin-bulk-count" data-bulk-count-for="inquiriesBulkForm">0 selected</span>
+            <span class="table-subtext">Bulk inquiry actions cover the common read and archive workflows; permanent delete stays row-by-row.</span>
+        </div>
+        <div class="admin-bulk-toolbar-group">
+            <select name="action" class="form-control">
+                <option value="">Bulk action</option>
+                {% if is_archived_view %}
+                <option value="restore" data-confirm="Restore {count} selected inquiries?">Restore selected inquiries</option>
+                {% else %}
+                <option value="mark_read" data-confirm="Mark {count} selected inquiries as read?">Mark selected as read</option>
+                <option value="mark_unread" data-confirm="Mark {count} selected inquiries as new?">Mark selected as new</option>
+                <option value="archive" data-confirm="Archive {count} selected inquiries?">Archive selected inquiries</option>
+                {% endif %}
+            </select>
+            <button type="submit" class="btn-primary" data-bulk-submit disabled>Apply</button>
+        </div>
+    </form>
     <div class="table-responsive">
         <table class="module-table mobile-card-table" data-pagination-mode="server">
             <thead>
                 <tr>
+                    <th class="admin-bulk-select-head"><input type="checkbox" class="admin-bulk-checkbox" data-bulk-toggle-for="inquiriesBulkForm" aria-label="Select all inquiries"></th>
                     <th>Customer</th>
                     <th>Contact Detail</th>
                     <th>Message</th>
@@ -35,6 +57,7 @@
             <tbody>
                 {% for inquiry in inquiries_page %}
                 <tr{% if inquiry.status_key == 'new' %} class="is-highlighted"{% endif %}>
+                    <td data-label="Select" class="admin-bulk-select-cell"><input type="checkbox" class="admin-bulk-checkbox" name="selected_ids" value="{{ inquiry.id }}" form="inquiriesBulkForm" aria-label="Select inquiry {{ inquiry.id }}"></td>
                     <td data-label="Customer">
                         <strong>{{ inquiry.name }}</strong>
                         {% if inquiry.user %}
@@ -101,7 +124,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="6" class="text-center">
+                    <td colspan="7" class="text-center">
                         <div style="padding: 40px;">
                             <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
                             <p>No customer inquiries yet.</p>

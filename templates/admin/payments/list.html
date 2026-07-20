@@ -5,18 +5,23 @@
 {% block page_icon %}credit-card{% endblock %}
 
 {% block content %}
-<div class="module-card">
+<div class="module-card{% if current_payment_tab == 'review' and not is_archived_view %} is-current-module{% endif %}" id="payments-review">
     <div class="module-header" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
         <div>
+            {% if is_archived_view %}
+            <h2><i class="fas fa-box-archive"></i> Archived Payment Records</h2>
+            <p style="margin: 8px 0 0; color: #6b7280; font-size: 0.95rem;">Restore archived verified and rejected payment records here. Dashboard sales cards use the archived sales section on the active page.</p>
+            {% else %}
             <h2><i class="fas fa-clock"></i> Payments For Review <span class="badge" style="background: #fef3c7; color: #d97706; margin-left: 10px;">{{ pending_payments_page.paginator.count }}</span></h2>
             <p style="margin: 8px 0 0; color: #6b7280; font-size: 0.95rem;">Pending proofs are grouped here with the customer, order, and next action visible at first glance.</p>
+            {% endif %}
         </div>
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
             {% if can_export_sales %}
-            <a href="{% url 'admin_payments_export' 'xlsx' %}" class="btn-preview">
+            <a href="{{ sales_export_xlsx_url }}" class="btn-preview">
                 <i class="fas fa-file-excel"></i> Export Sales XLSX
             </a>
-            <a href="{% url 'admin_payments_export' 'pdf' %}" class="btn-preview" style="background: #9f1239;">
+            <a href="{{ sales_export_pdf_url }}" class="btn-preview" style="background: #9f1239;">
                 <i class="fas fa-file-pdf"></i> Export Sales PDF
             </a>
             {% endif %}
@@ -25,11 +30,39 @@
             </a>
         </div>
     </div>
+    {% if not is_archived_view %}
+    <div class="payment-tab-strip" role="navigation" aria-label="Payment sections">
+        {% for link in payment_tab_links %}
+        <a href="{{ link.url }}" class="payment-tab-link{% if link.is_current %} is-current{% endif %}">
+            <span>{{ link.label }}</span>
+            <strong>{{ link.count }}</strong>
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% if not is_archived_view %}
+    <form id="pendingPaymentsBulkForm" method="post" action="{% url 'admin_payments_bulk_action' %}" class="admin-bulk-toolbar" data-bulk-form>
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <div class="admin-bulk-toolbar-group">
+            <span class="admin-bulk-count" data-bulk-count-for="pendingPaymentsBulkForm">0 selected</span>
+            <span class="table-subtext">Approve or reject multiple proof submissions without losing the row-level review buttons.</span>
+        </div>
+        <div class="admin-bulk-toolbar-group">
+            <select name="action" class="form-control">
+                <option value="">Bulk action</option>
+                <option value="approve" data-confirm="Approve {count} selected payments?">Approve selected</option>
+                <option value="reject" data-confirm="Reject {count} selected payments?">Reject selected</option>
+            </select>
+            <button type="submit" class="btn-primary" data-bulk-submit disabled>Apply</button>
+        </div>
+    </form>
 
     <div class="table-responsive">
         <table class="module-table mobile-card-table" data-pagination-mode="server">
             <thead>
                 <tr>
+                    <th class="admin-bulk-select-head"><input type="checkbox" class="admin-bulk-checkbox" data-bulk-toggle-for="pendingPaymentsBulkForm" aria-label="Select all pending payments"></th>
                     <th>Customer</th>
                     <th>Amount</th>
                     <th>Purpose</th>
@@ -43,6 +76,7 @@
             <tbody>
                 {% for payment in pending_payments_page %}
                 <tr id="payment-{{ payment.id }}"{% if request.GET.highlight == payment.id|stringformat:"s" %} class="is-highlighted"{% endif %}>
+                    <td data-label="Select" class="admin-bulk-select-cell"><input type="checkbox" class="admin-bulk-checkbox" name="selected_ids" value="{{ payment.id }}" form="pendingPaymentsBulkForm" aria-label="Select payment {{ payment.id }}"></td>
                     <td data-label="Customer">
                         {% if payment.cake_order %}
                         {% with customer=payment.cake_order.user %}
@@ -73,7 +107,7 @@
                     <td data-label="Method">
                         {% if payment.payment_method == 'gcash' %}
                         <strong style="color: #0891b2;">GCash</strong>
-                        <div class="table-subtext">{{ payment.reference_number|default:"No reference" }}</div>
+                        <div class="table-subtext">GCash Reference Number: {{ payment.reference_number|default:"No reference" }}</div>
                         {% else %}
                         <strong style="color: #059669;">Cash on Delivery</strong>
                         {% endif %}
@@ -137,7 +171,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="8" class="text-center">
+                    <td colspan="9" class="text-center">
                         <div style="padding: 40px;">
                             <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
                             <p>No payments awaiting review.</p>
@@ -167,19 +201,37 @@
         {% endif %}
     </div>
     {% endif %}
+    {% endif %}
 </div>
 
-<div class="module-card">
+{% if not is_archived_view %}
+<div class="module-card{% if current_payment_tab == 'balances' %} is-current-module{% endif %}" id="payments-balances">
     <div class="module-header">
         <div>
             <h2><i class="fas fa-money-bill-wave"></i> Outstanding COD Balances <span class="badge" style="background: #e0f2fe; color: #0369a1; margin-left: 10px;">{{ balance_payments_page.paginator.count }}</span></h2>
             <p style="margin: 8px 0 0; color: #6b7280; font-size: 0.95rem;">Collection-ready balances stay separate so admins can close them quickly.</p>
         </div>
     </div>
+    <form id="balancePaymentsBulkForm" method="post" action="{% url 'admin_payments_bulk_action' %}" class="admin-bulk-toolbar" data-bulk-form>
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <div class="admin-bulk-toolbar-group">
+            <span class="admin-bulk-count" data-bulk-count-for="balancePaymentsBulkForm">0 selected</span>
+            <span class="table-subtext">Collect multiple COD balance rows in one pass when they are all ready.</span>
+        </div>
+        <div class="admin-bulk-toolbar-group">
+            <select name="action" class="form-control">
+                <option value="">Bulk action</option>
+                <option value="collect_balance" data-confirm="Mark {count} selected balance payments as collected?">Mark selected as collected</option>
+            </select>
+            <button type="submit" class="btn-primary" data-bulk-submit disabled>Apply</button>
+        </div>
+    </form>
     <div class="table-responsive">
         <table class="module-table mobile-card-table" data-pagination-mode="server">
             <thead>
                 <tr>
+                    <th class="admin-bulk-select-head"><input type="checkbox" class="admin-bulk-checkbox" data-bulk-toggle-for="balancePaymentsBulkForm" aria-label="Select all balance payments"></th>
                     <th>Customer</th>
                     <th>Amount</th>
                     <th>Order</th>
@@ -191,6 +243,7 @@
             <tbody>
                 {% for payment in balance_payments_page %}
                 <tr id="payment-{{ payment.id }}"{% if request.GET.highlight == payment.id|stringformat:"s" %} class="is-highlighted"{% endif %}>
+                    <td data-label="Select" class="admin-bulk-select-cell"><input type="checkbox" class="admin-bulk-checkbox" name="selected_ids" value="{{ payment.id }}" form="balancePaymentsBulkForm" aria-label="Select balance payment {{ payment.id }}"></td>
                     <td data-label="Customer">
                         {% if payment.cake_order %}
                         {% with customer=payment.cake_order.user %}
@@ -230,7 +283,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="6" class="text-center">No outstanding COD balances</td>
+                    <td colspan="7" class="text-center">No outstanding COD balances</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -256,18 +309,37 @@
     </div>
     {% endif %}
 </div>
+{% endif %}
 
-<div class="module-card">
+<div class="module-card{% if current_payment_tab == 'verified' and not is_archived_view %} is-current-module{% endif %}" id="payments-verified">
     <div class="module-header">
         <div>
-            <h2><i class="fas fa-check-circle"></i> Verified Payments <span class="badge" style="background: #d1fae5; color: #10b981; margin-left: 10px;">{{ verified_payments_page.paginator.count }}</span></h2>
-            <p style="margin: 8px 0 0; color: #6b7280; font-size: 0.95rem;">Completed payments keep customer and payment context visible for quick verification checks.</p>
+            <h2><i class="fas fa-check-circle"></i> {% if is_archived_view %}Archived Verified Payments{% else %}Verified Payments{% endif %} <span class="badge" style="background: #d1fae5; color: #10b981; margin-left: 10px;">{{ verified_payments_page.paginator.count }}</span></h2>
+            <p style="margin: 8px 0 0; color: #6b7280; font-size: 0.95rem;">{% if is_archived_view %}Restore archived paid transactions from this list when a record needs to return to the active payment view.{% else %}Completed payments keep customer and payment context visible for quick verification checks.{% endif %}</p>
         </div>
     </div>
+    <form id="verifiedPaymentsBulkForm" method="post" action="{% url 'admin_payments_bulk_action' %}" class="admin-bulk-toolbar" data-bulk-form>
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <div class="admin-bulk-toolbar-group">
+            <span class="admin-bulk-count" data-bulk-count-for="verifiedPaymentsBulkForm">0 selected</span>
+            <span class="table-subtext">{% if can_export_sales %}Use the batch archive control for verified records while keeping the per-row proof preview.{% else %}Full-access staff can batch archive verified payments from this section.{% endif %}</span>
+        </div>
+        <div class="admin-bulk-toolbar-group">
+            <select name="action" class="form-control">
+                <option value="">Bulk action</option>
+                {% if can_export_sales %}
+                <option value="{% if is_archived_view %}restore{% else %}archive{% endif %}" data-confirm="{% if is_archived_view %}Restore{% else %}Archive{% endif %} {count} selected verified payments?">{% if is_archived_view %}Restore selected{% else %}Archive selected{% endif %}</option>
+                {% endif %}
+            </select>
+            <button type="submit" class="btn-primary" data-bulk-submit disabled>Apply</button>
+        </div>
+    </form>
     <div class="table-responsive">
         <table class="module-table mobile-card-table" data-pagination-mode="server">
             <thead>
                 <tr>
+                    <th class="admin-bulk-select-head"><input type="checkbox" class="admin-bulk-checkbox" data-bulk-toggle-for="verifiedPaymentsBulkForm" aria-label="Select all verified payments"></th>
                     <th>Customer</th>
                     <th>Amount</th>
                     <th>Purpose</th>
@@ -280,6 +352,7 @@
             <tbody>
                 {% for payment in verified_payments_page %}
                 <tr id="payment-{{ payment.id }}"{% if request.GET.highlight == payment.id|stringformat:"s" %} class="is-highlighted"{% endif %}>
+                    <td data-label="Select" class="admin-bulk-select-cell"><input type="checkbox" class="admin-bulk-checkbox" name="selected_ids" value="{{ payment.id }}" form="verifiedPaymentsBulkForm" aria-label="Select verified payment {{ payment.id }}"></td>
                     <td data-label="Customer">
                         {% if payment.cake_order %}
                         {% with customer=payment.cake_order.user %}
@@ -300,7 +373,7 @@
                     <td data-label="Method">
                         {% if payment.payment_method == 'gcash' %}
                         <strong style="color: #0891b2;">GCash</strong>
-                        <div class="table-subtext">{{ payment.reference_number|default:"No reference" }}</div>
+                        <div class="table-subtext">GCash Reference Number: {{ payment.reference_number|default:"No reference" }}</div>
                         {% else %}
                         <strong style="color: #059669;">Cash on Delivery</strong>
                         {% endif %}
@@ -345,7 +418,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="7" class="text-center">No verified payments yet</td>
+                    <td colspan="8" class="text-center">No verified payments yet</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -372,17 +445,179 @@
     {% endif %}
 </div>
 
-<div class="module-card">
-    <div class="module-header">
+{% if not is_archived_view %}
+<div class="module-card{% if current_payment_tab == 'archived' %} is-current-module{% endif %}" id="payments-archived">
+    <div class="module-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap;">
         <div>
-            <h2><i class="fas fa-times-circle"></i> Rejected Payments <span class="badge" style="background: #fee2e2; color: #dc2626; margin-left: 10px;">{{ rejected_payments_page.paginator.count }}</span></h2>
-            <p style="margin: 8px 0 0; color: #6b7280; font-size: 0.95rem;">Rejected payments still show the customer and order clearly, so follow-up is easier.</p>
+            <h2><i class="fas fa-box-archive"></i> Archived Sales History <span class="badge" style="background: #ede9fe; color: #6d28d9; margin-left: 10px;">{{ archived_sales_summary.transaction_count }}</span></h2>
+            <p style="margin: 8px 0 0; color: #6b7280; font-size: 0.95rem;">Dashboard sales cards land here and use this same archived paid-transaction dataset.</p>
         </div>
+        <div class="payment-sales-summary">
+            <div class="payment-sales-summary-item">
+                <span>Total Sales</span>
+                <strong>&#8369;{{ archived_sales_summary.total_paid }}</strong>
+            </div>
+            <div class="payment-sales-summary-item">
+                <span>Transactions</span>
+                <strong>{{ archived_sales_summary.transaction_count }}</strong>
+            </div>
+            <div class="payment-sales-summary-item">
+                <span>Period</span>
+                <strong>{{ archived_sales_summary.period_label }}</strong>
+            </div>
+        </div>
+    </div>
+    <div class="payment-filter-strip" role="navigation" aria-label="Archived sales periods">
+        {% for filter_link in sales_period_filters %}
+        <a href="{{ filter_link.url }}" class="payment-filter-link{% if filter_link.is_current %} is-current{% endif %}">{{ filter_link.label }}</a>
+        {% endfor %}
     </div>
     <div class="table-responsive">
         <table class="module-table mobile-card-table" data-pagination-mode="server">
             <thead>
                 <tr>
+                    <th>Customer</th>
+                    <th>Amount</th>
+                    <th>Purpose</th>
+                    <th>Method</th>
+                    <th>Order</th>
+                    <th>Paid</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for payment in archived_payments_page %}
+                <tr id="payment-{{ payment.id }}"{% if request.GET.highlight == payment.id|stringformat:"s" %} class="is-highlighted"{% endif %}>
+                    <td data-label="Customer">
+                        {% if payment.cake_order %}
+                        {% with customer=payment.cake_order.user %}
+                        <strong>{{ customer.get_full_name|default:customer.username }}</strong>
+                        <div class="table-subtext">@{{ customer.username }}</div>
+                        {% if customer.email %}
+                        <div class="table-subtext">{{ customer.email }}</div>
+                        {% endif %}
+                        {% endwith %}
+                        {% elif payment.package_order %}
+                        {% with customer=payment.package_order.user %}
+                        <strong>{{ customer.get_full_name|default:customer.username }}</strong>
+                        <div class="table-subtext">@{{ customer.username }}</div>
+                        {% if customer.email %}
+                        <div class="table-subtext">{{ customer.email }}</div>
+                        {% endif %}
+                        {% endwith %}
+                        {% else %}
+                        <span class="table-subtext">No linked customer</span>
+                        {% endif %}
+                    </td>
+                    <td data-label="Amount"><strong>&#8369;{{ payment.amount }}</strong></td>
+                    <td data-label="Purpose">{{ payment.get_payment_purpose_display }}</td>
+                    <td data-label="Method">
+                        {% if payment.payment_method == 'gcash' %}
+                        <strong style="color: #0891b2;">GCash</strong>
+                        <div class="table-subtext">GCash Reference Number: {{ payment.reference_number|default:"No reference" }}</div>
+                        {% else %}
+                        <strong style="color: #059669;">Cash on Delivery</strong>
+                        {% endif %}
+                    </td>
+                    <td data-label="Order">
+                        {% if payment.cake_order %}
+                        <a href="{% url 'admin_cake_order_view' payment.cake_order.id %}?next={{ request.get_full_path|urlencode }}" class="table-link">Cake Order #{{ payment.cake_order.id }}</a>
+                        {% elif payment.package_order %}
+                        <a href="{% url 'admin_package_order_view' payment.package_order.id %}?next={{ request.get_full_path|urlencode }}" class="table-link">Package Order #{{ payment.package_order.id }}</a>
+                        {% else %}
+                        <span class="table-subtext">No linked order</span>
+                        {% endif %}
+                    </td>
+                    <td data-label="Paid">
+                        {% with paid_date=payment.paid_at|default:payment.created_at %}
+                        <strong>{{ paid_date|timesince }} ago</strong>
+                        <div class="table-subtext">{{ paid_date|date:"M d, Y g:i A" }}</div>
+                        {% endwith %}
+                    </td>
+                    <td data-label="Actions">
+                        <div class="payment-action-group">
+                            <details class="payment-more-menu">
+                                <summary class="payment-more-trigger">More actions</summary>
+                                <div class="payment-more-panel">
+                                    {% if payment.proof_image %}
+                                    <button type="button" onclick="viewProof('{{ payment.proof_image.url }}')" class="payment-secondary-btn">
+                                        <i class="fas fa-image"></i> View Proof
+                                    </button>
+                                    {% endif %}
+                                    {% if can_export_sales %}
+                                    <form method="post" action="{% url 'admin_payment_delete' payment.id %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" class="admin-table-inline-form">
+                                        {% csrf_token %}
+                                        <button type="submit" onclick="return confirm('Restore payment #{{ payment.id }}?');" class="payment-secondary-btn payment-secondary-btn-danger">
+                                            <i class="fas fa-rotate-left"></i> Restore
+                                        </button>
+                                    </form>
+                                    {% else %}
+                                    <span class="table-subtext">Full-access staff only</span>
+                                    {% endif %}
+                                </div>
+                            </details>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center">{{ archived_sales_summary.empty_message }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if archived_payments_page.paginator.count %}
+    <div class="table-pagination">
+        <div class="table-pagination-info">{{ archived_payments_pagination.summary }}</div>
+        {% if archived_payments_pagination.has_multiple_pages %}
+        <div class="table-pagination-actions">
+            {% if archived_payments_pagination.prev_url %}
+            <a href="{{ archived_payments_pagination.prev_url }}" class="table-pagination-button">Previous</a>
+            {% else %}
+            <span class="table-pagination-button is-disabled">Previous</span>
+            {% endif %}
+            {% if archived_payments_pagination.next_url %}
+            <a href="{{ archived_payments_pagination.next_url }}" class="table-pagination-button">Next</a>
+            {% else %}
+            <span class="table-pagination-button is-disabled">Next</span>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<div class="module-card{% if current_payment_tab == 'rejected' and not is_archived_view %} is-current-module{% endif %}" id="payments-rejected">
+    <div class="module-header">
+        <div>
+            <h2><i class="fas fa-times-circle"></i> {% if is_archived_view %}Archived Rejected Payments{% else %}Rejected Payments{% endif %} <span class="badge" style="background: #fee2e2; color: #dc2626; margin-left: 10px;">{{ rejected_payments_page.paginator.count }}</span></h2>
+            <p style="margin: 8px 0 0; color: #6b7280; font-size: 0.95rem;">{% if is_archived_view %}Restore archived rejected or cancelled records from here when they need to return to the active payment list.{% else %}Rejected payments still show the customer and order clearly, so follow-up is easier.{% endif %}</p>
+        </div>
+    </div>
+    <form id="rejectedPaymentsBulkForm" method="post" action="{% url 'admin_payments_bulk_action' %}" class="admin-bulk-toolbar" data-bulk-form>
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <div class="admin-bulk-toolbar-group">
+            <span class="admin-bulk-count" data-bulk-count-for="rejectedPaymentsBulkForm">0 selected</span>
+            <span class="table-subtext">{% if can_export_sales %}Rejected payment records can be batch archived or restored from this section.{% else %}Full-access staff can batch archive rejected payments from this section.{% endif %}</span>
+        </div>
+        <div class="admin-bulk-toolbar-group">
+            <select name="action" class="form-control">
+                <option value="">Bulk action</option>
+                {% if can_export_sales %}
+                <option value="{% if is_archived_view %}restore{% else %}archive{% endif %}" data-confirm="{% if is_archived_view %}Restore{% else %}Archive{% endif %} {count} selected rejected payments?">{% if is_archived_view %}Restore selected{% else %}Archive selected{% endif %}</option>
+                {% endif %}
+            </select>
+            <button type="submit" class="btn-primary" data-bulk-submit disabled>Apply</button>
+        </div>
+    </form>
+    <div class="table-responsive">
+        <table class="module-table mobile-card-table" data-pagination-mode="server">
+            <thead>
+                <tr>
+                    <th class="admin-bulk-select-head"><input type="checkbox" class="admin-bulk-checkbox" data-bulk-toggle-for="rejectedPaymentsBulkForm" aria-label="Select all rejected payments"></th>
                     <th>Customer</th>
                     <th>Amount</th>
                     <th>Purpose</th>
@@ -395,6 +630,7 @@
             <tbody>
                 {% for payment in rejected_payments_page %}
                 <tr id="payment-{{ payment.id }}"{% if request.GET.highlight == payment.id|stringformat:"s" %} class="is-highlighted"{% endif %}>
+                    <td data-label="Select" class="admin-bulk-select-cell"><input type="checkbox" class="admin-bulk-checkbox" name="selected_ids" value="{{ payment.id }}" form="rejectedPaymentsBulkForm" aria-label="Select rejected payment {{ payment.id }}"></td>
                     <td data-label="Customer">
                         {% if payment.cake_order %}
                         {% with customer=payment.cake_order.user %}
@@ -415,7 +651,7 @@
                     <td data-label="Method">
                         {% if payment.payment_method == 'gcash' %}
                         <strong style="color: #0891b2;">GCash</strong>
-                        <div class="table-subtext">{{ payment.reference_number|default:"No reference" }}</div>
+                        <div class="table-subtext">GCash Reference Number: {{ payment.reference_number|default:"No reference" }}</div>
                         {% else %}
                         <strong style="color: #059669;">Cash on Delivery</strong>
                         {% endif %}
@@ -458,7 +694,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="7" class="text-center">No rejected payments</td>
+                    <td colspan="8" class="text-center">No rejected payments</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -495,6 +731,91 @@
 <style>
     .text-center {
         text-align: center;
+    }
+
+    .is-current-module {
+        border-color: #f5c2d7;
+        box-shadow: 0 18px 34px rgba(217, 75, 75, 0.12);
+    }
+
+    .payment-tab-strip,
+    .payment-filter-strip {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 16px 0 0;
+    }
+
+    .payment-tab-link,
+    .payment-filter-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        border-radius: 999px;
+        border: 1px solid #f3d7e4;
+        background: #fff7fb;
+        color: #9f1239;
+        font-size: 0.88rem;
+        font-weight: 700;
+        text-decoration: none;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    }
+
+    .payment-tab-link strong,
+    .payment-filter-link strong {
+        color: #4b5563;
+    }
+
+    .payment-tab-link:hover,
+    .payment-filter-link:hover,
+    .payment-tab-link:focus,
+    .payment-filter-link:focus {
+        transform: translateY(-1px);
+        box-shadow: 0 10px 20px rgba(217, 75, 75, 0.12);
+    }
+
+    .payment-tab-link.is-current,
+    .payment-filter-link.is-current {
+        background: linear-gradient(135deg, #f472b6, #f59e0b);
+        border-color: transparent;
+        color: #ffffff;
+        box-shadow: 0 12px 22px rgba(244, 114, 182, 0.2);
+    }
+
+    .payment-tab-link.is-current strong,
+    .payment-filter-link.is-current strong {
+        color: #ffffff;
+    }
+
+    .payment-sales-summary {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .payment-sales-summary-item {
+        min-width: 140px;
+        padding: 12px 14px;
+        border-radius: 16px;
+        background: #fff7fb;
+        border: 1px solid #f3d7e4;
+    }
+
+    .payment-sales-summary-item span {
+        display: block;
+        color: #9f1239;
+        font-size: 0.76rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .payment-sales-summary-item strong {
+        display: block;
+        margin-top: 6px;
+        color: #111827;
+        font-size: 1.02rem;
     }
 
     .table-link {

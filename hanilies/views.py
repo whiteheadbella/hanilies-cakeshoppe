@@ -45,45 +45,14 @@ from .forms import (
 )
 from .models import HomeHeroImage, HomeStripImage, UserProfile, Notification, AboutPageImage, Cake, CakeOrder, CakeCustomization, Package, PackageOrder, PackageThumbnail, Payment, RefundRequest, ActivityLog, Testimonial, ContactInquiry
 from .payment_qr import build_gcash_checkout_details, get_gcash_profile
+from .demo_bot import build_demo_bot_payload
 
 
 PACKAGE_ORDER_SESSION_KEY = 'package_order_draft'
 CHECKOUT_META_SESSION_KEY = 'checkout_payment_meta'
-DEMO_SCENARIOS = {'customer', 'admin', 'full', 'custom'}
-DEMO_SCRIPT_STEPS = [
-    ('intro', 'Introduction'),
-    ('register', 'Customer Registration'),
-    ('customer_login', 'Customer Login'),
-    ('homepage', 'Homepage Walkthrough'),
-    ('cake_browse', 'Cake Ordering'),
-    ('cake_customize', 'Customize Your Cake'),
-    ('package_browse', 'Package Ordering'),
-    ('package_customize', 'Customize Your Package Cake'),
-    ('cart_review', 'Shopping Cart Review'),
-    ('checkout', 'Checkout'),
-    ('payment', 'Simulated Payment'),
-    ('customer_orders', 'Customer Order Confirmation'),
-    ('admin_login', 'Administrator Login'),
-    ('admin_dashboard', 'Administrator Dashboard'),
-    ('admin_cake_orders', 'Cake Order Management'),
-    ('admin_package_orders', 'Package Order Management'),
-    ('admin_payments', 'Payment Verification'),
-    ('admin_cakes', 'Cake Management'),
-    ('admin_packages', 'Package Management'),
-    ('admin_users', 'User Management'),
-    ('audit_trail', 'Audit Trail'),
-    ('admin_logout', 'Administrator Logout'),
-]
-DEMO_SESSION_STATE_KEY = 'active_demo_bot'
-DEMO_BROWSER_ADMIN_USERNAME = os.environ.get('DEMO_BOT_ADMIN_USERNAME', 'paneladmin')
-DEMO_BROWSER_ADMIN_PASSWORD = os.environ.get('DEMO_BOT_ADMIN_PASSWORD', 'PanelAdmin123!')
-DEMO_BROWSER_ADMIN_EMAIL = os.environ.get('DEMO_BOT_ADMIN_EMAIL', 'paneladmin@example.com')
-DEMO_BROWSER_SCENARIO_STEPS = {
-    'customer': ['intro', 'register', 'customer_login', 'homepage', 'cake_browse', 'cake_customize', 'package_browse', 'package_customize', 'cart_review', 'checkout', 'payment', 'customer_orders'],
-    'admin': ['admin_login', 'admin_dashboard', 'admin_cake_orders', 'admin_package_orders', 'admin_payments', 'admin_cakes', 'admin_packages', 'admin_users', 'audit_trail', 'admin_logout'],
-    'full': ['intro', 'register', 'customer_login', 'homepage', 'cake_browse', 'cake_customize', 'package_browse', 'package_customize', 'cart_review', 'checkout', 'payment', 'customer_orders', 'admin_login', 'admin_dashboard', 'admin_cake_orders', 'admin_package_orders', 'admin_payments', 'admin_cakes', 'admin_packages', 'admin_users', 'audit_trail', 'admin_logout'],
-}
-DEMO_BOT_DEFAULT_INTRO = 'Welcome to Hanilies Cakeshoppe. This guided demo will walk through the customer ordering journey and the administrator monitoring workflow.'
+DEMO_ADMIN_USERNAME = 'presentation-demo-admin'
+DEMO_ADMIN_PASSWORD = 'DemoAdmin123!'
+DEMO_ADMIN_EMAIL = 'presentation-demo-admin@hanilies.local'
 
 CAKE_DECORATION_OPTIONS = {
     'fresh_flowers': {'label': 'Fresh Flowers', 'price': Decimal('300.00')},
@@ -116,6 +85,143 @@ PUBLIC_EVENT_TYPES = [
     choice for choice in PackageOrder.EVENT_TYPES if choice[0] != 'corporate'
 ]
 PUBLIC_EVENT_TYPE_VALUES = {value for value, _ in PUBLIC_EVENT_TYPES}
+PAYMENT_ADMIN_TABS = ('review', 'balances', 'verified', 'archived', 'rejected')
+PAYMENT_ADMIN_SECTION_ANCHORS = {
+    'review': 'payments-review',
+    'balances': 'payments-balances',
+    'verified': 'payments-verified',
+    'archived': 'payments-archived',
+    'rejected': 'payments-rejected',
+}
+PAYMENT_ADMIN_PAGE_PARAMS = (
+    'review_page',
+    'balance_page',
+    'verified_page',
+    'archived_page',
+    'rejected_page',
+)
+PAYMENT_SALES_PERIOD_LABELS = {
+    'today': 'Today',
+    'week': 'This Week',
+    'month': 'This Month',
+}
+PAYMENT_SALES_REFUND_EXCLUSION_STATUSES = {
+    'approved', 'processing', 'processed'}
+
+
+def _can_use_admin_demo(user):
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    if getattr(user, 'is_superuser', False):
+        return True
+    profile = getattr(user, 'profile', None)
+    return getattr(profile, 'role', None) in {'owner', 'admin', 'manager', 'supervisor'}
+
+
+def _get_or_create_demo_admin_user():
+    demo_user, created = User.objects.get_or_create(
+        username=DEMO_ADMIN_USERNAME,
+        defaults={
+            'email': DEMO_ADMIN_EMAIL,
+            'first_name': 'Demo',
+            'last_name': 'Administrator',
+            'is_staff': True,
+            'is_active': True,
+        },
+    )
+    updates = []
+    if created or demo_user.email != DEMO_ADMIN_EMAIL:
+        demo_user.email = DEMO_ADMIN_EMAIL
+        updates.append('email')
+    if created or demo_user.first_name != 'Demo':
+        demo_user.first_name = 'Demo'
+        updates.append('first_name')
+    if created or demo_user.last_name != 'Administrator':
+        demo_user.last_name = 'Administrator'
+        updates.append('last_name')
+    if not demo_user.is_active:
+        demo_user.is_active = True
+        updates.append('is_active')
+    if not demo_user.is_staff:
+        demo_user.is_staff = True
+        updates.append('is_staff')
+    if created or not demo_user.check_password(DEMO_ADMIN_PASSWORD):
+        demo_user.set_password(DEMO_ADMIN_PASSWORD)
+        updates.append('password')
+
+    save_fields = [field for field in updates if field != 'password']
+    if created:
+        demo_user.save()
+    elif updates:
+        if 'password' in updates:
+            demo_user.save()
+        elif save_fields:
+            demo_user.save(update_fields=save_fields)
+
+    _assign_user_role(demo_user, 'admin')
+    return demo_user
+
+
+def _build_demo_bot_step_url_overrides(user):
+    """Point demo steps at deterministic live records while keeping safe list-page fallbacks."""
+    demo_admin_user = _get_or_create_demo_admin_user()
+
+    overrides = {}
+
+    cake = Cake.objects.filter(is_archived=False).order_by('id').first()
+    if cake:
+        overrides['customize_cake'] = f"{reverse('cake_customize')}?{urlencode({'cake_id': cake.pk})}"
+        overrides['cake_product_edit'] = reverse(
+            'admin_cake_edit', args=[cake.pk])
+
+    package = Package.objects.filter(is_archived=False).order_by('id').first()
+    if package:
+        overrides['customize_package_cake'] = f"{reverse('order_package')}?{urlencode({'package_id': package.pk})}"
+        overrides['package_product_edit'] = reverse(
+            'admin_package_edit', args=[package.pk])
+
+    account = User.objects.exclude(username=DEMO_ADMIN_USERNAME).order_by(
+        'id').first() or demo_admin_user
+    if account:
+        overrides['user_edit'] = reverse('admin_user_edit', args=[account.pk])
+
+    return overrides
+
+
+@ensure_csrf_cookie
+def new_demo_bot_config(request):
+    """Expose New Demo Bot modules without changing existing business logic."""
+    return JsonResponse(build_demo_bot_payload(
+        lambda route_name: reverse(route_name),
+        request.user,
+        step_url_overrides=_build_demo_bot_step_url_overrides(request.user),
+    ))
+
+
+@require_POST
+def new_demo_bot_session(request):
+    """Allow the public demo bot to switch into its isolated admin session."""
+    action = (request.POST.get('action') or '').strip()
+
+    if action == 'start_admin':
+        demo_admin_user = _get_or_create_demo_admin_user()
+        logout(request)
+        login(request, demo_admin_user)
+        return JsonResponse({
+            'ok': True,
+            'action': action,
+            'redirect_url': reverse('admin_dashboard'),
+        })
+
+    if action == 'logout':
+        logout(request)
+        return JsonResponse({
+            'ok': True,
+            'action': action,
+            'redirect_url': reverse('home'),
+        })
+
+    return JsonResponse({'error': 'Unsupported demo session action.'}, status=400)
 
 
 def _get_cake_theme_options_for_category(category_value):
@@ -1167,7 +1273,8 @@ def _build_about_page_image_context():
         slot = slot_detail['slot']
         record = stored_images.get(slot)
         default_payload = ABOUT_PAGE_IMAGE_DEFAULTS[slot]
-        image_url = record.image.url if record and record.image else default_payload['image_url']
+        image_url = record.image.url if record and record.image else default_payload[
+            'image_url']
         context[slot] = {
             'slot': slot,
             'title': default_payload['title'],
@@ -1204,6 +1311,399 @@ def _get_safe_admin_return_url(request, fallback_name):
     return _build_named_url_with_query(fallback_name, query_params)
 
 
+def _get_admin_back_label(back_url, fallback_label, route_labels):
+    for route_name, active_label, archived_label in route_labels:
+        route_path = reverse(route_name)
+        if back_url.startswith(route_path):
+            return archived_label if 'archived=1' in back_url else active_label
+    return fallback_label
+
+
+def _get_bulk_selected_ids(request):
+    selected_ids = []
+    seen_ids = set()
+
+    for raw_value in request.POST.getlist('selected_ids'):
+        try:
+            selected_id = int(str(raw_value).strip())
+        except (TypeError, ValueError):
+            continue
+
+        if selected_id <= 0 or selected_id in seen_ids:
+            continue
+
+        selected_ids.append(selected_id)
+        seen_ids.add(selected_id)
+
+    return selected_ids
+
+
+def _flash_bulk_action_summary(request, action_label, item_label, processed_count, skipped_count=0):
+    if processed_count:
+        suffix = '' if processed_count == 1 else 's'
+        messages.success(
+            request,
+            f'{action_label} {processed_count} {item_label}{suffix} successfully.',
+        )
+    if skipped_count:
+        suffix = '' if skipped_count == 1 else 's'
+        messages.info(
+            request,
+            f'Skipped {skipped_count} {item_label}{suffix} that could not use that action.',
+        )
+
+
+def _set_archived_state_for_instance(
+    request_user,
+    instance,
+    *,
+    archived,
+    target_type,
+    target_id,
+    label,
+    archive_action,
+    restore_action,
+    archive_message,
+    restore_message,
+    archive_updates=None,
+    restore_updates=None,
+):
+    archive_updates = archive_updates or {}
+    restore_updates = restore_updates or {}
+
+    if archived:
+        if getattr(instance, 'is_archived', False):
+            return False
+        _archive_model_instance(instance, **archive_updates)
+        _log_staff_activity(
+            request_user,
+            archive_action,
+            archive_message.format(label=label),
+            target_type,
+            target_id,
+        )
+        return True
+
+    if not getattr(instance, 'is_archived', False):
+        return False
+
+    _restore_model_instance(instance, **restore_updates)
+    _log_staff_activity(
+        request_user,
+        restore_action,
+        restore_message.format(label=label),
+        target_type,
+        target_id,
+    )
+    return True
+
+
+def _set_user_active_state(request_user, target_user, activate):
+    username = target_user.username
+
+    if activate:
+        if target_user.is_active:
+            return False
+        target_user.is_active = True
+        target_user.save(update_fields=['is_active'])
+        _log_staff_activity(
+            request_user,
+            'user_activated',
+            f'Activated user "{username}".',
+            'user',
+            target_user.id,
+        )
+        return True
+
+    if not target_user.is_active:
+        return False
+
+    target_user.is_active = False
+    target_user.save(update_fields=['is_active'])
+    _log_staff_activity(
+        request_user,
+        'user_archived',
+        f'Archived user "{username}".',
+        'user',
+        target_user.id,
+    )
+    return True
+
+
+def _apply_payment_review_action(request_user, payment, action):
+    previous_status = payment.payment_status
+
+    if action == 'approve':
+        payment.payment_status = 'paid'
+        payment.paid_at = timezone.now()
+    elif action == 'reject':
+        payment.payment_status = 'rejected'
+        payment.paid_at = None
+    elif action == 'collect_balance' and payment.payment_purpose == 'balance':
+        payment.payment_status = 'paid'
+        payment.paid_at = timezone.now()
+    elif action == 'reset_verifying':
+        payment.payment_status = 'verifying'
+        payment.paid_at = None
+    else:
+        return False
+
+    payment.save()
+    if previous_status != payment.payment_status:
+        _create_payment_status_notification(payment, previous_status)
+        _sync_order_confirmation_from_payment(payment, request_user)
+        _sync_order_rejection_from_payment(payment, request_user)
+        _log_staff_activity(
+            request_user,
+            'payment_status_updated',
+            f'Updated payment #{payment.id} from {previous_status} to {payment.payment_status}.',
+            'payment',
+            payment.id,
+        )
+    return previous_status != payment.payment_status
+
+
+def _apply_contact_inquiry_action(request_user, inquiry, action):
+    if action == 'mark_read':
+        if inquiry.is_read:
+            return False
+        inquiry.is_read = True
+        inquiry.read_at = timezone.now()
+        inquiry.save(update_fields=['is_read', 'read_at', 'updated_at'])
+        _log_staff_activity(
+            request_user,
+            'contact_inquiry_read',
+            f'Marked inquiry #{inquiry.id} as read.',
+            'contact_inquiry',
+            inquiry.id,
+        )
+        return True
+
+    if action == 'mark_unread':
+        if inquiry.admin_reply and inquiry.replied_at:
+            return False
+        if not inquiry.is_read:
+            return False
+        inquiry.is_read = False
+        inquiry.read_at = None
+        inquiry.save(update_fields=['is_read', 'read_at', 'updated_at'])
+        _log_staff_activity(
+            request_user,
+            'contact_inquiry_unread',
+            f'Marked inquiry #{inquiry.id} as new.',
+            'contact_inquiry',
+            inquiry.id,
+        )
+        return True
+
+    if action == 'archive':
+        return _set_archived_state_for_instance(
+            request_user,
+            inquiry,
+            archived=True,
+            target_type='contact_inquiry',
+            target_id=inquiry.id,
+            label=f'inquiry #{inquiry.id}',
+            archive_action='contact_inquiry_archived',
+            restore_action='contact_inquiry_restored',
+            archive_message='Archived {label}.',
+            restore_message='Restored {label}.',
+        )
+
+    if action == 'restore':
+        return _set_archived_state_for_instance(
+            request_user,
+            inquiry,
+            archived=False,
+            target_type='contact_inquiry',
+            target_id=inquiry.id,
+            label=f'inquiry #{inquiry.id}',
+            archive_action='contact_inquiry_archived',
+            restore_action='contact_inquiry_restored',
+            archive_message='Archived {label}.',
+            restore_message='Restored {label}.',
+        )
+
+    return False
+
+
+def _apply_testimonial_review_action(request_user, testimonial, action, admin_note=''):
+    if testimonial.is_archived:
+        return False
+
+    status_map = {
+        'approve': Testimonial.STATUS_APPROVED,
+        'reject': Testimonial.STATUS_REJECTED,
+        'hide': Testimonial.STATUS_HIDDEN,
+    }
+    next_status = status_map.get(action)
+    if next_status is None:
+        return False
+
+    previous_status = testimonial.status
+    testimonial.status = next_status
+    testimonial.admin_note = admin_note
+    testimonial.reviewed_by = request_user
+    testimonial.reviewed_at = timezone.now()
+    testimonial.save(update_fields=[
+        'status',
+        'admin_note',
+        'reviewed_by',
+        'reviewed_at',
+        'updated_at',
+    ])
+
+    _log_staff_activity(
+        request_user,
+        f'testimonial_{next_status}',
+        f'Updated testimonial #{testimonial.id} from {previous_status} to {next_status}.',
+        'testimonial',
+        testimonial.id,
+    )
+    return previous_status != next_status or bool(admin_note)
+
+
+def _apply_cake_archive_action(request_user, cake, archived):
+    return _set_archived_state_for_instance(
+        request_user,
+        cake,
+        archived=archived,
+        target_type='cake',
+        target_id=cake.id,
+        label=f'cake "{cake.name}"',
+        archive_action='cake_archived',
+        restore_action='cake_restored',
+        archive_message='Archived {label}.',
+        restore_message='Restored {label}.',
+        archive_updates={'is_active': False},
+        restore_updates={'is_active': True},
+    )
+
+
+def _apply_package_archive_action(request_user, package, archived):
+    return _set_archived_state_for_instance(
+        request_user,
+        package,
+        archived=archived,
+        target_type='package',
+        target_id=package.id,
+        label=f'package "{package.name}"',
+        archive_action='package_archived',
+        restore_action='package_restored',
+        archive_message='Archived {label}.',
+        restore_message='Restored {label}.',
+        archive_updates={'status': 'inactive'},
+        restore_updates={'status': 'active'},
+    )
+
+
+def _apply_order_status_change(request_user, order, order_type, new_status):
+    previous_status = order.order_status
+    if not new_status or new_status == previous_status:
+        return False
+
+    notification_order_type = 'package' if order_type == 'package_order' else 'cake'
+
+    try:
+        if new_status == 'completed':
+            _commit_order_stock(order, request_user)
+        elif getattr(order, 'stock_deducted', False):
+            _restore_order_stock(order, request_user)
+    except ValueError:
+        raise
+
+    order.order_status = new_status
+    order.save(update_fields=['order_status', 'updated_at'])
+    if new_status == 'cancelled':
+        _cancel_outstanding_balance_payments(order)
+    _create_order_status_notification(
+        order, notification_order_type, previous_status)
+    _log_staff_activity(
+        request_user,
+        f'{order_type}_status_updated',
+        f'Updated {order_type.replace("_", " ")} #{order.id} from {previous_status} to {order.order_status}.',
+        order_type,
+        order.id,
+    )
+    return True
+
+
+def _apply_order_archive_action(request_user, order, order_type, archived):
+    order_label = order_type.replace('_', ' ')
+    return _set_archived_state_for_instance(
+        request_user,
+        order,
+        archived=archived,
+        target_type=order_type,
+        target_id=order.id,
+        label=f'{order_label} #{order.id}',
+        archive_action=f'{order_type}_archived',
+        restore_action=f'{order_type}_restored',
+        archive_message='Archived {label}.',
+        restore_message='Restored {label}.',
+    )
+
+
+def _apply_payment_archive_action(request_user, payment, archived):
+    if archived:
+        if payment.payment_status not in ['paid', 'rejected', 'cancelled']:
+            return False
+        return _set_archived_state_for_instance(
+            request_user,
+            payment,
+            archived=True,
+            target_type='payment',
+            target_id=payment.id,
+            label=f'payment #{payment.id}',
+            archive_action='payment_archived',
+            restore_action='payment_restored',
+            archive_message='Archived {label}.',
+            restore_message='Restored {label}.',
+        )
+
+    return _set_archived_state_for_instance(
+        request_user,
+        payment,
+        archived=False,
+        target_type='payment',
+        target_id=payment.id,
+        label=f'payment #{payment.id}',
+        archive_action='payment_archived',
+        restore_action='payment_restored',
+        archive_message='Archived {label}.',
+        restore_message='Restored {label}.',
+    )
+
+
+def _apply_testimonial_archive_action(request_user, testimonial, archived):
+    return _set_archived_state_for_instance(
+        request_user,
+        testimonial,
+        archived=archived,
+        target_type='testimonial',
+        target_id=testimonial.id,
+        label=f'testimonial #{testimonial.id}',
+        archive_action='testimonial_archived',
+        restore_action='testimonial_restored',
+        archive_message='Archived {label}.',
+        restore_message='Restored {label}.',
+    )
+
+
+def _apply_activity_log_archive_action(activity_log, archived):
+    if archived:
+        if activity_log.is_archived:
+            return False
+        _archive_model_instance(activity_log)
+        return True
+
+    if not activity_log.is_archived:
+        return False
+
+    _restore_model_instance(activity_log)
+    return True
+
+
 def _paginate_admin_queryset(request, queryset, page_param, per_page=10):
     paginator = Paginator(queryset, per_page)
     page_obj = paginator.get_page(request.GET.get(page_param) or 1)
@@ -1225,6 +1725,42 @@ def _paginate_admin_queryset(request, queryset, page_param, per_page=10):
         'has_multiple_pages': page_obj.has_other_pages(),
         'prev_url': build_page_url(page_obj.previous_page_number()) if page_obj.has_previous() else None,
         'next_url': build_page_url(page_obj.next_page_number()) if page_obj.has_next() else None,
+    }
+
+
+def _paginate_public_queryset(request, queryset, summary_label, anchor_id, page_param='page', per_page=9):
+    paginator = Paginator(queryset, per_page)
+    page_obj = paginator.get_page(request.GET.get(page_param) or 1)
+    result_count = paginator.count
+    start_index = page_obj.start_index() if result_count else 0
+    end_index = page_obj.end_index() if result_count else 0
+
+    def build_page_url(page_number):
+        query_params = request.GET.copy()
+        if int(page_number) > 1:
+            query_params[page_param] = str(page_number)
+        else:
+            query_params.pop(page_param, None)
+        page_url = _build_path_with_query(request.path, query_params)
+        return f'{page_url}#{anchor_id}' if anchor_id else page_url
+
+    page_links = [
+        {
+            'number': page_number,
+            'url': build_page_url(page_number),
+            'is_current': page_number == page_obj.number,
+            'aria_label': f'Go to page {page_number}',
+        }
+        for page_number in paginator.page_range
+    ]
+
+    return page_obj, {
+        'summary': f'Showing {start_index}-{end_index} of {result_count} {summary_label}',
+        'result_count': result_count,
+        'has_multiple_pages': page_obj.has_other_pages(),
+        'prev_url': build_page_url(page_obj.previous_page_number()) if page_obj.has_previous() else None,
+        'next_url': build_page_url(page_obj.next_page_number()) if page_obj.has_next() else None,
+        'page_links': page_links,
     }
 
 
@@ -1305,6 +1841,128 @@ def _build_sales_export_rows(payments):
     return rows
 
 
+def _normalize_payment_admin_tab(request):
+    requested_tab = (request.GET.get('tab') or 'review').strip().lower()
+    if requested_tab not in PAYMENT_ADMIN_TABS:
+        return 'review'
+    return requested_tab
+
+
+def _normalize_payment_sales_period(period_key):
+    normalized_key = (period_key or '').strip().lower()
+    if normalized_key not in PAYMENT_SALES_PERIOD_LABELS:
+        return ''
+    return normalized_key
+
+
+def _get_payment_sales_period_window(period_key, reference_time=None):
+    normalized_key = _normalize_payment_sales_period(period_key)
+    if not normalized_key:
+        return None, None
+
+    localized_now = timezone.localtime(reference_time or timezone.now())
+    local_day_start = localized_now.replace(
+        hour=0,
+        minute=0,
+        second=0,
+        microsecond=0,
+    )
+
+    if normalized_key == 'today':
+        start_at = local_day_start
+    elif normalized_key == 'week':
+        start_at = local_day_start - timedelta(days=6)
+    else:
+        start_at = local_day_start.replace(day=1)
+
+    end_at = local_day_start + timedelta(days=1)
+    return start_at, end_at
+
+
+def _get_completed_sales_payments_queryset(archived_only=None):
+    # Refund requests do not mutate Payment.payment_status today, so approved or
+    # processed refunds are excluded here to keep dashboard and payment sales
+    # history aligned to net completed sales.
+    sales_queryset = (
+        Payment.objects.select_related(
+            'cake_order',
+            'cake_order__user',
+            'package_order',
+            'package_order__user',
+        )
+        .filter(
+            payment_status='paid',
+            paid_at__isnull=False,
+        )
+        .exclude(payment_purpose='refund')
+        .exclude(
+            Q(cake_order__refund_request__status__in=PAYMENT_SALES_REFUND_EXCLUSION_STATUSES)
+            | Q(package_order__refund_request__status__in=PAYMENT_SALES_REFUND_EXCLUSION_STATUSES)
+        )
+        .distinct()
+        .order_by('-paid_at', '-created_at')
+    )
+
+    if archived_only is True:
+        sales_queryset = sales_queryset.filter(is_archived=True)
+    elif archived_only is False:
+        sales_queryset = sales_queryset.filter(is_archived=False)
+
+    return sales_queryset
+
+
+def _build_payment_sales_summary(period_key='', base_queryset=None):
+    normalized_period = _normalize_payment_sales_period(period_key)
+    sales_queryset = base_queryset if base_queryset is not None else _get_completed_sales_payments_queryset()
+    start_at, end_at = _get_payment_sales_period_window(normalized_period)
+
+    if start_at and end_at:
+        sales_queryset = sales_queryset.filter(
+            paid_at__gte=start_at,
+            paid_at__lt=end_at,
+        )
+
+    total_paid = sales_queryset.aggregate(total=Sum('amount'))[
+        'total'] or Decimal('0.00')
+    transaction_count = sales_queryset.count()
+    period_label = PAYMENT_SALES_PERIOD_LABELS.get(
+        normalized_period, 'All Completed Sales')
+    empty_message = (
+        'No archived paid transactions were found for this period.'
+        if normalized_period
+        else 'No completed paid transactions are available yet.'
+    )
+
+    return {
+        'queryset': sales_queryset,
+        'period_key': normalized_period,
+        'period_label': period_label,
+        'total_paid': total_paid,
+        'transaction_count': transaction_count,
+        'start_at': start_at,
+        'end_at': end_at,
+        'empty_message': empty_message,
+    }
+
+
+def _build_payment_admin_url(tab_key='review', period_key='', anchor_key=None):
+    query_params = {}
+    if tab_key:
+        query_params['tab'] = tab_key
+    normalized_period = _normalize_payment_sales_period(period_key)
+    if normalized_period:
+        query_params['period'] = normalized_period
+
+    payment_url = reverse('admin_payments')
+    if query_params:
+        payment_url = f'{payment_url}?{urlencode(query_params)}'
+
+    anchor_name = PAYMENT_ADMIN_SECTION_ANCHORS.get(anchor_key)
+    if anchor_name:
+        payment_url = f'{payment_url}#{anchor_name}'
+    return payment_url
+
+
 def _parse_stock_quantity(value, default=0):
     try:
         return max(int(value), 0)
@@ -1320,9 +1978,11 @@ def _build_order_sales_report_rows(limit=8):
     )
     for order in cake_orders:
         product = order.cake
-        product_name = str(getattr(product, 'name', '') or 'Custom Cake').strip()
+        product_name = str(getattr(product, 'name', '')
+                           or 'Custom Cake').strip()
         product_code = str(getattr(product, 'product_code', '') or '').strip()
-        product_key = ('cake', getattr(product, 'pk', None) or f'cake-order-{order.pk}')
+        product_key = ('cake', getattr(product, 'pk', None)
+                       or f'cake-order-{order.pk}')
         summary = product_totals.setdefault(product_key, {
             'type_key': 'cake',
             'type_label': 'Cake',
@@ -1343,9 +2003,11 @@ def _build_order_sales_report_rows(limit=8):
     )
     for order in package_orders:
         product = order.package
-        product_name = str(getattr(product, 'name', '') or 'Custom Package').strip()
+        product_name = str(getattr(product, 'name', '')
+                           or 'Custom Package').strip()
         product_code = str(getattr(product, 'product_code', '') or '').strip()
-        product_key = ('package', getattr(product, 'pk', None) or f'package-order-{order.pk}')
+        product_key = ('package', getattr(product, 'pk', None)
+                       or f'package-order-{order.pk}')
         summary = product_totals.setdefault(product_key, {
             'type_key': 'package',
             'type_label': 'Package',
@@ -1427,12 +2089,11 @@ def _build_stock_report_rows(limit=None):
         })
 
     priority = {'out': 0, 'low': 1, 'available': 2}
-    rows.sort(key=lambda item: (priority[item['health_key']], item['stock_value'], item['product_name'].lower()))
+    rows.sort(key=lambda item: (
+        priority[item['health_key']], item['stock_value'], item['product_name'].lower()))
     if limit is not None:
         return rows[:limit]
     return rows
-
-
 
 
 def _get_archived_refund_filter():
@@ -1494,7 +2155,8 @@ def _commit_order_stock(order, actor=None):
     if product is None:
         return False
 
-    product.stock = max(int(product.stock or 0) - int(stock_context['quantity']), 0)
+    product.stock = max(int(product.stock or 0) -
+                        int(stock_context['quantity']), 0)
     product.save(update_fields=['stock', 'updated_at'])
     order.stock_deducted = True
     order.save(update_fields=['stock_deducted'])
@@ -2014,7 +2676,6 @@ def _build_activity_log_filter_chips(filter_state, actor_options):
     return chips
 
 
-
 def _build_activity_log_action_groups(available_actions, selected_actions):
     available_action_set = {
         str(value).strip()
@@ -2317,12 +2978,15 @@ def _apply_storefront_price_adjustments(option_items, *, use_first_option_as_bas
     if not option_items:
         return []
 
-    baseline_price = _parse_decimal(option_items[0]['price']) if use_first_option_as_base else Decimal('0.00')
+    baseline_price = _parse_decimal(
+        option_items[0]['price']) if use_first_option_as_base else Decimal('0.00')
     adjusted_items = []
     for item in option_items:
         adjusted_item = dict(item)
-        adjusted_price = max(_parse_decimal(item['price']) - baseline_price, Decimal('0.00'))
-        adjusted_item['storefront_price'] = format(adjusted_price.quantize(Decimal('0.01')), 'f')
+        adjusted_price = max(_parse_decimal(
+            item['price']) - baseline_price, Decimal('0.00'))
+        adjusted_item['storefront_price'] = format(
+            adjusted_price.quantize(Decimal('0.01')), 'f')
         adjusted_items.append(adjusted_item)
     return adjusted_items
 
@@ -3490,292 +4154,6 @@ def payment_qr_preview(request):
     )
 
 
-def _is_local_demo_request(request):
-    remote_addr = request.META.get('REMOTE_ADDR')
-    return settings.DEBUG and remote_addr in {None, '127.0.0.1', '::1'}
-
-
-def _get_demo_request_mode(request):
-    if _is_local_demo_request(request) or getattr(settings, 'DEMO_BOT_REMOTE_ENABLED', False):
-        return 'browser'
-    return None
-
-
-def _parse_float(value, default):
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return default
-
-
-def _get_demo_state(request):
-    return request.session.get(DEMO_SESSION_STATE_KEY)
-
-
-def _set_demo_state(request, state):
-    request.session[DEMO_SESSION_STATE_KEY] = state
-    request.session.modified = True
-
-
-def _clear_demo_state(request):
-    if DEMO_SESSION_STATE_KEY in request.session:
-        del request.session[DEMO_SESSION_STATE_KEY]
-        request.session.modified = True
-
-
-def _normalize_demo_script_steps(raw_steps):
-    allowed_steps = {step_id for step_id, _ in DEMO_SCRIPT_STEPS}
-    if not isinstance(raw_steps, list):
-        return []
-
-    normalized_steps = []
-    for step in raw_steps:
-        if not isinstance(step, str):
-            continue
-        step_value = step.strip()
-        if step_value in allowed_steps and step_value not in normalized_steps:
-            normalized_steps.append(step_value)
-    return normalized_steps
-
-
-def _resolve_demo_script_steps(scenario, raw_steps):
-    if scenario == 'custom':
-        return _normalize_demo_script_steps(raw_steps)
-    return list(DEMO_BROWSER_SCENARIO_STEPS.get(scenario, DEMO_BROWSER_SCENARIO_STEPS['full']))
-
-
-def _ensure_demo_admin_user():
-    user, created = User.objects.get_or_create(
-        username=DEMO_BROWSER_ADMIN_USERNAME,
-        defaults={
-            'email': DEMO_BROWSER_ADMIN_EMAIL,
-            'first_name': 'Panel',
-            'last_name': 'Admin',
-        },
-    )
-    if created or not user.check_password(DEMO_BROWSER_ADMIN_PASSWORD):
-        user.email = DEMO_BROWSER_ADMIN_EMAIL
-        user.first_name = 'Panel'
-        user.last_name = 'Admin'
-        user.set_password(DEMO_BROWSER_ADMIN_PASSWORD)
-        user.save()
-
-    profile, _ = UserProfile.objects.get_or_create(
-        user=user,
-        defaults={
-            'role': 'admin',
-            'phone': '09171234567',
-            'address': 'Hanilies Admin Office, Lucena City',
-        },
-    )
-    profile.role = 'admin'
-    if not profile.phone:
-        profile.phone = '09171234567'
-    if not profile.address:
-        profile.address = 'Hanilies Admin Office, Lucena City'
-    profile.save()
-    _sync_user_staff_flags(user, profile.role)
-    return user
-
-
-def _ensure_demo_showcase_catalog():
-    cake = _get_public_cake_queryset().exclude(image='').order_by('-updated_at', '-id').first()
-    if cake is None:
-        cake = _get_public_cake_queryset().order_by('-updated_at', '-id').first()
-    if cake is None:
-        cake = Cake.objects.create(
-            name='Demo Bot Showcase Cake',
-            category='birthday',
-            description='Auto-created showcase cake for the browser demo flow.',
-            price=Decimal('1850.00'),
-            stock=5,
-            is_active=True,
-        )
-
-    package = _get_public_package_queryset().exclude(image='').order_by('-updated_at', '-id').first()
-    if package is None:
-        package = _get_public_package_queryset().order_by('-updated_at', '-id').first()
-    if package is None:
-        package = Package.objects.create(
-            name='Demo Bot Showcase Package',
-            package_type='kids_birthday',
-            description='Auto-created showcase package for the browser demo flow.',
-            base_price=Decimal('7500.00'),
-            features='Host\nBackdrop\nBasic styling',
-            included_items='Cake\nCupcakes\nBalloons',
-            status='active',
-        )
-
-    return cake, package
-
-
-def _build_browser_demo_payload(request, scenario, script_steps, delay):
-    demo_admin = _ensure_demo_admin_user()
-    showcase_cake, showcase_package = _ensure_demo_showcase_catalog()
-    cake_catalog_url = f"{reverse('cakes')}?category={showcase_cake.category}"
-    cake_customize_url = f"{reverse('cake_customize')}?cake_id={showcase_cake.id}"
-    package_catalog_url = f"{reverse('packages')}?type={showcase_package.package_type}"
-    package_order_url = f"{reverse('order_package')}?package_id={showcase_package.id}"
-    package_payment_url = reverse('package_payment')
-    home_url = reverse('home')
-    login_url = reverse('login')
-    logout_url = reverse('logout')
-    customer_orders_url = f"{reverse('profile')}?section=orders"
-    profile_url = f"{reverse('profile')}?section=profile&tab=personal#profile-edit-card"
-
-    step_urls = {
-        'home': home_url,
-        'intro': home_url,
-        'homepage': home_url,
-        'register': reverse('register'),
-        'login': login_url,
-        'customer_login': login_url,
-        'logout': logout_url,
-        'cakes': cake_catalog_url,
-        'cake_browse': cake_catalog_url,
-        'cake_customize': cake_customize_url,
-        'packages': package_catalog_url,
-        'package_browse': package_catalog_url,
-        'package_order': package_order_url,
-        'package_customize': package_order_url,
-        'package_payment': package_payment_url,
-        'cart_review': package_payment_url,
-        'checkout': package_payment_url,
-        'payment': package_payment_url,
-        'customer_orders': customer_orders_url,
-        'profile': profile_url,
-        'order_tracking': reverse('order_tracking'),
-        'admin_login': login_url,
-        'admin_dashboard': reverse('admin_dashboard'),
-        'admin_cake_orders': reverse('admin_cake_orders'),
-        'admin_package_orders': reverse('admin_package_orders'),
-        'admin_payments': reverse('admin_payments'),
-        'admin_cakes': reverse('admin_cakes'),
-        'admin_packages': reverse('admin_packages'),
-        'admin_users': reverse('admin_users'),
-        'audit_trail': reverse('admin_activity_logs'),
-        'admin_logout': logout_url,
-    }
-    return {
-        'scenario': scenario,
-        'script_steps': script_steps,
-        'launch_url': home_url,
-        'step_urls': step_urls,
-        'delay': delay,
-        'intro_message': DEMO_BOT_DEFAULT_INTRO,
-        'admin_credentials': {
-            'username': demo_admin.username,
-            'password': DEMO_BROWSER_ADMIN_PASSWORD,
-        },
-        'sample_customer': {
-            'first_name': 'Presentation',
-            'last_name': 'Customer',
-            'email_domain': 'example.com',
-            'phone': '09171234567',
-            'password': 'DemoRegister123!',
-        },
-        'showcase_catalog': {
-            'cake_id': showcase_cake.id,
-            'cake_name': showcase_cake.name,
-            'cake_category': showcase_cake.category,
-            'package_id': showcase_package.id,
-            'package_name': showcase_package.name,
-            'package_type': showcase_package.package_type,
-        },
-    }
-
-
-@require_POST
-def start_demo_bot(request):
-    if _get_demo_request_mode(request) is None:
-        return JsonResponse({
-            'ok': False,
-            'error': 'The demo bot is not enabled for this environment.',
-        }, status=403)
-
-    try:
-        payload = json.loads(request.body.decode('utf-8') or '{}')
-    except (json.JSONDecodeError, UnicodeDecodeError):
-        payload = {}
-
-    scenario = payload.get('scenario', 'full')
-    if scenario not in DEMO_SCENARIOS:
-        return JsonResponse({
-            'ok': False,
-            'error': 'Unsupported demo scenario requested.',
-        }, status=400)
-
-    if _get_demo_state(request):
-        return JsonResponse({
-            'ok': False,
-            'error': 'A demo bot is already running. Stop it before starting another one.',
-            'active_demo': _get_demo_state(request),
-        }, status=409)
-
-    delay = max(0.6, _parse_float(payload.get('delay'), 1.1))
-    resolved_steps = _resolve_demo_script_steps(
-        scenario,
-        payload.get('script_steps', []),
-    )
-    if scenario == 'custom' and not resolved_steps:
-        return JsonResponse({
-            'ok': False,
-            'error': 'Choose at least one custom script step before starting the demo.',
-        }, status=400)
-
-    browser_demo = _build_browser_demo_payload(
-        request,
-        scenario,
-        resolved_steps,
-        delay,
-    )
-    state = {
-        'mode': 'browser',
-        'scenario': scenario,
-        'script_steps': resolved_steps,
-        'started_at': timezone.now().isoformat(),
-        'delay': delay,
-    }
-    _set_demo_state(request, state)
-    return JsonResponse({
-        'ok': True,
-        'mode': 'browser',
-        'scenario': scenario,
-        'active_demo': state,
-        'browser_demo': browser_demo,
-        'message': 'The browser demo is prepared. This tab will now run the presentation walkthrough automatically.',
-    })
-
-
-def demo_bot_status(request):
-    if _get_demo_request_mode(request) is None:
-        return JsonResponse({'ok': False, 'error': 'Demo bot access is not enabled here.'}, status=403)
-
-    state = _get_demo_state(request)
-    if not state:
-        return JsonResponse({'ok': True, 'running': False})
-
-    return JsonResponse({'ok': True, 'running': True, 'active_demo': state})
-
-
-@require_POST
-def stop_demo_bot(request):
-    if _get_demo_request_mode(request) is None:
-        return JsonResponse({'ok': False, 'error': 'Demo bot access is not enabled here.'}, status=403)
-
-    state = _get_demo_state(request)
-    if not state:
-        return JsonResponse({
-            'ok': False,
-            'error': 'No running demo bot was found for this browser session.',
-        }, status=404)
-
-    _clear_demo_state(request)
-    return JsonResponse({
-        'ok': True,
-        'message': 'The browser-based demo walkthrough was stopped.',
-    })
-
 def _build_tracking_steps(order_kind, order_status):
     if order_kind == 'package':
         flow = [
@@ -4262,8 +4640,17 @@ def cakes(request):
         cake_list = cake_list.filter(Q(name__icontains=search_term) | Q(
             description__icontains=search_term))
 
+    cakes_page, cakes_pagination = _paginate_public_queryset(
+        request,
+        cake_list,
+        summary_label='cakes',
+        anchor_id='cakes-collection',
+    )
+
     context = {
-        'cakes': cake_list,
+        'cakes': cakes_page.object_list,
+        'cakes_page': cakes_page,
+        'cakes_pagination': cakes_pagination,
         'categories': Cake.CAKE_CATEGORIES,
         'selected_category': selected_category,
         'search_term': search_term,
@@ -4284,12 +4671,21 @@ def packages(request):
         package_list = package_list.filter(
             Q(name__icontains=search_term) | Q(description__icontains=search_term))
 
-    package_list = list(package_list)
+    packages_page, packages_pagination = _paginate_public_queryset(
+        request,
+        package_list,
+        summary_label='packages',
+        anchor_id='packages-collection',
+    )
+
+    package_list = list(packages_page.object_list)
     for package in package_list:
         package.package_inclusion_items = _get_package_inclusion_items(package)
 
     context = {
         'packages': package_list,
+        'packages_page': packages_page,
+        'packages_pagination': packages_pagination,
         'package_types': PUBLIC_PACKAGE_TYPES,
         'selected_type': selected_type,
         'search_term': search_term,
@@ -4929,8 +5325,10 @@ def cake_customize(request):
     selected_payment_method = 'cod'
     default_cake_tier_option = _get_default_option(cake_tier_options)
     default_cake_size_option = _get_default_option(cake_size_options)
-    default_cake_shape_option = _get_default_option(cake_option_groups['shapes'])
-    default_cake_flavor_option = _get_default_option(cake_option_groups['flavors'])
+    default_cake_shape_option = _get_default_option(
+        cake_option_groups['shapes'])
+    default_cake_flavor_option = _get_default_option(
+        cake_option_groups['flavors'])
     cake_form_values = {
         'quantity': '1',
         'color_palette': '',
@@ -4995,10 +5393,14 @@ def cake_customize(request):
             selected_cake_filling_values, cake_option_groups['fillings'])
         customization_total = sum(
             [
-                _get_single_select_price_adjustment(selected_tier, cake_tier_options),
-                _get_single_select_price_adjustment(selected_size, cake_size_options),
-                _get_single_select_price_adjustment(selected_shape, cake_option_groups['shapes']),
-                _get_single_select_price_adjustment(selected_flavor, cake_option_groups['flavors']),
+                _get_single_select_price_adjustment(
+                    selected_tier, cake_tier_options),
+                _get_single_select_price_adjustment(
+                    selected_size, cake_size_options),
+                _get_single_select_price_adjustment(
+                    selected_shape, cake_option_groups['shapes']),
+                _get_single_select_price_adjustment(
+                    selected_flavor, cake_option_groups['flavors']),
             ]
         ) + frosting_total + filling_total
         total_price = (selected_cake.price * quantity) + \
@@ -5579,8 +5981,15 @@ def _render_admin_contact_inquiry_detail(request, inquiry, reply_form=None, stat
         'reply_send_label': 'Send Reply' if inquiry.has_email_contact else 'Save Reply Note',
         'reply_delivery_text': reply_delivery_text,
         'return_url': return_url,
+        'back_label': _get_admin_back_label(
+            return_url,
+            'Back to Inquiries',
+            [
+                ('admin_contact_inquiries', 'Back to Inquiries',
+                 'Back to Archived Inquiries'),
+            ],
+        ),
         'admin_menu': get_admin_menu(request),
-            'hide_demo_panel': True,
     }, status=status_code)
 
 
@@ -5605,7 +6014,6 @@ def admin_contact_inquiries(request):
         'is_archived_view': is_archived_view,
         'unread_inquiry_count': ContactInquiry.objects.filter(is_archived=False, is_read=False).count(),
         'admin_menu': get_admin_menu(request),
-            'hide_demo_panel': True,
     })
 
 
@@ -5656,7 +6064,8 @@ def admin_contact_inquiry_reply(request, inquiry_id):
     inquiry.admin_reply = reply_message
     inquiry.replied_at = timezone.now()
     inquiry.replied_by = request.user
-    inquiry.save(update_fields=['admin_reply', 'replied_at', 'replied_by', 'updated_at'])
+    inquiry.save(update_fields=['admin_reply',
+                 'replied_at', 'replied_by', 'updated_at'])
     _log_staff_activity(
         request.user,
         'contact_inquiry_replied',
@@ -5666,9 +6075,11 @@ def admin_contact_inquiry_reply(request, inquiry_id):
     )
 
     if inquiry.has_email_contact:
-        messages.success(request, f'Reply sent to {inquiry.reply_email} for inquiry #{inquiry.id}.')
+        messages.success(
+            request, f'Reply sent to {inquiry.reply_email} for inquiry #{inquiry.id}.')
     else:
-        messages.success(request, f'Reply saved on inquiry #{inquiry.id} for manual follow-up.')
+        messages.success(
+            request, f'Reply saved on inquiry #{inquiry.id} for manual follow-up.')
 
     return redirect(_build_admin_contact_inquiry_reply_redirect(inquiry, return_url))
 
@@ -5685,74 +6096,75 @@ def admin_contact_inquiry_update(request, inquiry_id):
     action = (request.POST.get('action') or '').strip().lower()
     return_url = _get_safe_admin_return_url(request, 'admin_contact_inquiries')
 
-    if action == 'mark_read':
-        if inquiry.is_read:
-            messages.info(request, f'Inquiry #{inquiry.id} is already marked as read.')
-            return redirect(return_url)
-        inquiry.is_read = True
-        inquiry.read_at = timezone.now()
-        inquiry.save(update_fields=['is_read', 'read_at', 'updated_at'])
-        _log_staff_activity(
-            request.user,
-            'contact_inquiry_read',
-            f'Marked inquiry #{inquiry.id} as read.',
-            'contact_inquiry',
-            inquiry.id,
-        )
-        messages.success(request, f'Inquiry #{inquiry.id} marked as read.')
-        return redirect(return_url)
-
-    if action == 'mark_unread':
-        if inquiry.admin_reply and inquiry.replied_at:
-            messages.info(request, f'Inquiry #{inquiry.id} already has a saved reply status.')
-            return redirect(return_url)
-        if not inquiry.is_read:
-            messages.info(request, f'Inquiry #{inquiry.id} is already marked as new.')
-            return redirect(return_url)
-        inquiry.is_read = False
-        inquiry.read_at = None
-        inquiry.save(update_fields=['is_read', 'read_at', 'updated_at'])
-        _log_staff_activity(
-            request.user,
-            'contact_inquiry_unread',
-            f'Marked inquiry #{inquiry.id} as new.',
-            'contact_inquiry',
-            inquiry.id,
-        )
-        messages.success(request, f'Inquiry #{inquiry.id} marked as new.')
-        return redirect(return_url)
-
-    if action == 'archive':
-        if inquiry.is_archived:
-            messages.info(request, f'Inquiry #{inquiry.id} is already archived.')
-            return redirect(return_url)
-        _archive_model_instance(inquiry)
-        _log_staff_activity(
-            request.user,
-            'contact_inquiry_archived',
-            f'Archived inquiry #{inquiry.id}.',
-            'contact_inquiry',
-            inquiry.id,
-        )
-        messages.success(request, f'Inquiry #{inquiry.id} archived successfully!')
-        return redirect(return_url)
-
-    if action == 'restore':
-        if not inquiry.is_archived:
+    if not _apply_contact_inquiry_action(request.user, inquiry, action):
+        if action not in {'mark_read', 'mark_unread', 'archive', 'restore'}:
+            messages.error(request, 'Unknown inquiry action.')
+        elif action == 'mark_read':
+            messages.info(
+                request, f'Inquiry #{inquiry.id} is already marked as read.')
+        elif action == 'mark_unread' and inquiry.admin_reply and inquiry.replied_at:
+            messages.info(
+                request, f'Inquiry #{inquiry.id} already has a saved reply status.')
+        elif action == 'mark_unread':
+            messages.info(
+                request, f'Inquiry #{inquiry.id} is already marked as new.')
+        elif action == 'archive':
+            messages.info(
+                request, f'Inquiry #{inquiry.id} is already archived.')
+        else:
             messages.info(request, f'Inquiry #{inquiry.id} is already active.')
-            return redirect(return_url)
-        _restore_model_instance(inquiry)
-        _log_staff_activity(
-            request.user,
-            'contact_inquiry_restored',
-            f'Restored inquiry #{inquiry.id}.',
-            'contact_inquiry',
-            inquiry.id,
-        )
-        messages.success(request, f'Inquiry #{inquiry.id} restored successfully!')
         return redirect(return_url)
 
-    messages.error(request, 'Unknown inquiry action.')
+    success_messages = {
+        'mark_read': f'Inquiry #{inquiry.id} marked as read.',
+        'mark_unread': f'Inquiry #{inquiry.id} marked as new.',
+        'archive': f'Inquiry #{inquiry.id} archived successfully!',
+        'restore': f'Inquiry #{inquiry.id} restored successfully!',
+    }
+    messages.success(request, success_messages[action])
+    return redirect(return_url)
+
+
+@login_required
+@require_POST
+def admin_contact_inquiries_bulk_action(request):
+    """Apply a bulk action to selected contact inquiries."""
+    access_denied = _require_admin_roles(request, FULL_ACCESS_ROLE_VALUES)
+    if access_denied:
+        return access_denied
+
+    return_url = _get_safe_admin_return_url(request, 'admin_contact_inquiries')
+    action = (request.POST.get('action') or '').strip().lower()
+    selected_ids = _get_bulk_selected_ids(request)
+    if not selected_ids:
+        messages.error(request, 'Select at least one inquiry first.')
+        return redirect(return_url)
+
+    if action not in {'mark_read', 'mark_unread', 'archive', 'restore'}:
+        messages.error(request, 'Choose a valid bulk inquiry action.')
+        return redirect(return_url)
+
+    processed_count = 0
+    skipped_count = 0
+    for inquiry in ContactInquiry.objects.filter(id__in=selected_ids):
+        if _apply_contact_inquiry_action(request.user, inquiry, action):
+            processed_count += 1
+        else:
+            skipped_count += 1
+
+    action_labels = {
+        'mark_read': 'Marked as read',
+        'mark_unread': 'Marked as new',
+        'archive': 'Archived',
+        'restore': 'Restored',
+    }
+    _flash_bulk_action_summary(
+        request,
+        action_labels[action],
+        'inquiry',
+        processed_count,
+        skipped_count,
+    )
     return redirect(return_url)
 
 
@@ -5775,7 +6187,8 @@ def admin_contact_inquiry_delete(request, inquiry_id):
         'contact_inquiry',
         inquiry_id_value,
     )
-    messages.success(request, f'Inquiry #{inquiry_id_value} deleted successfully!')
+    messages.success(
+        request, f'Inquiry #{inquiry_id_value} deleted successfully!')
     return redirect(_get_safe_admin_return_url(request, 'admin_contact_inquiries'))
 
 
@@ -5804,7 +6217,6 @@ def admin_about_images(request):
     return render(request, 'admin/about_images/list.html', {
         'about_images': about_images,
         'admin_menu': get_admin_menu(request),
-            'hide_demo_panel': True,
     })
 
 
@@ -5816,7 +6228,8 @@ def admin_about_image_edit(request, image_id):
         return access_denied
 
     about_image = get_object_or_404(AboutPageImage, id=image_id)
-    slot_title = dict(AboutPageImage.SLOT_CHOICES).get(about_image.slot, 'About Image')
+    slot_title = dict(AboutPageImage.SLOT_CHOICES).get(
+        about_image.slot, 'About Image')
 
     if request.method == 'POST':
         if 'image' in request.FILES:
@@ -5831,19 +6244,21 @@ def admin_about_image_edit(request, image_id):
                 'about_page_image',
                 about_image.id,
             )
-            messages.success(request, f'About page image "{slot_title}" updated successfully!')
+            messages.success(
+                request, f'About page image "{slot_title}" updated successfully!')
             return redirect('admin_about_images')
 
-        messages.error(request, 'Please upload an image to replace the current About page photo.')
+        messages.error(
+            request, 'Please upload an image to replace the current About page photo.')
 
     default_payload = ABOUT_PAGE_IMAGE_DEFAULTS.get(about_image.slot, {})
-    preview_url = about_image.image.url if about_image.image else default_payload.get('image_url', '')
+    preview_url = about_image.image.url if about_image.image else default_payload.get(
+        'image_url', '')
     return render(request, 'admin/about_images/edit.html', {
         'about_image': about_image,
         'slot_title': slot_title,
         'preview_url': preview_url,
         'admin_menu': get_admin_menu(request),
-            'hide_demo_panel': True,
     })
 
 
@@ -5863,22 +6278,32 @@ def admin_dashboard(request):
     role = getattr(request.user, 'profile', None)
     admin_menu = get_admin_menu(request)
     today = timezone.localdate()
-    start_of_week = today - timedelta(days=6)
-    start_of_month = today.replace(day=1)
-    total_sales_today = Payment.objects.filter(
-        payment_status='paid',
-        paid_at__date=today,
-    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-    total_sales_week = Payment.objects.filter(
-        payment_status='paid',
-        paid_at__date__gte=start_of_week,
-        paid_at__date__lte=today,
-    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-    total_sales_month = Payment.objects.filter(
-        payment_status='paid',
-        paid_at__date__gte=start_of_month,
-        paid_at__date__lte=today,
-    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    sales_base_queryset = _get_completed_sales_payments_queryset(
+        archived_only=True)
+    sales_today_summary = _build_payment_sales_summary(
+        'today', sales_base_queryset)
+    sales_week_summary = _build_payment_sales_summary(
+        'week', sales_base_queryset)
+    sales_month_summary = _build_payment_sales_summary(
+        'month', sales_base_queryset)
+    total_sales_today = sales_today_summary['total_paid']
+    total_sales_week = sales_week_summary['total_paid']
+    total_sales_month = sales_month_summary['total_paid']
+    today_sales_url = _build_payment_admin_url(
+        tab_key='archived',
+        period_key='today',
+        anchor_key='archived',
+    )
+    week_sales_url = _build_payment_admin_url(
+        tab_key='archived',
+        period_key='week',
+        anchor_key='archived',
+    )
+    month_sales_url = _build_payment_admin_url(
+        tab_key='archived',
+        period_key='month',
+        anchor_key='archived',
+    )
     pending_cake_approvals = CakeOrder.objects.filter(
         order_status__in=['pending', 'payment_retry'],
         is_archived=False,
@@ -5901,7 +6326,8 @@ def admin_dashboard(request):
     total_cakes = _get_public_cake_queryset().count()
     total_cake_orders = CakeOrder.objects.filter(is_archived=False).count()
     total_packages = _get_public_package_queryset().count()
-    total_package_orders = PackageOrder.objects.filter(is_archived=False).count()
+    total_package_orders = PackageOrder.objects.filter(
+        is_archived=False).count()
     total_users = User.objects.filter(is_active=True).count()
 
     role_value = role.role if role else 'admin'
@@ -5923,9 +6349,12 @@ def admin_dashboard(request):
     stock_report_cards = []
     if can_view_stock_reports:
         all_stock_rows = _build_stock_report_rows(limit=None)
-        available_stock_count = sum(1 for row in all_stock_rows if row['health_key'] == 'available')
-        low_stock_count = sum(1 for row in all_stock_rows if row['health_key'] == 'low')
-        out_of_stock_count = sum(1 for row in all_stock_rows if row['health_key'] == 'out')
+        available_stock_count = sum(
+            1 for row in all_stock_rows if row['health_key'] == 'available')
+        low_stock_count = sum(
+            1 for row in all_stock_rows if row['health_key'] == 'low')
+        out_of_stock_count = sum(
+            1 for row in all_stock_rows if row['health_key'] == 'out')
         stock_units_on_hand = sum(row['stock_value'] for row in all_stock_rows)
         stock_report_cards = [
             {
@@ -5972,6 +6401,7 @@ def admin_dashboard(request):
             'chip_negative': True,
             'icon': 'clock',
             'url': reverse('admin_payments'),
+            'link_label': 'Open Pending Payments',
             'tone': 'urgent',
         })
     if can_view_cake_orders:
@@ -6001,7 +6431,8 @@ def admin_dashboard(request):
             'copy': f'Paid transactions recorded for {today.strftime("%B %d, %Y")}.',
             'chip': 'Paid today',
             'icon': 'peso-sign',
-            'url': reverse('admin_payments'),
+            'url': today_sales_url,
+            'link_label': "View Today's Sales",
             'tone': 'sales',
         })
 
@@ -6031,7 +6462,8 @@ def admin_dashboard(request):
                 'value': f'P{total_sales_week:.2f}',
                 'chip': 'Paid this week',
                 'icon': 'chart-line',
-                'url': reverse('admin_payments'),
+                'url': week_sales_url,
+                'link_label': "View This Week's Sales",
                 'tone': 'sales',
             },
             {
@@ -6039,7 +6471,8 @@ def admin_dashboard(request):
                 'value': f'P{total_sales_month:.2f}',
                 'chip': 'Paid this month',
                 'icon': 'calendar-alt',
-                'url': reverse('admin_payments'),
+                'url': month_sales_url,
+                'link_label': "View This Month's Sales",
                 'tone': 'sales',
             },
         ])
@@ -6360,7 +6793,6 @@ def admin_home_hero_images(request):
     return render(request, 'admin/hero_images/list.html', {
         'hero_images': hero_images,
         'admin_menu': get_admin_menu(request),
-            'hide_demo_panel': True,
     })
 
 
@@ -6377,15 +6809,13 @@ def admin_home_hero_add(request):
             messages.error(request, 'Title is required.')
             return render(request, 'admin/hero_images/add.html', {
                 'admin_menu': get_admin_menu(request),
-                    'hide_demo_panel': True,
-    })
+            })
 
         if 'image' not in request.FILES:
             messages.error(request, 'Please upload a celebration image.')
             return render(request, 'admin/hero_images/add.html', {
                 'admin_menu': get_admin_menu(request),
-                    'hide_demo_panel': True,
-    })
+            })
 
         try:
             hero_image = HomeHeroImage.objects.create(
@@ -6398,8 +6828,7 @@ def admin_home_hero_add(request):
             messages.error(request, 'Display order must be a whole number.')
             return render(request, 'admin/hero_images/add.html', {
                 'admin_menu': get_admin_menu(request),
-                    'hide_demo_panel': True,
-    })
+            })
 
         _log_staff_activity(
             request.user,
@@ -6414,7 +6843,6 @@ def admin_home_hero_add(request):
 
     return render(request, 'admin/hero_images/add.html', {
         'admin_menu': get_admin_menu(request),
-            'hide_demo_panel': True,
     })
 
 
@@ -6434,8 +6862,7 @@ def admin_home_hero_edit(request, hero_image_id):
             return render(request, 'admin/hero_images/edit.html', {
                 'hero_image': hero_image,
                 'admin_menu': get_admin_menu(request),
-                    'hide_demo_panel': True,
-    })
+            })
 
         try:
             hero_image.title = title
@@ -6454,8 +6881,7 @@ def admin_home_hero_edit(request, hero_image_id):
             return render(request, 'admin/hero_images/edit.html', {
                 'hero_image': hero_image,
                 'admin_menu': get_admin_menu(request),
-                    'hide_demo_panel': True,
-    })
+            })
 
         _log_staff_activity(
             request.user,
@@ -6471,7 +6897,6 @@ def admin_home_hero_edit(request, hero_image_id):
     return render(request, 'admin/hero_images/edit.html', {
         'hero_image': hero_image,
         'admin_menu': get_admin_menu(request),
-            'hide_demo_panel': True,
     })
 
 
@@ -6511,7 +6936,6 @@ def admin_home_strip_images(request):
     return render(request, 'admin/home_strip/list.html', {
         'strip_images': strip_images,
         'admin_menu': get_admin_menu(request),
-            'hide_demo_panel': True,
     })
 
 
@@ -6528,15 +6952,13 @@ def admin_home_strip_add(request):
             messages.error(request, 'Title is required.')
             return render(request, 'admin/home_strip/add.html', {
                 'admin_menu': get_admin_menu(request),
-                    'hide_demo_panel': True,
-    })
+            })
 
         if 'image' not in request.FILES:
             messages.error(request, 'Please upload a strip image.')
             return render(request, 'admin/home_strip/add.html', {
                 'admin_menu': get_admin_menu(request),
-                    'hide_demo_panel': True,
-    })
+            })
 
         try:
             strip_image = HomeStripImage.objects.create(
@@ -6549,8 +6971,7 @@ def admin_home_strip_add(request):
             messages.error(request, 'Display order must be a whole number.')
             return render(request, 'admin/home_strip/add.html', {
                 'admin_menu': get_admin_menu(request),
-                    'hide_demo_panel': True,
-    })
+            })
 
         _log_staff_activity(
             request.user,
@@ -6565,7 +6986,6 @@ def admin_home_strip_add(request):
 
     return render(request, 'admin/home_strip/add.html', {
         'admin_menu': get_admin_menu(request),
-            'hide_demo_panel': True,
     })
 
 
@@ -6585,8 +7005,7 @@ def admin_home_strip_edit(request, strip_image_id):
             return render(request, 'admin/home_strip/edit.html', {
                 'strip_image': strip_image,
                 'admin_menu': get_admin_menu(request),
-                    'hide_demo_panel': True,
-    })
+            })
 
         try:
             strip_image.title = title
@@ -6605,8 +7024,7 @@ def admin_home_strip_edit(request, strip_image_id):
             return render(request, 'admin/home_strip/edit.html', {
                 'strip_image': strip_image,
                 'admin_menu': get_admin_menu(request),
-                    'hide_demo_panel': True,
-    })
+            })
 
         _log_staff_activity(
             request.user,
@@ -6622,7 +7040,6 @@ def admin_home_strip_edit(request, strip_image_id):
     return render(request, 'admin/home_strip/edit.html', {
         'strip_image': strip_image,
         'admin_menu': get_admin_menu(request),
-            'hide_demo_panel': True,
     })
 
 
@@ -6793,6 +7210,15 @@ def admin_cake_edit(request, cake_id):
         return access_denied
 
     cake = get_object_or_404(Cake, id=cake_id)
+    back_url = _get_safe_admin_return_url(request, 'admin_cakes')
+    back_label = _get_admin_back_label(
+        back_url,
+        'Back to Cake Products',
+        [
+            ('admin_cakes', 'Back to Cake Products',
+             'Back to Archived Cake Products'),
+        ],
+    )
 
     if request.method == 'POST':
         try:
@@ -6814,6 +7240,8 @@ def admin_cake_edit(request, cake_id):
                     request, 'Selected cake category is not available.')
                 return render(request, 'admin/cakes/edit.html', {
                     'cake': cake,
+                    'back_url': back_url,
+                    'back_label': back_label,
                     'admin_menu': get_admin_menu(request),
                     'cake_categories': Cake.CAKE_CATEGORIES,
                     'option_editor_groups': _build_option_editor_groups(
@@ -6877,12 +7305,14 @@ def admin_cake_edit(request, cake_id):
             )
             messages.success(
                 request, f'Cake "{cake.name}" updated successfully!')
-            return redirect('admin_cakes')
+            return redirect(back_url)
 
         except ValueError as e:
             messages.error(request, str(e))
             return render(request, 'admin/cakes/edit.html', {
                 'cake': cake,
+                'back_url': back_url,
+                'back_label': back_label,
                 'admin_menu': get_admin_menu(request),
                 'cake_categories': Cake.CAKE_CATEGORIES,
                 'option_editor_groups': _build_option_editor_groups(
@@ -6895,10 +7325,12 @@ def admin_cake_edit(request, cake_id):
             })
         except Exception as e:
             messages.error(request, f'Error updating cake: {str(e)}')
-            return redirect('admin_cake_edit', cake_id=cake_id)
+            return redirect(request.get_full_path())
 
     return render(request, 'admin/cakes/edit.html', {
         'cake': cake,
+        'back_url': back_url,
+        'back_label': back_label,
         'admin_menu': get_admin_menu(request),
         'cake_categories': Cake.CAKE_CATEGORIES,
         'option_editor_groups': _build_option_editor_groups(
@@ -6922,26 +7354,49 @@ def admin_cake_delete(request, cake_id):
     cake = get_object_or_404(Cake, id=cake_id)
     cake_name = cake.name
     if cake.is_archived:
-        _restore_model_instance(cake, is_active=True)
-        _log_staff_activity(
-            request.user,
-            'cake_restored',
-            f'Restored cake "{cake_name}".',
-            'cake',
-            cake_id,
-        )
+        _apply_cake_archive_action(request.user, cake, archived=False)
         messages.success(request, f'Cake "{cake_name}" restored successfully!')
     else:
-        _archive_model_instance(cake, is_active=False)
-        _log_staff_activity(
-            request.user,
-            'cake_archived',
-            f'Archived cake "{cake_name}".',
-            'cake',
-            cake_id,
-        )
+        _apply_cake_archive_action(request.user, cake, archived=True)
         messages.success(request, f'Cake "{cake_name}" archived successfully!')
     return redirect(_get_safe_admin_return_url(request, 'admin_cakes'))
+
+
+@login_required
+@require_POST
+def admin_cakes_bulk_action(request):
+    """Archive or restore selected cake products."""
+    access_denied = _require_admin_roles(request, CAKE_PRODUCT_ROLE_VALUES)
+    if access_denied:
+        return access_denied
+
+    return_url = _get_safe_admin_return_url(request, 'admin_cakes')
+    action = (request.POST.get('action') or '').strip().lower()
+    selected_ids = _get_bulk_selected_ids(request)
+    if not selected_ids:
+        messages.error(request, 'Select at least one cake product first.')
+        return redirect(return_url)
+
+    if action not in {'archive', 'restore'}:
+        messages.error(request, 'Choose a valid bulk cake action.')
+        return redirect(return_url)
+
+    processed_count = 0
+    skipped_count = 0
+    for cake in Cake.objects.filter(id__in=selected_ids):
+        if _apply_cake_archive_action(request.user, cake, archived=action == 'archive'):
+            processed_count += 1
+        else:
+            skipped_count += 1
+
+    _flash_bulk_action_summary(
+        request,
+        'Archived' if action == 'archive' else 'Restored',
+        'cake product',
+        processed_count,
+        skipped_count,
+    )
+    return redirect(return_url)
 
 
 # ============================================
@@ -6972,6 +7427,7 @@ def admin_cake_orders(request):
     return render(request, 'admin/orders/cake_orders.html', {
         'orders': orders,
         'orders_pagination': orders_pagination,
+        'can_bulk_archive': _is_full_access_user(request.user),
         'is_archived_view': is_archived_view,
         'admin_menu': get_admin_menu(request)
     })
@@ -6999,7 +7455,15 @@ def admin_cake_order_view(request, order_id):
         'order': order,
         'order_customization': order_customization,
         'back_url': back_url,
-        'back_label': 'Back to Payments' if back_url.startswith(reverse('admin_payments')) else 'Back to Cake Orders',
+        'back_label': _get_admin_back_label(
+            back_url,
+            'Back to Cake Orders',
+            [
+                ('admin_payments', 'Back to Payments', 'Back to Archived Payments'),
+                ('admin_cake_orders', 'Back to Cake Orders',
+                 'Back to Archived Cake Orders'),
+            ],
+        ),
         'admin_menu': get_admin_menu(request)
     })
 
@@ -7028,28 +7492,85 @@ def admin_cake_order_update(request, order_id):
                     request, 'You are not allowed to apply that status change.')
                 return redirect(_get_safe_admin_return_url(request, 'admin_cake_orders'))
             try:
-                if new_status == 'completed':
-                    _commit_order_stock(order, request.user)
-                elif getattr(order, 'stock_deducted', False):
-                    _restore_order_stock(order, request.user)
+                _apply_order_status_change(
+                    request.user,
+                    order,
+                    'cake_order',
+                    new_status,
+                )
             except ValueError as exc:
                 messages.error(request, str(exc))
                 return redirect(_get_safe_admin_return_url(request, 'admin_cake_orders'))
-            order.order_status = new_status
-            order.save(update_fields=['order_status', 'updated_at'])
-            if new_status == 'cancelled':
-                _cancel_outstanding_balance_payments(order)
-            _create_order_status_notification(order, 'cake', previous_status)
-            _log_staff_activity(
-                request.user,
-                'cake_order_status_updated',
-                f'Updated cake order #{order.id} from {previous_status} to {order.order_status}.',
-                'cake_order',
-                order.id,
-            )
             messages.success(
                 request, f'Order #{order.id} status updated to {order.get_order_status_display()}')
     return redirect(_get_safe_admin_return_url(request, 'admin_cake_orders'))
+
+
+@login_required
+@require_POST
+def admin_cake_orders_bulk_action(request):
+    """Apply a bulk action to selected cake orders."""
+    action = (request.POST.get('action') or '').strip().lower()
+    if action in {'archive', 'restore'}:
+        access_denied = _require_admin_roles(request, FULL_ACCESS_ROLE_VALUES)
+    else:
+        access_denied = _require_admin_roles(request, CAKE_ORDER_ROLE_VALUES)
+    if access_denied:
+        return access_denied
+
+    return_url = _get_safe_admin_return_url(request, 'admin_cake_orders')
+    selected_ids = _get_bulk_selected_ids(request)
+    if not selected_ids:
+        messages.error(request, 'Select at least one cake order first.')
+        return redirect(return_url)
+
+    valid_status_values = {value for value, _ in CakeOrder.ORDER_STATUS}
+    if action not in valid_status_values and action not in {'archive', 'restore'}:
+        messages.error(request, 'Choose a valid bulk cake order action.')
+        return redirect(return_url)
+
+    processed_count = 0
+    skipped_count = 0
+    error_messages = []
+    for order in CakeOrder.objects.filter(id__in=selected_ids):
+        if not _can_view_order_for_role(request.user, order):
+            skipped_count += 1
+            continue
+
+        if action in {'archive', 'restore'}:
+            if _apply_order_archive_action(request.user, order, 'cake_order', action == 'archive'):
+                processed_count += 1
+            else:
+                skipped_count += 1
+            continue
+
+        allowed_statuses = {value for value,
+                            _ in _get_allowed_status_updates(request.user, order)}
+        if action not in allowed_statuses:
+            skipped_count += 1
+            continue
+
+        try:
+            if _apply_order_status_change(request.user, order, 'cake_order', action):
+                processed_count += 1
+            else:
+                skipped_count += 1
+        except ValueError as exc:
+            skipped_count += 1
+            error_messages.append(f'Order #{order.id}: {exc}')
+
+    if error_messages:
+        messages.error(request, ' '.join(error_messages[:3]))
+
+    action_labels = dict(CakeOrder.ORDER_STATUS)
+    _flash_bulk_action_summary(
+        request,
+        'Archived' if action == 'archive' else 'Restored' if action == 'restore' else f'Moved to {action_labels.get(action, action)}',
+        'cake order',
+        processed_count,
+        skipped_count,
+    )
+    return redirect(return_url)
 
 
 @login_required
@@ -7064,25 +7585,13 @@ def admin_cake_order_delete(request, order_id):
     order = get_object_or_404(CakeOrder, id=order_id)
     order_id_value = order.id
     if order.is_archived:
-        _restore_model_instance(order)
-        _log_staff_activity(
-            request.user,
-            'cake_order_restored',
-            f'Restored cake order #{order_id_value}.',
-            'cake_order',
-            order_id_value,
-        )
+        _apply_order_archive_action(
+            request.user, order, 'cake_order', archived=False)
         messages.success(
             request, f'Order #{order_id_value} restored successfully!')
     else:
-        _archive_model_instance(order)
-        _log_staff_activity(
-            request.user,
-            'cake_order_archived',
-            f'Archived cake order #{order_id_value}.',
-            'cake_order',
-            order_id_value,
-        )
+        _apply_order_archive_action(
+            request.user, order, 'cake_order', archived=True)
         messages.success(
             request, f'Order #{order_id_value} archived successfully!')
     return redirect(_get_safe_admin_return_url(request, 'admin_cake_orders'))
@@ -7236,6 +7745,15 @@ def admin_package_edit(request, package_id):
 
     package = get_object_or_404(
         Package.objects.prefetch_related('thumbnails'), id=package_id)
+    back_url = _get_safe_admin_return_url(request, 'admin_packages')
+    back_label = _get_admin_back_label(
+        back_url,
+        'Back to Package Products',
+        [
+            ('admin_packages', 'Back to Package Products',
+             'Back to Archived Package Products'),
+        ],
+    )
 
     if request.method == 'POST':
         try:
@@ -7266,6 +7784,8 @@ def admin_package_edit(request, package_id):
                     request, 'Selected package type is no longer available.')
                 return render(request, 'admin/packages/edit.html', {
                     'package': package,
+                    'back_url': back_url,
+                    'back_label': back_label,
                     'admin_menu': get_admin_menu(request),
                     'thumbnail_slots': _build_package_thumbnail_slots(package),
                     'package_inclusion_editor_items': _build_package_inclusion_editor_items(
@@ -7354,7 +7874,7 @@ def admin_package_edit(request, package_id):
             )
             messages.success(
                 request, f'Package "{package.name}" updated successfully!')
-            return redirect('admin_packages')
+            return redirect(back_url)
         except ValueError as e:
             messages.error(request, str(e))
         except Exception as e:
@@ -7362,6 +7882,8 @@ def admin_package_edit(request, package_id):
 
     return render(request, 'admin/packages/edit.html', {
         'package': package,
+        'back_url': back_url,
+        'back_label': back_label,
         'admin_menu': get_admin_menu(request),
         'thumbnail_slots': _build_package_thumbnail_slots(package),
         'package_inclusion_editor_items': _build_package_inclusion_editor_items(
@@ -7388,28 +7910,51 @@ def admin_package_delete(request, package_id):
     package = get_object_or_404(Package, id=package_id)
     package_name = package.name
     if package.is_archived:
-        _restore_model_instance(package, status='active')
-        _log_staff_activity(
-            request.user,
-            'package_restored',
-            f'Restored package "{package_name}".',
-            'package',
-            package_id,
-        )
+        _apply_package_archive_action(request.user, package, archived=False)
         messages.success(
             request, f'Package "{package_name}" restored successfully!')
     else:
-        _archive_model_instance(package, status='inactive')
-        _log_staff_activity(
-            request.user,
-            'package_archived',
-            f'Archived package "{package_name}".',
-            'package',
-            package_id,
-        )
+        _apply_package_archive_action(request.user, package, archived=True)
         messages.success(
             request, f'Package "{package_name}" archived successfully!')
     return redirect(_get_safe_admin_return_url(request, 'admin_packages'))
+
+
+@login_required
+@require_POST
+def admin_packages_bulk_action(request):
+    """Archive or restore selected package products."""
+    access_denied = _require_admin_roles(request, PACKAGE_PRODUCT_ROLE_VALUES)
+    if access_denied:
+        return access_denied
+
+    return_url = _get_safe_admin_return_url(request, 'admin_packages')
+    action = (request.POST.get('action') or '').strip().lower()
+    selected_ids = _get_bulk_selected_ids(request)
+    if not selected_ids:
+        messages.error(request, 'Select at least one package product first.')
+        return redirect(return_url)
+
+    if action not in {'archive', 'restore'}:
+        messages.error(request, 'Choose a valid bulk package action.')
+        return redirect(return_url)
+
+    processed_count = 0
+    skipped_count = 0
+    for package in Package.objects.filter(id__in=selected_ids):
+        if _apply_package_archive_action(request.user, package, archived=action == 'archive'):
+            processed_count += 1
+        else:
+            skipped_count += 1
+
+    _flash_bulk_action_summary(
+        request,
+        'Archived' if action == 'archive' else 'Restored',
+        'package product',
+        processed_count,
+        skipped_count,
+    )
+    return redirect(return_url)
 
 
 # ============================================
@@ -7440,6 +7985,7 @@ def admin_package_orders(request):
     return render(request, 'admin/orders/package_orders.html', {
         'orders': orders,
         'orders_pagination': orders_pagination,
+        'can_bulk_archive': _is_full_access_user(request.user),
         'is_archived_view': is_archived_view,
         'admin_menu': get_admin_menu(request)
     })
@@ -7465,7 +8011,15 @@ def admin_package_order_view(request, order_id):
     return render(request, 'admin/orders/package_order_view.html', {
         'order': order,
         'back_url': back_url,
-        'back_label': 'Back to Payments' if back_url.startswith(reverse('admin_payments')) else 'Back to Package Orders',
+        'back_label': _get_admin_back_label(
+            back_url,
+            'Back to Package Orders',
+            [
+                ('admin_payments', 'Back to Payments', 'Back to Archived Payments'),
+                ('admin_package_orders', 'Back to Package Orders',
+                 'Back to Archived Package Orders'),
+            ],
+        ),
         'admin_menu': get_admin_menu(request)
     })
 
@@ -7494,29 +8048,86 @@ def admin_package_order_update(request, order_id):
                     request, 'You are not allowed to apply that status change.')
                 return redirect(_get_safe_admin_return_url(request, 'admin_package_orders'))
             try:
-                if new_status == 'completed':
-                    _commit_order_stock(order, request.user)
-                elif getattr(order, 'stock_deducted', False):
-                    _restore_order_stock(order, request.user)
+                _apply_order_status_change(
+                    request.user,
+                    order,
+                    'package_order',
+                    new_status,
+                )
             except ValueError as exc:
                 messages.error(request, str(exc))
                 return redirect(_get_safe_admin_return_url(request, 'admin_package_orders'))
-            order.order_status = new_status
-            order.save(update_fields=['order_status', 'updated_at'])
-            if new_status == 'cancelled':
-                _cancel_outstanding_balance_payments(order)
-            _create_order_status_notification(
-                order, 'package', previous_status)
-            _log_staff_activity(
-                request.user,
-                'package_order_status_updated',
-                f'Updated package order #{order.id} from {previous_status} to {order.order_status}.',
-                'package_order',
-                order.id,
-            )
             messages.success(
                 request, f'Package Order #{order.id} status updated to {order.get_order_status_display()}')
     return redirect(_get_safe_admin_return_url(request, 'admin_package_orders'))
+
+
+@login_required
+@require_POST
+def admin_package_orders_bulk_action(request):
+    """Apply a bulk action to selected package orders."""
+    action = (request.POST.get('action') or '').strip().lower()
+    if action in {'archive', 'restore'}:
+        access_denied = _require_admin_roles(request, FULL_ACCESS_ROLE_VALUES)
+    else:
+        access_denied = _require_admin_roles(
+            request, PACKAGE_ORDER_ROLE_VALUES)
+    if access_denied:
+        return access_denied
+
+    return_url = _get_safe_admin_return_url(request, 'admin_package_orders')
+    selected_ids = _get_bulk_selected_ids(request)
+    if not selected_ids:
+        messages.error(request, 'Select at least one package order first.')
+        return redirect(return_url)
+
+    valid_status_values = {value for value, _ in PackageOrder.ORDER_STATUS}
+    if action not in valid_status_values and action not in {'archive', 'restore'}:
+        messages.error(request, 'Choose a valid bulk package order action.')
+        return redirect(return_url)
+
+    processed_count = 0
+    skipped_count = 0
+    error_messages = []
+    for order in PackageOrder.objects.filter(id__in=selected_ids):
+        if not _can_view_order_for_role(request.user, order):
+            skipped_count += 1
+            continue
+
+        if action in {'archive', 'restore'}:
+            if _apply_order_archive_action(request.user, order, 'package_order', action == 'archive'):
+                processed_count += 1
+            else:
+                skipped_count += 1
+            continue
+
+        allowed_statuses = {value for value,
+                            _ in _get_allowed_status_updates(request.user, order)}
+        if action not in allowed_statuses:
+            skipped_count += 1
+            continue
+
+        try:
+            if _apply_order_status_change(request.user, order, 'package_order', action):
+                processed_count += 1
+            else:
+                skipped_count += 1
+        except ValueError as exc:
+            skipped_count += 1
+            error_messages.append(f'Package order #{order.id}: {exc}')
+
+    if error_messages:
+        messages.error(request, ' '.join(error_messages[:3]))
+
+    action_labels = dict(PackageOrder.ORDER_STATUS)
+    _flash_bulk_action_summary(
+        request,
+        'Archived' if action == 'archive' else 'Restored' if action == 'restore' else f'Moved to {action_labels.get(action, action)}',
+        'package order',
+        processed_count,
+        skipped_count,
+    )
+    return redirect(return_url)
 
 
 @login_required
@@ -7531,25 +8142,13 @@ def admin_package_order_delete(request, order_id):
     order = get_object_or_404(PackageOrder, id=order_id)
     order_id_value = order.id
     if order.is_archived:
-        _restore_model_instance(order)
-        _log_staff_activity(
-            request.user,
-            'package_order_restored',
-            f'Restored package order #{order_id_value}.',
-            'package_order',
-            order_id_value,
-        )
+        _apply_order_archive_action(
+            request.user, order, 'package_order', archived=False)
         messages.success(
             request, f'Package Order #{order_id_value} restored successfully!')
     else:
-        _archive_model_instance(order)
-        _log_staff_activity(
-            request.user,
-            'package_order_archived',
-            f'Archived package order #{order_id_value}.',
-            'package_order',
-            order_id_value,
-        )
+        _apply_order_archive_action(
+            request.user, order, 'package_order', archived=True)
         messages.success(
             request, f'Package Order #{order_id_value} archived successfully!')
     return redirect(_get_safe_admin_return_url(request, 'admin_package_orders'))
@@ -7567,8 +8166,11 @@ def admin_payments(request):
     if access_denied:
         return access_denied
 
-    # Get all payments
+    current_payment_tab = _normalize_payment_admin_tab(request)
+    current_sales_period = _normalize_payment_sales_period(
+        request.GET.get('period'))
     is_archived_view = _is_archived_admin_view(request)
+
     payments = Payment.objects.select_related(
         'cake_order',
         'cake_order__user',
@@ -7576,7 +8178,6 @@ def admin_payments(request):
         'package_order__user',
     ).filter(is_archived=is_archived_view).order_by('-created_at')
 
-    # Categorize payments
     pending_payments = payments.filter(
         payment_method='gcash',
         payment_purpose__in=['deposit', 'full'],
@@ -7589,14 +8190,134 @@ def admin_payments(request):
     verified_payments = payments.filter(payment_status='paid')
     rejected_payments = payments.filter(
         payment_status__in=['rejected', 'cancelled'])
+    archived_sales_summary = _build_payment_sales_summary(
+        current_sales_period,
+        _get_completed_sales_payments_queryset(archived_only=True),
+    )
+
     pending_payments_page, pending_payments_pagination = _paginate_admin_queryset(
         request, pending_payments, 'review_page')
     balance_payments_page, balance_payments_pagination = _paginate_admin_queryset(
         request, balance_payments, 'balance_page')
     verified_payments_page, verified_payments_pagination = _paginate_admin_queryset(
         request, verified_payments, 'verified_page')
+    archived_payments_page, archived_payments_pagination = _paginate_admin_queryset(
+        request,
+        archived_sales_summary['queryset'],
+        'archived_page',
+    )
     rejected_payments_page, rejected_payments_pagination = _paginate_admin_queryset(
         request, rejected_payments, 'rejected_page')
+
+    def build_payment_query_url(anchor_key=None, reset_pages=True, **overrides):
+        query_params = request.GET.copy()
+        query_params.pop('next', None)
+        if not is_archived_view:
+            query_params.pop('archived', None)
+        if reset_pages:
+            for page_param in PAYMENT_ADMIN_PAGE_PARAMS:
+                query_params.pop(page_param, None)
+
+        for key, value in overrides.items():
+            if value is None or value == '':
+                query_params.pop(key, None)
+            else:
+                query_params[key] = str(value)
+
+        target_url = _build_path_with_query(request.path, query_params)
+        anchor_name = PAYMENT_ADMIN_SECTION_ANCHORS.get(anchor_key)
+        if anchor_name:
+            target_url = f'{target_url}#{anchor_name}'
+        return target_url
+
+    payment_tab_links = [
+        {
+            'key': 'review',
+            'label': 'Payments for Review',
+            'count': pending_payments.count(),
+            'is_current': current_payment_tab == 'review',
+            'url': build_payment_query_url('review', tab='review'),
+        },
+        {
+            'key': 'balances',
+            'label': 'Outstanding COD Balances',
+            'count': balance_payments.count(),
+            'is_current': current_payment_tab == 'balances',
+            'url': build_payment_query_url('balances', tab='balances'),
+        },
+        {
+            'key': 'verified',
+            'label': 'Verified Payments',
+            'count': verified_payments.count(),
+            'is_current': current_payment_tab == 'verified',
+            'url': build_payment_query_url('verified', tab='verified'),
+        },
+        {
+            'key': 'archived',
+            'label': 'Archived Payments',
+            'count': archived_sales_summary['transaction_count'],
+            'is_current': current_payment_tab == 'archived',
+            'url': build_payment_query_url(
+                'archived',
+                tab='archived',
+                period=current_sales_period or None,
+            ),
+        },
+        {
+            'key': 'rejected',
+            'label': 'Rejected Payments',
+            'count': rejected_payments.count(),
+            'is_current': current_payment_tab == 'rejected',
+            'url': build_payment_query_url('rejected', tab='rejected'),
+        },
+    ]
+    sales_period_filters = [
+        {
+            'key': '',
+            'label': 'All Completed Sales',
+            'is_current': not current_sales_period,
+            'url': build_payment_query_url('archived', tab='archived', period=None),
+        },
+        {
+            'key': 'today',
+            'label': 'Today',
+            'is_current': current_sales_period == 'today',
+            'url': build_payment_query_url('archived', tab='archived', period='today'),
+        },
+        {
+            'key': 'week',
+            'label': 'This Week',
+            'is_current': current_sales_period == 'week',
+            'url': build_payment_query_url('archived', tab='archived', period='week'),
+        },
+        {
+            'key': 'month',
+            'label': 'This Month',
+            'is_current': current_sales_period == 'month',
+            'url': build_payment_query_url('archived', tab='archived', period='month'),
+        },
+    ]
+    export_query_params = request.GET.copy()
+    export_query_params.pop('next', None)
+    for page_param in PAYMENT_ADMIN_PAGE_PARAMS:
+        export_query_params.pop(page_param, None)
+    if current_payment_tab == 'archived' and not is_archived_view:
+        export_query_params['tab'] = 'archived'
+        if current_sales_period:
+            export_query_params['period'] = current_sales_period
+        else:
+            export_query_params.pop('period', None)
+    else:
+        export_query_params.pop('tab', None)
+        export_query_params.pop('period', None)
+    sales_export_xlsx_url = _build_path_with_query(
+        reverse('admin_payments_export', args=['xlsx']),
+        export_query_params,
+    )
+    sales_export_pdf_url = _build_path_with_query(
+        reverse('admin_payments_export', args=['pdf']),
+        export_query_params,
+    )
 
     return render(request, 'admin/payments/list.html', {
         'payments': payments,
@@ -7609,9 +8330,18 @@ def admin_payments(request):
         'verified_payments': verified_payments,
         'verified_payments_page': verified_payments_page,
         'verified_payments_pagination': verified_payments_pagination,
+        'archived_payments_page': archived_payments_page,
+        'archived_payments_pagination': archived_payments_pagination,
+        'archived_sales_summary': archived_sales_summary,
         'rejected_payments': rejected_payments,
         'rejected_payments_page': rejected_payments_page,
         'rejected_payments_pagination': rejected_payments_pagination,
+        'current_payment_tab': current_payment_tab,
+        'current_sales_period': current_sales_period,
+        'payment_tab_links': payment_tab_links,
+        'sales_period_filters': sales_period_filters,
+        'sales_export_xlsx_url': sales_export_xlsx_url,
+        'sales_export_pdf_url': sales_export_pdf_url,
         'can_export_sales': _is_full_access_user(request.user),
         'is_archived_view': is_archived_view,
         'admin_menu': get_admin_menu(request)
@@ -7630,43 +8360,84 @@ def admin_payment_verify(request, payment_id):
 
     if request.method == 'POST':
         action = request.POST.get('action')
-        previous_status = payment.payment_status
+        normalized_action = action if action in {
+            'approve', 'reject', 'collect_balance'} else 'reset_verifying'
+        _apply_payment_review_action(request.user, payment, normalized_action)
 
-        if action == 'approve':
-            payment.payment_status = 'paid'
-            payment.paid_at = timezone.now()
+        if normalized_action == 'approve':
             messages.success(
                 request, f'Payment #{payment.id} has been approved!')
-        elif action == 'reject':
-            payment.payment_status = 'rejected'
-            payment.paid_at = None
+        elif normalized_action == 'reject':
             messages.warning(
                 request, f'Payment #{payment.id} has been rejected.')
-        elif action == 'collect_balance' and payment.payment_purpose == 'balance':
-            payment.payment_status = 'paid'
-            payment.paid_at = timezone.now()
+        elif normalized_action == 'collect_balance':
             messages.success(
                 request, f'Balance payment #{payment.id} has been marked as collected.')
         else:
-            payment.payment_status = 'verifying'
-            payment.paid_at = None
             messages.info(
                 request, f'Payment #{payment.id} is under verification.')
 
-        payment.save()
-        if previous_status != payment.payment_status:
-            _create_payment_status_notification(payment, previous_status)
-            _sync_order_confirmation_from_payment(payment, request.user)
-            _sync_order_rejection_from_payment(payment, request.user)
-            _log_staff_activity(
-                request.user,
-                'payment_status_updated',
-                f'Updated payment #{payment.id} from {previous_status} to {payment.payment_status}.',
-                'payment',
-                payment.id,
-            )
-
     return redirect(_get_safe_admin_return_url(request, 'admin_payments'))
+
+
+@login_required
+@require_POST
+def admin_payments_bulk_action(request):
+    """Apply a bulk action to selected payments."""
+    action = (request.POST.get('action') or '').strip().lower()
+    if action in {'archive', 'restore'}:
+        access_denied = _require_admin_roles(request, FULL_ACCESS_ROLE_VALUES)
+    else:
+        access_denied = _require_admin_roles(
+            request, PAYMENT_REVIEW_ROLE_VALUES)
+    if access_denied:
+        return access_denied
+
+    return_url = _get_safe_admin_return_url(request, 'admin_payments')
+    selected_ids = _get_bulk_selected_ids(request)
+    if not selected_ids:
+        messages.error(request, 'Select at least one payment first.')
+        return redirect(return_url)
+
+    valid_actions = {'approve', 'reject',
+                     'collect_balance', 'archive', 'restore'}
+    if action not in valid_actions:
+        messages.error(request, 'Choose a valid bulk payment action.')
+        return redirect(return_url)
+
+    processed_count = 0
+    skipped_count = 0
+    for payment in Payment.objects.filter(id__in=selected_ids):
+        if action == 'archive':
+            changed = _apply_payment_archive_action(
+                request.user, payment, archived=True)
+        elif action == 'restore':
+            changed = _apply_payment_archive_action(
+                request.user, payment, archived=False)
+        else:
+            changed = False if payment.is_archived else _apply_payment_review_action(
+                request.user, payment, action)
+
+        if changed:
+            processed_count += 1
+        else:
+            skipped_count += 1
+
+    action_labels = {
+        'approve': 'Approved',
+        'reject': 'Rejected',
+        'collect_balance': 'Marked as collected',
+        'archive': 'Archived',
+        'restore': 'Restored',
+    }
+    _flash_bulk_action_summary(
+        request,
+        action_labels[action],
+        'payment',
+        processed_count,
+        skipped_count,
+    )
+    return redirect(return_url)
 
 
 @login_required
@@ -7681,14 +8452,7 @@ def admin_payment_delete(request, payment_id):
 
     if payment.is_archived:
         payment_id_value = payment.id
-        _restore_model_instance(payment)
-        _log_staff_activity(
-            request.user,
-            'payment_restored',
-            f'Restored payment #{payment_id_value}.',
-            'payment',
-            payment_id_value,
-        )
+        _apply_payment_archive_action(request.user, payment, archived=False)
         messages.success(
             request, f'Payment #{payment_id_value} restored successfully!')
         return redirect(_get_safe_admin_return_url(request, 'admin_payments'))
@@ -7699,14 +8463,7 @@ def admin_payment_delete(request, payment_id):
         return redirect(_get_safe_admin_return_url(request, 'admin_payments'))
 
     payment_id_value = payment.id
-    _archive_model_instance(payment)
-    _log_staff_activity(
-        request.user,
-        'payment_archived',
-        f'Archived payment #{payment_id_value}.',
-        'payment',
-        payment_id_value,
-    )
+    _apply_payment_archive_action(request.user, payment, archived=True)
     messages.success(
         request, f'Payment #{payment_id_value} archived successfully!')
     return redirect(_get_safe_admin_return_url(request, 'admin_payments'))
@@ -7727,8 +8484,10 @@ def admin_testimonials(request):
         'reviewed_by',
     ).filter(is_archived=is_archived_view).order_by('-created_at')
 
-    pending_testimonials = testimonials.filter(status=Testimonial.STATUS_PENDING)
-    reviewed_testimonials = testimonials.exclude(status=Testimonial.STATUS_PENDING)
+    pending_testimonials = testimonials.filter(
+        status=Testimonial.STATUS_PENDING)
+    reviewed_testimonials = testimonials.exclude(
+        status=Testimonial.STATUS_PENDING)
     approved_testimonials = testimonials.filter(
         status=Testimonial.STATUS_APPROVED)
 
@@ -7745,7 +8504,6 @@ def admin_testimonials(request):
         'approved_testimonial_count': approved_testimonials.count(),
         'is_archived_view': is_archived_view,
         'admin_menu': get_admin_menu(request),
-            'hide_demo_panel': True,
     })
 
 
@@ -7770,34 +8528,69 @@ def admin_testimonial_update(request, testimonial_id):
         'reject': Testimonial.STATUS_REJECTED,
         'hide': Testimonial.STATUS_HIDDEN,
     }
-    next_status = status_map.get(action)
-    if next_status is None:
+    if status_map.get(action) is None:
         messages.error(request, 'Unknown testimonial action.')
         return redirect(_get_safe_admin_return_url(request, 'admin_testimonials'))
 
-    previous_status = testimonial.status
-    testimonial.status = next_status
-    testimonial.admin_note = admin_note
-    testimonial.reviewed_by = request.user
-    testimonial.reviewed_at = timezone.now()
-    testimonial.save(update_fields=[
-        'status',
-        'admin_note',
-        'reviewed_by',
-        'reviewed_at',
-        'updated_at',
-    ])
-
-    _log_staff_activity(
-        request.user,
-        f'testimonial_{next_status}',
-        f'Updated testimonial #{testimonial.id} from {previous_status} to {next_status}.',
-        'testimonial',
-        testimonial.id,
-    )
+    _apply_testimonial_review_action(
+        request.user, testimonial, action, admin_note)
     messages.success(
         request, f'Testimonial #{testimonial.id} marked as {testimonial.get_status_display().lower()}.')
     return redirect(_get_safe_admin_return_url(request, 'admin_testimonials'))
+
+
+@login_required
+@require_POST
+def admin_testimonials_bulk_action(request):
+    """Apply a bulk action to selected testimonials."""
+    access_denied = _require_admin_roles(request, FULL_ACCESS_ROLE_VALUES)
+    if access_denied:
+        return access_denied
+
+    return_url = _get_safe_admin_return_url(request, 'admin_testimonials')
+    action = (request.POST.get('action') or '').strip().lower()
+    selected_ids = _get_bulk_selected_ids(request)
+    if not selected_ids:
+        messages.error(request, 'Select at least one testimonial first.')
+        return redirect(return_url)
+
+    if action not in {'approve', 'reject', 'hide', 'archive', 'restore'}:
+        messages.error(request, 'Choose a valid bulk testimonial action.')
+        return redirect(return_url)
+
+    processed_count = 0
+    skipped_count = 0
+    for testimonial in Testimonial.objects.filter(id__in=selected_ids):
+        if action == 'archive':
+            changed = _apply_testimonial_archive_action(
+                request.user, testimonial, archived=True)
+        elif action == 'restore':
+            changed = _apply_testimonial_archive_action(
+                request.user, testimonial, archived=False)
+        else:
+            changed = _apply_testimonial_review_action(
+                request.user, testimonial, action)
+
+        if changed:
+            processed_count += 1
+        else:
+            skipped_count += 1
+
+    action_labels = {
+        'approve': 'Approved',
+        'reject': 'Rejected',
+        'hide': 'Hidden',
+        'archive': 'Archived',
+        'restore': 'Restored',
+    }
+    _flash_bulk_action_summary(
+        request,
+        action_labels[action],
+        'testimonial',
+        processed_count,
+        skipped_count,
+    )
+    return redirect(return_url)
 
 
 @login_required
@@ -7811,26 +8604,13 @@ def admin_testimonial_delete(request, testimonial_id):
     testimonial = get_object_or_404(Testimonial, id=testimonial_id)
 
     if testimonial.is_archived:
-        _restore_model_instance(testimonial)
-        _log_staff_activity(
-            request.user,
-            'testimonial_restored',
-            f'Restored testimonial #{testimonial.id}.',
-            'testimonial',
-            testimonial.id,
-        )
+        _apply_testimonial_archive_action(
+            request.user, testimonial, archived=False)
         messages.success(
             request, f'Testimonial #{testimonial.id} restored successfully!')
         return redirect(_get_safe_admin_return_url(request, 'admin_testimonials'))
 
-    _archive_model_instance(testimonial)
-    _log_staff_activity(
-        request.user,
-        'testimonial_archived',
-        f'Archived testimonial #{testimonial.id}.',
-        'testimonial',
-        testimonial.id,
-    )
+    _apply_testimonial_archive_action(request.user, testimonial, archived=True)
     messages.success(
         request, f'Testimonial #{testimonial.id} archived successfully!')
     return redirect(_get_safe_admin_return_url(request, 'admin_testimonials'))
@@ -7844,16 +8624,19 @@ def admin_payments_export(request, file_format):
     if access_denied:
         return access_denied
 
-    sales_payments = Payment.objects.select_related(
-        'cake_order',
-        'cake_order__user',
-        'package_order',
-        'package_order__user',
-    ).filter(
-        payment_status='paid',
-        is_archived=False,
-    ).order_by('-paid_at', '-created_at')
-    sales_rows = _build_sales_export_rows(sales_payments)
+    current_sales_period = _normalize_payment_sales_period(
+        request.GET.get('period'))
+    if _normalize_payment_admin_tab(request) == 'archived' and not _is_archived_admin_view(request):
+        sales_summary = _build_payment_sales_summary(
+            current_sales_period,
+            _get_completed_sales_payments_queryset(archived_only=True),
+        )
+    else:
+        sales_summary = _build_payment_sales_summary(
+            current_sales_period,
+            _get_completed_sales_payments_queryset(archived_only=False),
+        )
+    sales_rows = _build_sales_export_rows(sales_summary['queryset'])
 
     if file_format == 'xlsx':
         try:
@@ -8017,7 +8800,6 @@ def admin_refunds(request):
         'closed_refunds': refunds.filter(status__in=['rejected', 'processed']),
         'is_archived_view': is_archived_view,
         'admin_menu': get_admin_menu(request),
-        'hide_demo_panel': True,
     })
 
 
@@ -8276,7 +9058,6 @@ def admin_activity_logs(request):
         'current_page_url': request.get_full_path(),
         'is_archived_view': is_archived_view,
         'admin_menu': get_admin_menu(request),
-            'hide_demo_panel': True,
     })
 
 
@@ -8515,12 +9296,49 @@ def admin_activity_log_delete(request, log_id):
 
     activity_log = get_object_or_404(ActivityLog, id=log_id)
     if activity_log.is_archived:
-        _restore_model_instance(activity_log)
+        _apply_activity_log_archive_action(activity_log, archived=False)
         messages.success(request, 'Audit trail entry restored successfully!')
     else:
-        _archive_model_instance(activity_log)
+        _apply_activity_log_archive_action(activity_log, archived=True)
         messages.success(request, 'Audit trail entry archived successfully!')
     return redirect(_get_safe_admin_return_url(request, 'admin_activity_logs'))
+
+
+@login_required
+@require_POST
+def admin_activity_logs_bulk_action(request):
+    """Archive or restore selected audit trail entries."""
+    access_denied = _require_admin_roles(request, AUDIT_TRAIL_ROLE_VALUES)
+    if access_denied:
+        return access_denied
+
+    return_url = _get_safe_admin_return_url(request, 'admin_activity_logs')
+    action = (request.POST.get('action') or '').strip().lower()
+    selected_ids = _get_bulk_selected_ids(request)
+    if not selected_ids:
+        messages.error(request, 'Select at least one audit trail entry first.')
+        return redirect(return_url)
+
+    if action not in {'archive', 'restore'}:
+        messages.error(request, 'Choose a valid bulk audit trail action.')
+        return redirect(return_url)
+
+    processed_count = 0
+    skipped_count = 0
+    for activity_log in ActivityLog.objects.filter(id__in=selected_ids):
+        if _apply_activity_log_archive_action(activity_log, archived=action == 'archive'):
+            processed_count += 1
+        else:
+            skipped_count += 1
+
+    _flash_bulk_action_summary(
+        request,
+        'Archived' if action == 'archive' else 'Restored',
+        'audit trail entry',
+        processed_count,
+        skipped_count,
+    )
+    return redirect(return_url)
 
 
 # ============================================
@@ -8535,8 +9353,13 @@ def admin_users(request):
         return access_denied
 
     is_archived_view = _is_archived_admin_view(request)
-    users = list(User.objects.filter(
-        is_active=not is_archived_view).order_by('-date_joined'))
+    search_query = (request.GET.get('q') or '').strip()
+    users_queryset = (
+        User.objects.filter(is_active=not is_archived_view)
+        .select_related('profile')
+        .order_by('-date_joined')
+    )
+    users = list(users_queryset)
     staff_users = []
     customer_users = []
 
@@ -8548,10 +9371,118 @@ def admin_users(request):
         else:
             staff_users.append(user)
 
+    def matches_customer_search(user):
+        if not search_query:
+            return True
+
+        profile = getattr(user, 'profile', None)
+        search_value = search_query.casefold()
+        haystacks = [
+            user.get_full_name(),
+            user.username,
+            user.email,
+            getattr(profile, 'phone', ''),
+            getattr(profile, 'address', ''),
+        ]
+        return any(search_value in str(value or '').casefold() for value in haystacks)
+
+    customer_users = [
+        user for user in customer_users if matches_customer_search(user)]
+
+    customer_user_ids = [user.id for user in customer_users]
+    cake_order_counts = {}
+    package_order_counts = {}
+    cake_payment_totals = {}
+    package_payment_totals = {}
+
+    if customer_user_ids:
+        cake_order_counts = dict(
+            CakeOrder.objects.filter(user_id__in=customer_user_ids)
+            .values_list('user_id')
+            .annotate(total=Count('id'))
+        )
+        package_order_counts = dict(
+            PackageOrder.objects.filter(user_id__in=customer_user_ids)
+            .values_list('user_id')
+            .annotate(total=Count('id'))
+        )
+        cake_payment_totals = dict(
+            Payment.objects.filter(
+                cake_order__user_id__in=customer_user_ids,
+                payment_status='paid',
+                is_archived=False,
+            )
+            .values_list('cake_order__user_id')
+            .annotate(total=Sum('amount'))
+        )
+        package_payment_totals = dict(
+            Payment.objects.filter(
+                package_order__user_id__in=customer_user_ids,
+                payment_status='paid',
+                is_archived=False,
+            )
+            .values_list('package_order__user_id')
+            .annotate(total=Sum('amount'))
+        )
+
+    customer_revenue_total = Decimal('0.00')
+    customer_with_orders_count = 0
+    recent_customer_cutoff = timezone.now() - timedelta(days=30)
+    recent_customer_count = 0
+
+    for user in customer_users:
+        user.admin_cake_order_count = cake_order_counts.get(user.id, 0)
+        user.admin_package_order_count = package_order_counts.get(user.id, 0)
+        user.admin_total_orders = (
+            user.admin_cake_order_count + user.admin_package_order_count
+        )
+        user.admin_total_spent = (
+            cake_payment_totals.get(user.id, Decimal('0.00'))
+            or Decimal('0.00')
+        ) + (
+            package_payment_totals.get(user.id, Decimal('0.00'))
+            or Decimal('0.00')
+        )
+        customer_revenue_total += user.admin_total_spent
+
+        if user.admin_total_orders > 0:
+            customer_with_orders_count += 1
+        if user.date_joined >= recent_customer_cutoff:
+            recent_customer_count += 1
+
+    staff_users_page, staff_users_pagination = _paginate_admin_queryset(
+        request,
+        staff_users,
+        'staff_page',
+    )
+    customer_users_page, customer_users_pagination = _paginate_admin_queryset(
+        request,
+        customer_users,
+        'customer_page',
+    )
+
+    reset_query_params = request.GET.copy()
+    reset_query_params.pop('q', None)
+    reset_query_params.pop('customer_page', None)
+    customer_reset_url = _build_named_url_with_query(
+        'admin_users', reset_query_params)
+
     return render(request, 'admin/users/list.html', {
-        'users': users,
+        'users': users_queryset,
         'staff_users': staff_users,
         'customer_users': customer_users,
+        'staff_users_page': staff_users_page,
+        'customer_users_page': customer_users_page,
+        'staff_users_pagination': staff_users_pagination,
+        'customer_users_pagination': customer_users_pagination,
+        'search_query': search_query,
+        'customer_reset_url': customer_reset_url,
+        'total_account_count': len(staff_users) + len(customer_users),
+        'staff_account_count': len(staff_users),
+        'customer_account_count': len(customer_users),
+        'recent_customer_count': recent_customer_count,
+        'customer_with_orders_count': customer_with_orders_count,
+        'customer_revenue_total': customer_revenue_total,
         'is_archived_view': is_archived_view,
         'admin_menu': get_admin_menu(request)
     })
@@ -8564,7 +9495,11 @@ def admin_user_view(request, user_id):
     if access_denied:
         return access_denied
 
-    view_user = get_object_or_404(User.objects.select_related('profile'), id=user_id)
+    back_url = _get_safe_admin_return_url(request, 'admin_users')
+    archived_users_url = f"{reverse('admin_users')}?archived=1"
+
+    view_user = get_object_or_404(
+        User.objects.select_related('profile'), id=user_id)
     profile = getattr(view_user, 'profile', None)
     role_value = _get_user_role_value(view_user) or 'customer'
     role_display = 'Owner' if role_value == 'owner' else (
@@ -8618,10 +9553,14 @@ def admin_user_view(request, user_id):
     )[:10]
 
     total_orders = len(cake_orders) + len(package_orders)
-    completed_orders = sum(1 for order in cake_orders if order.order_status == 'completed')
-    completed_orders += sum(1 for order in package_orders if order.order_status == 'completed')
-    cancelled_orders = sum(1 for order in cake_orders if order.order_status == 'cancelled')
-    cancelled_orders += sum(1 for order in package_orders if order.order_status == 'cancelled')
+    completed_orders = sum(
+        1 for order in cake_orders if order.order_status == 'completed')
+    completed_orders += sum(
+        1 for order in package_orders if order.order_status == 'completed')
+    cancelled_orders = sum(
+        1 for order in cake_orders if order.order_status == 'cancelled')
+    cancelled_orders += sum(
+        1 for order in package_orders if order.order_status == 'cancelled')
     total_spent = Payment.objects.filter(
         Q(cake_order__user=view_user) | Q(package_order__user=view_user),
         payment_status='paid',
@@ -8630,6 +9569,8 @@ def admin_user_view(request, user_id):
 
     return render(request, 'admin/users/detail.html', {
         'view_user': view_user,
+        'back_url': back_url,
+        'back_label': 'Back to Archived Users' if back_url == archived_users_url else 'Back to Users',
         'profile': profile,
         'role_display': role_display,
         'account_status_label': 'Active' if view_user.is_active else 'Inactive',
@@ -8653,16 +9594,19 @@ def admin_user_password_reset(request, user_id):
 
     reset_user = get_object_or_404(User, id=user_id)
     if not reset_user.email:
-        messages.error(request, f'User "{reset_user.username}" does not have an email address on file.')
+        messages.error(
+            request, f'User "{reset_user.username}" does not have an email address on file.')
         return redirect(_get_safe_admin_return_url(request, 'admin_users'))
 
     if not reset_user.is_active:
-        messages.error(request, f'User "{reset_user.username}" is inactive. Activate the account before sending a password reset email.')
+        messages.error(
+            request, f'User "{reset_user.username}" is inactive. Activate the account before sending a password reset email.')
         return redirect(_get_safe_admin_return_url(request, 'admin_users'))
 
     form = HaniliesPasswordResetForm({'email': reset_user.email})
     if not form.is_valid():
-        messages.error(request, 'Unable to send a password reset email for this account right now.')
+        messages.error(
+            request, 'Unable to send a password reset email for this account right now.')
         return redirect(_get_safe_admin_return_url(request, 'admin_users'))
 
     try:
@@ -8683,7 +9627,8 @@ def admin_user_password_reset(request, user_id):
         'user',
         reset_user.id,
     )
-    messages.success(request, f'Password reset email sent to "{reset_user.username}".')
+    messages.success(
+        request, f'Password reset email sent to "{reset_user.username}".')
     return redirect(_get_safe_admin_return_url(request, 'admin_users'))
 
 
@@ -8732,8 +9677,7 @@ def admin_user_add(request):
                 return render(request, 'admin/users/add.html', {
                     'role_choices': ROLE_CHOICES,
                     'admin_menu': get_admin_menu(request),
-                        'hide_demo_panel': True,
-    })
+                })
 
             new_user = User.objects.create_user(
                 username=username,
@@ -8760,7 +9704,6 @@ def admin_user_add(request):
     return render(request, 'admin/users/add.html', {
         'role_choices': ROLE_CHOICES,
         'admin_menu': get_admin_menu(request),
-            'hide_demo_panel': True,
     })
 
 
@@ -8805,41 +9748,72 @@ def admin_user_edit(request, user_id):
 @login_required
 @require_POST
 def admin_user_delete(request, user_id):
-    """Archive or restore a user from the admin panel"""
+    """Archive, deactivate, or activate a user from the admin panel."""
     access_denied = _require_admin_roles(request, USER_MANAGEMENT_ROLE_VALUES)
     if access_denied:
         return access_denied
 
     delete_user = get_object_or_404(User, id=user_id)
+    intent = (request.POST.get('intent') or '').strip().lower()
 
     if delete_user == request.user:
         messages.error(request, 'You cannot delete your own account.')
         return redirect(_get_safe_admin_return_url(request, 'admin_users'))
 
     username = delete_user.username
-    if delete_user.is_active:
-        delete_user.is_active = False
-        delete_user.save(update_fields=['is_active'])
-        _log_staff_activity(
-            request.user,
-            'user_archived',
-            f'Archived user "{username}".',
-            'user',
-            user_id,
-        )
-        messages.success(request, f'User "{username}" archived successfully!')
+    if intent == 'activate' or not delete_user.is_active:
+        if delete_user.is_active:
+            messages.info(request, f'User "{username}" is already active.')
+            return redirect(_get_safe_admin_return_url(request, 'admin_users'))
+
+        _set_user_active_state(request.user, delete_user, activate=True)
+        messages.success(request, f'User "{username}" activated successfully!')
     else:
-        delete_user.is_active = True
-        delete_user.save(update_fields=['is_active'])
-        _log_staff_activity(
-            request.user,
-            'user_restored',
-            f'Restored user "{username}".',
-            'user',
-            user_id,
-        )
-        messages.success(request, f'User "{username}" restored successfully!')
+        _set_user_active_state(request.user, delete_user, activate=False)
+        messages.success(request, f'User "{username}" archived successfully!')
     return redirect(_get_safe_admin_return_url(request, 'admin_users'))
+
+
+@login_required
+@require_POST
+def admin_users_bulk_action(request):
+    """Activate or deactivate selected user accounts."""
+    access_denied = _require_admin_roles(request, USER_MANAGEMENT_ROLE_VALUES)
+    if access_denied:
+        return access_denied
+
+    return_url = _get_safe_admin_return_url(request, 'admin_users')
+    action = (request.POST.get('action') or '').strip().lower()
+    selected_ids = _get_bulk_selected_ids(request)
+    if not selected_ids:
+        messages.error(request, 'Select at least one account first.')
+        return redirect(return_url)
+
+    if action not in {'activate', 'deactivate', 'archive'}:
+        messages.error(request, 'Choose a valid bulk user action.')
+        return redirect(return_url)
+
+    processed_count = 0
+    skipped_count = 0
+    activate = action == 'activate'
+    for target_user in User.objects.filter(id__in=selected_ids):
+        if target_user == request.user:
+            skipped_count += 1
+            continue
+        if _set_user_active_state(request.user, target_user, activate=activate):
+            processed_count += 1
+        else:
+            skipped_count += 1
+
+    action_label = 'Activated' if action == 'activate' else 'Archived' if action == 'archive' else 'Deactivated'
+    _flash_bulk_action_summary(
+        request,
+        action_label,
+        'account',
+        processed_count,
+        skipped_count,
+    )
+    return redirect(return_url)
 
 
 @login_required
@@ -8924,18 +9898,3 @@ def user_role_context(request):
             'user_role_display': role.get_role_display() if role else 'Customer - Customer Portal',
         }
     return {}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

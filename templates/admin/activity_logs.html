@@ -1433,6 +1433,22 @@
             </div>
         </div>
 
+        <form id="activityLogsBulkForm" method="post" action="{% url 'admin_activity_logs_bulk_action' %}" class="admin-bulk-toolbar" data-bulk-form>
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ current_page_url }}">
+            <div class="admin-bulk-toolbar-group">
+                <span class="admin-bulk-count" data-bulk-count-for="activityLogsBulkForm">0 selected</span>
+                <span class="audit-ui-filter-note">Batch archive tools follow the current filtered view and keep the single-entry button intact.</span>
+            </div>
+            <div class="admin-bulk-toolbar-group">
+                <select name="action" class="form-control">
+                    <option value="">Bulk action</option>
+                    <option value="{% if is_archived_view %}restore{% else %}archive{% endif %}" data-confirm="{% if is_archived_view %}Restore{% else %}Archive{% endif %} {count} selected audit trail entries?">{% if is_archived_view %}Restore selected entries{% else %}Archive selected entries{% endif %}</option>
+                </select>
+                <button type="submit" class="btn-primary" data-bulk-submit disabled>Apply</button>
+            </div>
+        </form>
+
         {% if activity_logs_pagination.has_multiple_pages %}
         <div class="audit-pagination-row is-top">
             <span>{{ activity_logs_pagination.summary }}</span>
@@ -1457,6 +1473,7 @@
             <table class="audit-ui-table">
                 <thead>
                     <tr>
+                        <th class="admin-bulk-select-head"><input type="checkbox" class="admin-bulk-checkbox" data-bulk-toggle-for="activityLogsBulkForm" aria-label="Select all audit trail entries"></th>
                         <th>Date / Time</th>
                         <th>User</th>
                         <th>Role</th>
@@ -1470,6 +1487,7 @@
                 <tbody>
                     {% for log in activity_logs %}
                     <tr>
+                        <td data-label="Select" class="admin-bulk-select-cell"><input type="checkbox" class="admin-bulk-checkbox" name="selected_ids" value="{{ log.id }}" form="activityLogsBulkForm" aria-label="Select audit trail entry {{ log.id }}"></td>
                         <td data-label="Date / Time">{{ log.exact_timestamp }}</td>
                         <td data-label="User">
                             <div class="audit-ui-user-cell">

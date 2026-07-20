@@ -17,10 +17,29 @@
             </a>
         </div>
     </div>
+    <form id="testimonialsBulkForm" method="post" action="{% url 'admin_testimonials_bulk_action' %}" class="admin-bulk-toolbar" data-bulk-form>
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <div class="admin-bulk-toolbar-group">
+            <span class="admin-bulk-count" data-bulk-count-for="testimonialsBulkForm">0 selected</span>
+            <span class="table-subtext">Bulk moderation covers approvals, rejections, hidden testimonials, and archive moves across both sections.</span>
+        </div>
+        <div class="admin-bulk-toolbar-group">
+            <select name="action" class="form-control">
+                <option value="">Bulk action</option>
+                <option value="approve" data-confirm="Approve {count} selected testimonials?">Approve selected</option>
+                <option value="reject" data-confirm="Reject {count} selected testimonials?">Reject selected</option>
+                <option value="hide" data-confirm="Hide {count} selected testimonials?">Hide selected</option>
+                <option value="{% if is_archived_view %}restore{% else %}archive{% endif %}" data-confirm="{% if is_archived_view %}Restore{% else %}Archive{% endif %} {count} selected testimonials?">{% if is_archived_view %}Restore selected{% else %}Archive selected{% endif %}</option>
+            </select>
+            <button type="submit" class="btn-primary" data-bulk-submit disabled>Apply</button>
+        </div>
+    </form>
     <div class="table-responsive">
         <table class="module-table" data-pagination-mode="server">
             <thead>
                 <tr>
+                    <th class="admin-bulk-select-head"><input type="checkbox" class="admin-bulk-checkbox" data-bulk-toggle-for="testimonialsBulkForm" aria-label="Select all pending testimonials"></th>
                     <th>ID</th>
                     <th>Order</th>
                     <th>Customer</th>
@@ -33,6 +52,7 @@
             <tbody>
                 {% for testimonial in pending_testimonials_page %}
                 <tr>
+                    <td data-label="Select" class="admin-bulk-select-cell"><input type="checkbox" class="admin-bulk-checkbox" name="selected_ids" value="{{ testimonial.id }}" form="testimonialsBulkForm" aria-label="Select testimonial {{ testimonial.id }}"></td>
                     <td>#{{ testimonial.id }}</td>
                     <td>
                         {% if testimonial.cake_order %}
@@ -75,7 +95,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="7" class="text-center">
+                    <td colspan="8" class="text-center">
                         <div style="padding: 40px;">
                             <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
                             <p>No testimonials waiting for review.</p>
@@ -115,6 +135,7 @@
         <table class="module-table" data-pagination-mode="server">
             <thead>
                 <tr>
+                    <th class="admin-bulk-select-head"><input type="checkbox" class="admin-bulk-checkbox" data-bulk-toggle-for="testimonialsBulkForm" aria-label="Select all reviewed testimonials"></th>
                     <th>ID</th>
                     <th>Status</th>
                     <th>Order</th>
@@ -127,6 +148,7 @@
             <tbody>
                 {% for testimonial in reviewed_testimonials_page %}
                 <tr>
+                    <td data-label="Select" class="admin-bulk-select-cell"><input type="checkbox" class="admin-bulk-checkbox" name="selected_ids" value="{{ testimonial.id }}" form="testimonialsBulkForm" aria-label="Select testimonial {{ testimonial.id }}"></td>
                     <td>#{{ testimonial.id }}</td>
                     <td>
                         {% if testimonial.status == 'approved' %}
@@ -178,7 +200,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="7" class="text-center">No reviewed testimonials yet.</td>
+                    <td colspan="8" class="text-center">No reviewed testimonials yet.</td>
                 </tr>
                 {% endfor %}
             </tbody>

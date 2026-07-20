@@ -1195,7 +1195,7 @@
 
         <div class="kpi-grid-primary">
             {% for card in priority_cards %}
-            <a href="{{ card.url }}" class="stat-card{% if card.title == 'Pending Payments' %} is-critical{% elif card.title == "Today's Sales" %} is-sales{% elif card.title == 'Cake Orders' or card.title == 'Package Orders' %} is-orders{% elif card.tone == 'sales' %} is-sales{% elif card.tone == 'urgent' %} is-critical{% endif %}">
+            <a href="{{ card.url }}" class="stat-card{% if card.title == 'Pending Payments' %} is-critical{% elif card.title == "Today's Sales" %} is-sales{% elif card.title == 'Cake Orders' or card.title == 'Package Orders' %} is-orders{% elif card.tone == 'sales' %} is-sales{% elif card.tone == 'urgent' %} is-critical{% endif %}" aria-label="{{ card.link_label|default:'Open card details' }}" title="{{ card.link_label|default:'Open card details' }}">
                 <div class="stat-card-body">
                     <div class="stat-card-top">
                         <div>
@@ -1208,7 +1208,7 @@
                     <div class="stat-progress"><span></span></div>
                     <div class="stat-foot">
                         <span class="stat-chip {% if card.chip_negative %}negative{% endif %}"><i class="fas fa-arrow-trend-up"></i> {{ card.chip }}</span>
-                        <span>Open</span>
+                        <span>{{ card.link_label|default:'Open' }}</span>
                     </div>
                 </div>
             </a>
@@ -1225,7 +1225,7 @@
 
         <div class="kpi-grid-secondary">
             {% for card in secondary_cards %}
-            <a href="{{ card.url }}" class="stat-card{% if card.title == "This Week's Sales" or card.title == "This Month's Sales" %} is-sales{% elif card.title == 'Total Users' %} is-users{% elif card.title == 'Total Cake Products' or card.title == 'Total Package Products' %} is-catalog{% elif card.tone == 'sales' %} is-sales{% elif card.tone == 'neutral' %} is-catalog{% endif %}">
+            <a href="{{ card.url }}" class="stat-card{% if card.title == "This Week's Sales" or card.title == "This Month's Sales" %} is-sales{% elif card.title == 'Total Users' %} is-users{% elif card.title == 'Total Cake Products' or card.title == 'Total Package Products' %} is-catalog{% elif card.tone == 'sales' %} is-sales{% elif card.tone == 'neutral' %} is-catalog{% endif %}" aria-label="{{ card.link_label|default:'View supporting metric details' }}" title="{{ card.link_label|default:'View supporting metric details' }}">
                 <div class="stat-card-body">
                     <div class="stat-card-top">
                         <div>
@@ -1237,7 +1237,7 @@
                     <div class="stat-progress"><span></span></div>
                     <div class="stat-foot">
                         <span class="stat-chip"><i class="fas fa-chart-simple"></i> {{ card.chip }}</span>
-                        <span>View</span>
+                        <span>{{ card.link_label|default:'View' }}</span>
                     </div>
                 </div>
             </a>
@@ -1330,7 +1330,7 @@
         {% if can_view_audit_trail %}
         <div class="module-card">
             <div class="module-header">
-                <h2><i class="fas fa-clipboard-list"></i> Audit Trail</h2>
+                <h2><i class="fas fa-clipboard-list"></i> Recent Audit Trail</h2>
                 <a href="{% url 'admin_activity_logs' %}" class="view-all-link">View All <i class="fas fa-arrow-right"></i></a>
             </div>
             <div class="table-responsive">

@@ -303,13 +303,13 @@
             </div>
         </div>
         <div class="profile-actions">
-            <a href="{% url 'admin_users' %}" class="profile-button"><i class="fas fa-arrow-left"></i> Back to Users</a>
+            <a href="{{ back_url }}" class="profile-button"><i class="fas fa-arrow-left"></i> {{ back_label }}</a>
             <a href="{% url 'admin_user_edit' view_user.id %}" class="profile-button"><i class="fas fa-pen"></i> Edit Details</a>
             <a href="{% url 'admin_user_role' view_user.id %}" class="profile-button"><i class="fas fa-user-gear"></i> {% if is_customer_account %}Assign Staff Role{% else %}Change Role{% endif %}</a>
             {% if view_user != request.user %}
             <form method="post" action="{% url 'admin_user_delete' view_user.id %}">
                 {% csrf_token %}
-                <input type="hidden" name="next" value="{% url 'admin_user_view' view_user.id %}">
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
                 <button type="submit" class="profile-button-danger" onclick="return confirm('{% if view_user.is_active %}Deactivate{% else %}Activate{% endif %} user {{ view_user.username|escapejs }}?');">
                     <i class="fas {% if view_user.is_active %}fa-user-slash{% else %}fa-user-check{% endif %}"></i>
                     {% if view_user.is_active %}Deactivate Account{% else %}Activate Account{% endif %}

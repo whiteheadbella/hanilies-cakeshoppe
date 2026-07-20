@@ -56,7 +56,7 @@
             {% include "admin/includes/package_inclusion_builder.html" with package_inclusion_editor_items=package_inclusion_editor_items builder_title="Package Inclusion Builder" builder_help="Keep the package inclusion list synced with the storefront details and package summary." %}
             {% include "admin/includes/product_option_builder.html" with option_editor_groups=option_editor_groups hidden_input_name="customization_options_payload" builder_title="Package Upsell Builder" builder_help="Configure the optional add-ons and bundled cake customization choices available during package booking." show_option_images=True %}
             <hr>
-            <div class="form-group form-actions"><button type="submit" class="btn-primary"><i class="fas fa-save"></i> Update Package Product</button><a href="{% url 'admin_packages' %}" class="btn-secondary form-cancel-link" style="background: #6c757d; color: white; padding: 10px 25px; border-radius: 50px; text-decoration: none; margin-left: 10px;"><i class="fas fa-times"></i> Cancel</a></div>
+            <div class="form-group form-actions"><button type="submit" class="btn-primary"><i class="fas fa-save"></i> Update Package Product</button><a href="{{ back_url }}" class="btn-secondary form-cancel-link" style="background: #6c757d; color: white; padding: 10px 25px; border-radius: 50px; text-decoration: none; margin-left: 10px;"><i class="fas fa-times"></i> Cancel</a></div>
         </form>
     </div>
 </div>

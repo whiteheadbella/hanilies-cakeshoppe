@@ -21,12 +21,12 @@
                                 <label class="form-label fw-bold">First Name</label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-light"><i class="fas fa-user text-gold-pink"></i></span>
-                                    <input type="text" class="form-control" name="firstname" placeholder="First name" required>
+                                    <input type="text" class="form-control" name="firstname" data-demo="register-first-name" placeholder="First name" required>
                                 </div>
                             </div>
                             <div class="col-md-6 mb-4">
                                 <label class="form-label fw-bold">Last Name</label>
-                                <input type="text" class="form-control" name="lastname" placeholder="Last name" required>
+                                <input type="text" class="form-control" name="lastname" data-demo="register-last-name" placeholder="Last name" required>
                             </div>
                         </div>
                         
@@ -34,7 +34,7 @@
                             <label class="form-label fw-bold">Email</label>
                             <div class="input-group">
                                 <span class="input-group-text bg-light"><i class="fas fa-envelope text-gold-pink"></i></span>
-                                <input type="email" class="form-control" name="email" placeholder="Enter your email" required>
+                                <input type="email" class="form-control" name="email" data-demo="register-email" placeholder="Enter your email" required>
                             </div>
                         </div>
                         
@@ -42,7 +42,7 @@
                             <label class="form-label fw-bold">Username</label>
                             <div class="input-group">
                                 <span class="input-group-text bg-light"><i class="fas fa-user-circle text-gold-pink"></i></span>
-                                <input type="text" class="form-control" name="username" placeholder="Choose a username" required>
+                                <input type="text" class="form-control" name="username" data-demo="register-username" placeholder="Choose a username" required>
                             </div>
                         </div>
                         
@@ -50,7 +50,7 @@
                             <label class="form-label fw-bold">Password</label>
                             <div class="input-group">
                                 <span class="input-group-text bg-light"><i class="fas fa-lock text-gold-pink"></i></span>
-                                <input type="password" class="form-control" name="password" id="password" placeholder="Create a password" required>
+                                <input type="password" class="form-control" name="password" id="password" data-demo="register-password" placeholder="Create a password" required>
                             </div>
                             <small class="text-muted">Use at least 8 characters and avoid common or personal passwords.</small>
                             <div class="progress mt-2" style="height: 4px;">
@@ -62,7 +62,7 @@
                             <label class="form-label fw-bold">Confirm Password</label>
                             <div class="input-group">
                                 <span class="input-group-text bg-light"><i class="fas fa-lock text-gold-pink"></i></span>
-                                <input type="password" class="form-control" name="confirm_password" id="confirm_password" placeholder="Confirm your password" required>
+                                <input type="password" class="form-control" name="confirm_password" id="confirm_password" data-demo="register-confirm-password" placeholder="Confirm your password" required>
                             </div>
                             <div id="passwordError" class="text-danger small mt-1" style="display: none;">
                                 <i class="fas fa-exclamation-circle me-1"></i>Passwords do not match
@@ -76,7 +76,7 @@
                             <label class="form-label fw-bold">Phone Number</label>
                             <div class="input-group">
                                 <span class="input-group-text bg-light"><i class="fas fa-phone text-gold-pink"></i></span>
-                                <input type="tel" class="form-control" name="phone" id="phone" placeholder="09123456789" pattern="[0-9]{11}" maxlength="11" required>
+                                <input type="tel" class="form-control" name="phone" id="phone" data-demo="register-phone" placeholder="09123456789" pattern="[0-9]{11}" maxlength="11" required>
                             </div>
                             <div id="phoneError" class="text-danger small mt-1" style="display: none;">
                                 <i class="fas fa-exclamation-circle me-1"></i>Please enter a valid 11-digit phone number
@@ -84,13 +84,13 @@
                         </div>
                         
                         <div class="mb-4 form-check">
-                            <input type="checkbox" class="form-check-input" id="terms" required>
+                            <input type="checkbox" class="form-check-input" id="terms" data-demo="register-terms" required>
                             <label class="form-check-label" for="terms">
                                 I agree to the <a href="#" data-bs-toggle="modal" data-bs-target="#termsModal" class="text-gold-pink">Terms & Conditions</a>
                             </label>
                         </div>
                         
-                        <button type="submit" class="btn btn-gold w-100 py-3 mb-3" id="submitBtn">
+                        <button type="submit" class="btn btn-gold w-100 py-3 mb-3" id="submitBtn" data-demo="register-submit">
                             <i class="fas fa-user-plus me-2"></i>Register Customer Account
                         </button>
                     </form>

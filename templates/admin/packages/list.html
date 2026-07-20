@@ -55,10 +55,31 @@
         </div>
     </div>
 
+    <form id="packageBulkForm" method="post" action="{% url 'admin_packages_bulk_action' %}" class="admin-bulk-toolbar" data-bulk-form>
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <div class="admin-bulk-toolbar-group">
+            <span class="admin-bulk-count" data-bulk-count-for="packageBulkForm">0 selected</span>
+            <span class="product-meta">Bulk package actions sit alongside the existing per-row edit and archive controls.</span>
+        </div>
+        <div class="admin-bulk-toolbar-group">
+            <select name="action" class="form-control">
+                <option value="">Bulk action</option>
+                {% if is_archived_view %}
+                <option value="restore" data-confirm="Restore {count} selected package products?">Restore selected products</option>
+                {% else %}
+                <option value="archive" data-confirm="Archive {count} selected package products?">Archive selected products</option>
+                {% endif %}
+            </select>
+            <button type="submit" class="btn-primary" data-bulk-submit disabled>Apply</button>
+        </div>
+    </form>
+
     <div class="table-responsive">
         <table class="module-table">
             <thead>
                 <tr>
+                    <th class="admin-bulk-select-head"><input type="checkbox" class="admin-bulk-checkbox" data-bulk-toggle-for="packageBulkForm" aria-label="Select all package products"></th>
                     <th>ID</th>
                     <th>Product</th>
                     <th>Type</th>
@@ -72,6 +93,7 @@
             <tbody>
                 {% for package in packages %}
                 <tr>
+                    <td data-label="Select" class="admin-bulk-select-cell"><input type="checkbox" class="admin-bulk-checkbox" name="selected_ids" value="{{ package.id }}" form="packageBulkForm" aria-label="Select package product {{ package.name }}"></td>
                     <td data-label="ID">#{{ package.id }}</td>
                     <td data-label="Product">
                         <div class="product-stack">
@@ -80,7 +102,7 @@
                                 <img src="{{ package.image.url }}" alt="{{ package.name }}" class="product-thumb">
                                 {% endif %}
                                 <div class="product-stack" style="gap: 6px;">
-                                    <a href="{% url 'admin_package_edit' package.id %}" class="product-link">{{ package.name }}</a>
+                                    <a href="{% url 'admin_package_edit' package.id %}?next={{ request.get_full_path|urlencode }}" class="product-link">{{ package.name }}</a>
                                     <span class="product-code-badge">{{ package.product_code|default:'Not assigned' }}</span>
                                 </div>
                             </div>
@@ -92,10 +114,10 @@
                     <td data-label="Stock"><div class="stock-stack"><strong>{{ package.stock_value|default:package.stock }}</strong><span class="stock-health-badge is-{{ package.stock_health_key }}">{{ package.stock_health_label }}</span><span class="stock-helper">Tracked under product ID {{ package.product_code|default:'Not assigned' }}.</span></div></td>
                     <td data-label="Features"><button class="feature-button" onclick="viewFeatures('{{ package.name|escapejs }}', `{{ package.features|escapejs }}`)"><i class="fas fa-list"></i> View Features</button></td>
                     <td data-label="Listing Status">{% if package.status == 'active' %}<span class="status-badge status-active">Active</span>{% else %}<span class="status-badge status-cancelled">Inactive</span>{% endif %}</td>
-                    <td data-label="Actions"><div class="action-stack"><a href="{% url 'admin_package_edit' package.id %}" class="action-link"><i class="fas fa-pen"></i> Edit Package Product</a><form method="post" action="{% url 'admin_package_delete' package.id %}" style="display: inline;">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button type="submit" class="action-button {% if is_archived_view %}is-restore{% endif %}" onclick="return confirm('{% if is_archived_view %}Restore{% else %}Archive{% endif %} this package product?');"><i class="fas {% if is_archived_view %}fa-rotate-left{% else %}fa-box-archive{% endif %}"></i> {% if is_archived_view %}Restore Product{% else %}Archive Product{% endif %}</button></form></div></td>
+                    <td data-label="Actions"><div class="action-stack"><a href="{% url 'admin_package_edit' package.id %}?next={{ request.get_full_path|urlencode }}" class="action-link"><i class="fas fa-pen"></i> Edit Package Product</a><form method="post" action="{% url 'admin_package_delete' package.id %}" style="display: inline;">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button type="submit" class="action-button {% if is_archived_view %}is-restore{% endif %}" onclick="return confirm('{% if is_archived_view %}Restore{% else %}Archive{% endif %} this package product?');"><i class="fas {% if is_archived_view %}fa-rotate-left{% else %}fa-box-archive{% endif %}"></i> {% if is_archived_view %}Restore Product{% else %}Archive Product{% endif %}</button></form></div></td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="8" class="text-center" style="padding: 36px; color: #6b7280;">No package products found. <a href="{% url 'admin_package_add' %}">Add your first package product</a>.</td></tr>
+                <tr><td colspan="9" class="text-center" style="padding: 36px; color: #6b7280;">No package products found. <a href="{% url 'admin_package_add' %}">Add your first package product</a>.</td></tr>
                 {% endfor %}
             </tbody>
         </table>

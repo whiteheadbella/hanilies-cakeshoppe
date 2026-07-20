@@ -17,29 +17,7 @@
     
     <!-- Custom Admin CSS -->
     <link rel="stylesheet" href="{% static 'css/admin-custom.css' %}?v=2">
-    {% if not hide_demo_panel %}<link rel="stylesheet" href="{% static 'css/demo-panel.css' %}">{% endif %}
-{% if hide_demo_panel %}
-    <style>
-        .demo-panel-shell,
-        .demo-panel-launcher,
-        #demoControlPanel,
-        .demo-bot-callout,
-        .demo-bot-cart,
-        .demo-bot-banner,
-        .demo-bot-cursor,
-        .demo-bot-cursor-ring,
-        .demo-bot-highlight,
-        .demo-bot-click-ripple,
-        [aria-label="Open System Demo Bot"],
-        [title="System Demo Bot"] {
-            display: none !important;
-            visibility: hidden !important;
-            opacity: 0 !important;
-            pointer-events: none !important;
-        }
-    </style>
-{% endif %}
-    
+    <link rel="stylesheet" href="{% static 'css/new-demo-bot.css' %}?v=6">
     <style>
         /* Ensure sidebar is visible */
         .admin-sidebar {
@@ -795,6 +773,47 @@ body.sidebar-open {
     margin: 0;
 }
 
+.admin-bulk-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 16px 20px;
+    border-bottom: 1px solid #f4d9e5;
+    background: linear-gradient(180deg, #ffffff, #fffafb);
+}
+
+.admin-bulk-toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.admin-bulk-count {
+    color: #6b7280;
+    font-size: 0.84rem;
+    font-weight: 700;
+}
+
+.admin-bulk-toolbar .form-control {
+    min-width: 180px;
+}
+
+.admin-bulk-select-cell,
+.admin-bulk-select-head {
+    width: 56px;
+    text-align: center;
+}
+
+.admin-bulk-checkbox {
+    width: 18px;
+    height: 18px;
+    accent-color: #db2777;
+    cursor: pointer;
+}
+
 .module-table tr.is-highlighted td {
     background: linear-gradient(135deg, #fff1f6, #fef3c7);
 }
@@ -868,6 +887,14 @@ body.sidebar-open {
     .table-pagination-button {
         justify-content: center;
         flex: 1;
+    }
+
+    .admin-bulk-toolbar,
+    .admin-bulk-toolbar-group,
+    .admin-bulk-toolbar .btn-primary,
+    .admin-bulk-toolbar .btn-secondary,
+    .admin-bulk-toolbar .form-control {
+        width: 100%;
     }
 
     .admin-table-action-stack,
@@ -1064,13 +1091,6 @@ body.sidebar-open {
             </div>
         </div>
     </div>
-    
-    {% if not hide_demo_panel and request.resolver_match.url_name != 'admin_about_images' %}
-    {% block admin_demo_panel_assets %}
-    {% include 'includes/demo_panel.html' %}
-    <script src="{% static 'js/demo-panel.js' %}"></script>
-    {% endblock %}
-    {% endif %}
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
@@ -1333,6 +1353,81 @@ body.sidebar-open {
             window.addEventListener('resize', syncMobileCardTables);
         });
 
+        function initBulkActionForm(form) {
+            if (!form.id) {
+                return;
+            }
+
+            const rowCheckboxes = Array.from(document.querySelectorAll('input[name="selected_ids"][form="' + form.id + '"]'));
+            const toggles = Array.from(document.querySelectorAll('[data-bulk-toggle-for="' + form.id + '"]'));
+            const countTargets = Array.from(document.querySelectorAll('[data-bulk-count-for="' + form.id + '"]'));
+            const actionField = form.querySelector('select[name="action"]');
+            const submitButton = form.querySelector('[data-bulk-submit]');
+
+            if (!rowCheckboxes.length || !actionField || !submitButton) {
+                return;
+            }
+
+            function updateBulkState() {
+                const selectedCount = rowCheckboxes.filter(function(checkbox) {
+                    return checkbox.checked;
+                }).length;
+                const allSelected = selectedCount > 0 && selectedCount === rowCheckboxes.length;
+
+                toggles.forEach(function(toggle) {
+                    toggle.checked = allSelected;
+                    toggle.indeterminate = selectedCount > 0 && selectedCount < rowCheckboxes.length;
+                });
+
+                countTargets.forEach(function(target) {
+                    target.textContent = selectedCount + ' selected';
+                });
+
+                submitButton.disabled = selectedCount === 0 || !actionField.value;
+            }
+
+            toggles.forEach(function(toggle) {
+                toggle.addEventListener('change', function() {
+                    rowCheckboxes.forEach(function(checkbox) {
+                        checkbox.checked = toggle.checked;
+                    });
+                    updateBulkState();
+                });
+            });
+
+            rowCheckboxes.forEach(function(checkbox) {
+                checkbox.addEventListener('change', updateBulkState);
+            });
+
+            actionField.addEventListener('change', updateBulkState);
+
+            form.addEventListener('submit', function(event) {
+                const selectedCount = rowCheckboxes.filter(function(checkbox) {
+                    return checkbox.checked;
+                }).length;
+
+                if (selectedCount === 0 || !actionField.value) {
+                    event.preventDefault();
+                    return;
+                }
+
+                const selectedOption = actionField.options[actionField.selectedIndex];
+                const confirmTemplate = selectedOption ? selectedOption.dataset.confirm : '';
+                if (confirmTemplate) {
+                    const confirmMessage = confirmTemplate.replace('{count}', String(selectedCount));
+                    if (!window.confirm(confirmMessage)) {
+                        event.preventDefault();
+                    }
+                }
+            });
+
+            updateBulkState();
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('[data-bulk-form]').forEach(initBulkActionForm);
+        });
+
         // Mobile admin sidebar toggle
         document.addEventListener('DOMContentLoaded', function() {
             const sidebar = document.querySelector('.admin-sidebar');
@@ -1379,34 +1474,7 @@ body.sidebar-open {
             });
         });
     </script>
+    {% include 'includes/new_demo_bot.html' %}
     {% block extra_js %}{% endblock %}
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

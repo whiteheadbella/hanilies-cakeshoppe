@@ -3,7 +3,6 @@
 {% block title %}About Images{% endblock %}
 {% block page_title %}About Page Images{% endblock %}
 {% block page_icon %}address-card{% endblock %}
-{% block admin_demo_panel_assets %}{% endblock %}
 
 {% block content %}
 <div class="module-card">
@@ -114,25 +113,7 @@
         box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
         display: block;
     }
-
-    .demo-panel-shell,
-    .demo-panel-launcher,
-    #demoControlPanel,
-    .demo-bot-callout,
-    .demo-bot-cart,
-    .demo-bot-banner,
-    .demo-bot-cursor,
-    .demo-bot-cursor-ring,
-    .demo-bot-highlight,
-    .demo-bot-click-ripple,
-    body > [style*="position: fixed"][style*="right"][style*="bottom"] {
-        display: none !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
-    }
-
-    @media (max-width: 768px) {
+@media (max-width: 768px) {
         .module-header {
             align-items: flex-start !important;
         }
@@ -172,61 +153,4 @@
     }
 </style>
 {% endblock %}
-
-
-
-{% block extra_js %}
-<script>
-    (function () {
-        var selectors = [
-            '.demo-panel-shell',
-            '#demoControlPanel',
-            '.demo-panel-launcher',
-            '.demo-bot-callout',
-            '.demo-bot-cart',
-            '.demo-bot-banner',
-            '.demo-bot-cursor',
-            '.demo-bot-cursor-ring',
-            '.demo-bot-highlight',
-            '.demo-bot-click-ripple'
-        ];
-
-        function removeDemoWidgets() {
-            selectors.forEach(function (selector) {
-                document.querySelectorAll(selector).forEach(function (node) {
-                    node.remove();
-                });
-            });
-
-            document.querySelectorAll("body > *").forEach(function (node) {
-                if (!(node instanceof HTMLElement)) {
-                    return;
-                }
-
-                var style = window.getComputedStyle(node);
-                var rect = node.getBoundingClientRect();
-                var nearBottomRight = rect.right >= (window.innerWidth - 140) && rect.bottom >= (window.innerHeight - 140);
-                var fixedNode = style.position === 'fixed' || style.position === 'sticky';
-                var hasImage = !!node.querySelector('img');
-
-                if (fixedNode && nearBottomRight && hasImage) {
-                    node.remove();
-                }
-            });
-        }
-
-        document.addEventListener('DOMContentLoaded', removeDemoWidgets);
-        window.addEventListener('load', removeDemoWidgets);
-
-        var observer = new MutationObserver(removeDemoWidgets);
-        document.addEventListener('DOMContentLoaded', function () {
-            if (document.body) {
-                observer.observe(document.body, { childList: true, subtree: true });
-                removeDemoWidgets();
-            }
-        });
-    })();
-</script>
-{% endblock %}
-
 
